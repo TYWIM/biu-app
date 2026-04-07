@@ -26,6 +26,8 @@ const PlayListDrawer = () => {
   const clear = usePlayList(s => s.clear);
   const user = useUser(s => s.user);
   const playListItem = usePlayList(state => state.playListItem);
+  const addMediaDownloadTask = typeof window !== "undefined" ? window.electron?.addMediaDownloadTask : undefined;
+  const canDownload = Boolean(addMediaDownloadTask);
 
   const playItem = useMemo(() => list.find(item => item.id === playId), [list, playId]);
   const pureList = useMemo(() => {
@@ -44,20 +46,34 @@ const PlayListDrawer = () => {
         });
         break;
       case "download-audio":
-        await window.electron.addMediaDownloadTask({
-          outputFileType: "audio",
-          title: item.title,
-          cover: item.cover,
-          bvid: item.bvid,
-          sid: item.type === "audio" ? item.id : undefined,
-        });
-        addToast({
-          title: "已添加下载任务",
-          color: "success",
-        });
+        {
+          const downloadTask = addMediaDownloadTask;
+          if (!downloadTask) {
+            addToast({ title: "浏览器预览模式不支持下载", color: "default" });
+            return;
+          }
+
+          await downloadTask({
+            outputFileType: "audio",
+            title: item.title,
+            cover: item.cover,
+            bvid: item.bvid,
+            sid: item.type === "audio" ? item.id : undefined,
+          });
+          addToast({
+            title: "已添加下载任务",
+            color: "success",
+          });
+        }
         break;
-      case "download-video":
-        await window.electron.addMediaDownloadTask({
+      case "download-video": {
+        const downloadTask = addMediaDownloadTask;
+        if (!downloadTask) {
+          addToast({ title: "浏览器预览模式不支持下载", color: "default" });
+          return;
+        }
+
+        await downloadTask({
           outputFileType: "video",
           title: item.title,
           cover: item.cover,
@@ -68,6 +84,7 @@ const PlayListDrawer = () => {
           color: "success",
         });
         break;
+      }
       case "bililink":
         openBiliVideoLink(item);
         break;
@@ -77,7 +94,7 @@ const PlayListDrawer = () => {
       default:
         break;
     }
-  }, []);
+  }, [addMediaDownloadTask]);
 
   const scrollToPlayItem = useCallback(() => {
     if (!playItem) {
@@ -155,6 +172,7 @@ const PlayListDrawer = () => {
                 <ListItem
                   data={item}
                   isLogin={Boolean(user?.isLogin)}
+                  canDownload={canDownload}
                   isPlaying={playItem?.source === "local" ? playItem?.id === item.id : isSame(playItem, item)}
                   onClose={() => setOpen(false)}
                   onPress={() => playListItem(item.id)}

@@ -24,18 +24,27 @@ import Empty from "@/components/empty";
 import Image from "@/components/image";
 import ScrollContainer from "@/components/scroll-container";
 import { useSettings } from "@/store/settings";
+import useIsMobile from "@/common/hooks/use-is-mobile";
 
 import DownloadActions from "./actions";
 import DownloadProgress from "./progress";
 
 const DownloadList = () => {
   const downloadPath = useSettings(s => s.downloadPath);
+  const isMobile = useIsMobile();
+  const electron = window.electron;
+  const isBrowserPreview = !electron;
   const [downloadList, setDownloadList] = useState<MediaDownloadTask[]>([]);
   const [fileType, setFileType] = useState<string>("all");
 
   useEffect(() => {
+    if (!electron?.getMediaDownloadTaskList || !electron?.syncMediaDownloadTaskList) {
+      setDownloadList([]);
+      return;
+    }
+
     const initList = async () => {
-      const list = await window.electron.getMediaDownloadTaskList();
+      const list = await electron.getMediaDownloadTaskList();
       if (list.length) {
         setDownloadList(list);
       }
@@ -43,7 +52,7 @@ const DownloadList = () => {
 
     initList();
 
-    const removeListener = window.electron.syncMediaDownloadTaskList(payload => {
+    const removeListener = electron.syncMediaDownloadTaskList(payload => {
       if (payload?.type === "full") {
         setDownloadList(payload.data as MediaDownloadTask[]);
       } else if (payload?.type === "update") {
@@ -60,14 +69,14 @@ const DownloadList = () => {
     return () => {
       removeListener();
     };
-  }, []);
+  }, [electron]);
 
   const clearDownloadList = async () => {
-    await window.electron.clearMediaDownloadTaskList();
+    await electron?.clearMediaDownloadTaskList?.();
   };
 
   const openDownloadDir = async () => {
-    await window.electron.openDirectory(downloadPath);
+    await electron?.openDirectory?.(downloadPath);
   };
 
   const getFileQuality = (item: MediaDownloadTask) => {
@@ -93,15 +102,18 @@ const DownloadList = () => {
   };
 
   return (
-    <ScrollContainer enableBackToTop className="h-full w-full px-4">
-      <div className="mb-2 flex items-center justify-between">
+    <ScrollContainer enableBackToTop className={isMobile ? "h-full w-full px-4 py-3" : "h-full w-full px-4"}>
+      <div className={isMobile ? "mb-3 flex flex-col gap-3" : "mb-2 flex items-center justify-between"}>
         <h1 className="flex items-center space-x-1">下载记录</h1>
-        <div className="flex items-center space-x-1">
-          <Button variant="flat" onPress={openDownloadDir} startContent={<RiFolderLine size={18} />}>
+        <div className={isMobile ? "w-full" : "flex items-center space-x-1"}>
+          <Button variant="flat" onPress={openDownloadDir} startContent={<RiFolderLine size={18} />} isDisabled={!electron?.openDirectory} className={isMobile ? "w-full justify-start" : undefined}>
             {downloadPath}
           </Button>
         </div>
       </div>
+      {isBrowserPreview && (
+        <Empty className="py-8" title="浏览器预览模式下不提供 Electron 下载记录，这里只用于检查手机端排版。" />
+      )}
       <Card radius="md" shadow="sm">
         <CardBody>
           <div className="w-full overflow-x-auto">
@@ -111,9 +123,9 @@ const DownloadList = () => {
               aria-label="下载列表"
               removeWrapper
               topContent={
-                <div className="flex justify-between">
+                <div className={isMobile ? "flex flex-col gap-3" : "flex justify-between"}>
                   <RadioGroup
-                    orientation="horizontal"
+                    orientation={isMobile ? "vertical" : "horizontal"}
                     value={fileType}
                     onValueChange={setFileType}
                     classNames={{
@@ -152,7 +164,7 @@ const DownloadList = () => {
               </TableHeader>
               <TableBody
                 items={downloadList.filter(item => fileType === "all" || item.outputFileType === fileType)}
-                emptyContent={<Empty />}
+                emptyContent={<Empty title={isBrowserPreview ? "浏览器预览模式下暂无下载数据" : undefined} />}
               >
                 {item => {
                   const quality = getFileQuality(item);

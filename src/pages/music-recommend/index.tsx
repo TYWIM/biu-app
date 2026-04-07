@@ -3,7 +3,10 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { addToast, Spinner, Tab, Tabs } from "@heroui/react";
 import { RiPlayFill } from "@remixicon/react";
 
+import useIsMobile from "@/common/hooks/use-is-mobile";
+import { openBiliVideoLink } from "@/common/utils/url";
 import AsyncButton from "@/components/async-button";
+import Empty from "@/components/empty";
 import ScrollContainer, { type ScrollRefObject } from "@/components/scroll-container";
 import { getMusicComprehensiveWebRank, type Data as MusicItem } from "@/service/music-comprehensive-web-rank";
 import { getRegionFeedRcmd, type Archive } from "@/service/web-interface-region-feed-rcmd";
@@ -59,18 +62,24 @@ const normalizeRegionItem = (item: Archive, fallbackId: string | number): Recomm
 
 const MusicRecommend = () => {
   const scrollerRef = useRef<ScrollRefObject>(null);
+  const isMobile = useIsMobile();
+  const isBrowserPreview = typeof window !== "undefined" && !window.electron;
+  const addMediaDownloadTask = typeof window !== "undefined" ? window.electron?.addMediaDownloadTask : undefined;
+  const canDownload = Boolean(addMediaDownloadTask);
 
   const [list, setList] = useState<RecommendItem[]>([]);
   const [hasMore, setHasMore] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
   const pageRef = useRef(1);
   const [activeTab, setActiveTab] = useState<RecommendTabKey>("music");
   const scrollRestoreRef = useRef<{ tab: RecommendTabKey; top: number } | null>(null);
   const [popLayoutVersion, setPopLayoutVersion] = useState(0);
 
   const displayMode = useSettings(state => state.displayMode);
-  const listKey = `${activeTab}-${displayMode}-${activeTab === "pop" ? popLayoutVersion : 0}`;
+  const shouldUseGrid = isMobile || displayMode === "card";
+  const listKey = `${activeTab}-${shouldUseGrid ? "card" : displayMode}-${activeTab === "pop" ? popLayoutVersion : 0}`;
 
   const getScrollElement = useCallback(() => {
     return (scrollerRef.current?.osInstance()?.elements().viewport as HTMLElement | null) ?? null;
@@ -82,38 +91,54 @@ const MusicRecommend = () => {
 
   const fetchPage = useCallback(
     async (pn: number = 1) => {
-      if (activeTab === "pop") {
-        const res = await getMusicComprehensiveWebRank({ pn, ps: PAGE_SIZE, web_location: "333.1351" });
-        const items = res?.data?.list ?? [];
+      try {
+        if (activeTab === "pop") {
+          const res = await getMusicComprehensiveWebRank({ pn, ps: PAGE_SIZE, web_location: "333.1351" });
+          const items = res?.data?.list ?? [];
+          if (res.code === 0) {
+            const normalized = items.map(normalizeRankItem);
+            setList(prev => (pn === 1 ? normalized : [...prev, ...normalized]));
+            setHasMore(items.length === PAGE_SIZE);
+            if (pn === 1) {
+              setLoadFailed(false);
+            }
+          } else {
+            if (pn === 1) {
+              setList([]);
+              setLoadFailed(true);
+            }
+            setHasMore(false);
+          }
+          return;
+        }
+
+        const res = await getRegionFeedRcmd({
+          display_id: pn,
+          request_cnt: REGION_PAGE_SIZE,
+          from_region: REGION_MAP[activeTab],
+          device: "web",
+          plat: 30,
+          web_location: REGION_WEB_LOCATION,
+        });
+        const items = res?.data?.archives ?? [];
         if (res.code === 0) {
-          const normalized = items.map(normalizeRankItem);
+          const normalized = items.map((item, index) => normalizeRegionItem(item, `${pn}-${index}`));
           setList(prev => (pn === 1 ? normalized : [...prev, ...normalized]));
-          setHasMore(items.length === PAGE_SIZE);
+          setHasMore(items.length === REGION_PAGE_SIZE);
+          if (pn === 1) {
+            setLoadFailed(false);
+          }
         } else {
           if (pn === 1) {
             setList([]);
+            setLoadFailed(true);
           }
           setHasMore(false);
         }
-        return;
-      }
-
-      const res = await getRegionFeedRcmd({
-        display_id: pn,
-        request_cnt: REGION_PAGE_SIZE,
-        from_region: REGION_MAP[activeTab],
-        device: "web",
-        plat: 30,
-        web_location: REGION_WEB_LOCATION,
-      });
-      const items = res?.data?.archives ?? [];
-      if (res.code === 0) {
-        const normalized = items.map((item, index) => normalizeRegionItem(item, `${pn}-${index}`));
-        setList(prev => (pn === 1 ? normalized : [...prev, ...normalized]));
-        setHasMore(items.length === REGION_PAGE_SIZE);
-      } else {
+      } catch {
         if (pn === 1) {
           setList([]);
+          setLoadFailed(true);
         }
         setHasMore(false);
       }
@@ -137,6 +162,7 @@ const MusicRecommend = () => {
       pageRef.current = 1;
       setHasMore(true);
       setLoadingMore(false);
+      setLoadFailed(false);
       await fetchPage(1);
     } finally {
       setInitialLoading(false);
@@ -224,19 +250,33 @@ const MusicRecommend = () => {
         ]);
         break;
       case "download-audio":
-        await window.electron.addMediaDownloadTask({
-          outputFileType: "audio",
-          title: item.title,
-          cover: item.cover,
-          bvid: item.bvid,
-        });
-        addToast({
-          title: "已添加下载任务",
-          color: "success",
-        });
+        {
+          const downloadTask = addMediaDownloadTask;
+          if (!downloadTask) {
+            addToast({ title: "浏览器预览模式不支持下载", color: "default" });
+            return;
+          }
+
+          await downloadTask({
+            outputFileType: "audio",
+            title: item.title,
+            cover: item.cover,
+            bvid: item.bvid,
+          });
+          addToast({
+            title: "已添加下载任务",
+            color: "success",
+          });
+        }
         break;
-      case "download-video":
-        await window.electron.addMediaDownloadTask({
+      case "download-video": {
+        const downloadTask = addMediaDownloadTask;
+        if (!downloadTask) {
+          addToast({ title: "浏览器预览模式不支持下载", color: "default" });
+          return;
+        }
+
+        await downloadTask({
           outputFileType: "video",
           title: item.title,
           cover: item.cover,
@@ -247,25 +287,28 @@ const MusicRecommend = () => {
           color: "success",
         });
         break;
+      }
       case "bililink":
         if (item.bvid) {
-          window.electron.openExternal(`https://www.bilibili.com/video/${item.bvid}`);
+          openBiliVideoLink({ type: "mv", bvid: item.bvid });
         }
         break;
       default:
         break;
     }
-  }, []);
+  }, [addMediaDownloadTask]);
 
   return (
-    <ScrollContainer enableBackToTop ref={scrollerRef} className="h-full w-full px-4">
-      <div className="mb-2 flex items-center justify-between">
+    <ScrollContainer enableBackToTop ref={scrollerRef} className={isMobile ? "h-full w-full px-4 py-3" : "h-full w-full px-4"}>
+      <div className={isMobile ? "mb-3 flex flex-col gap-3" : "mb-2 flex items-center justify-between"}>
         <Tabs
           variant="solid"
-          size="lg"
+          size={isMobile ? "sm" : "lg"}
           radius="md"
+          className={isMobile ? "w-full" : undefined}
           classNames={{
             cursor: "rounded-medium",
+            tabList: "max-w-full overflow-x-auto no-scrollbar",
           }}
           selectedKey={activeTab}
           onSelectionChange={key => {
@@ -283,18 +326,37 @@ const MusicRecommend = () => {
         </Tabs>
         <AsyncButton
           color="primary"
-          size="md"
+          size={isMobile ? "sm" : "md"}
           startContent={<RiPlayFill size={18} />}
           isDisabled={initialLoading || list.length === 0}
           onPress={handlePlayAll}
-          className="dark:text-black"
+          className={isMobile ? "w-full dark:text-black" : "dark:text-black"}
         >
           全部播放
         </AsyncButton>
       </div>
       {activeTab === "pop" && <NewMusicTop onLayoutChange={handlePopLayoutChange} />}
       <div className="relative">
-        {displayMode === "card" ? (
+        {!initialLoading && list.length === 0 ? (
+          <div className="py-4">
+            <Empty
+              title={
+                loadFailed
+                  ? isBrowserPreview
+                    ? "浏览器预览模式下无法直接加载首页推荐数据"
+                    : "推荐内容加载失败"
+                  : "暂无推荐内容"
+              }
+            />
+            {loadFailed && (
+              <div className="flex justify-center">
+                <AsyncButton variant="flat" onPress={init}>
+                  重试
+                </AsyncButton>
+              </div>
+            )}
+          </div>
+        ) : shouldUseGrid ? (
           <MusicRecommendGridList
             key={listKey}
             items={list}
@@ -302,6 +364,7 @@ const MusicRecommend = () => {
             loading={loadingMore}
             onLoadMore={loadMore}
             getScrollElement={getScrollElement}
+            canDownload={canDownload}
             onMenuAction={handleMenuAction}
           />
         ) : (
@@ -312,6 +375,7 @@ const MusicRecommend = () => {
             loading={loadingMore}
             onLoadMore={loadMore}
             getScrollElement={getScrollElement}
+            canDownload={canDownload}
             onMenuAction={handleMenuAction}
           />
         )}

@@ -26,6 +26,7 @@ import { CollectionType } from "@/common/constants/collection";
 import { getAllFavMedia } from "@/common/utils/fav";
 import { type ContextMenuItem } from "@/components/context-menu";
 import MenuGroup from "@/components/menu/menu-group";
+import { type MenuItemProps } from "@/components/menu/menu-item";
 import SortableMenuItem from "@/layout/side/collection/sortable-menu-item";
 import { postFavFolderDel } from "@/service/fav-folder-del";
 import { postFavFolderUnfav } from "@/service/fav-folder-unfav";
@@ -42,12 +43,12 @@ interface Props {
   onOpenEditFavorite?: (id: number) => void;
 }
 
-interface CollectionMenuItem {
+interface CollectionMenuItem extends MenuItemProps {
   id: number;
   title: string;
   href: string;
   cover?: string;
-  className: string;
+  className?: string;
   type?: number;
   mid?: number;
 }
@@ -439,17 +440,20 @@ const Collection = ({ isCollapsed, onOpenAddFavorite, onOpenEditFavorite }: Prop
         <MenuGroup
           items={items}
           collapsed={isCollapsed}
-          renderItem={item => (
-            <SortableMenuItem
-              key={item.id}
-              id={item.id}
-              collapsed={isCollapsed}
-              disabled={!isGroupDragEnabled}
-              contextMenuItems={contextMenuItems}
-              onContextMenuAction={action => onContextMenuAction(action, item)}
-              {...item}
-            />
-          )}
+          renderItem={(_, index) => {
+            const item = items[index];
+
+            return (
+              <SortableMenuItem
+                key={item.id}
+                collapsed={isCollapsed}
+                disabled={!isGroupDragEnabled}
+                contextMenuItems={contextMenuItems}
+                onContextMenuAction={action => onContextMenuAction(action, item)}
+                {...item}
+              />
+            );
+          }}
         />
       </>
     );

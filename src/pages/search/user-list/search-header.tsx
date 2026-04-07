@@ -2,6 +2,7 @@ import React from "react";
 
 import { Tab, Tabs } from "@heroui/react";
 
+import useIsMobile from "@/common/hooks/use-is-mobile";
 import type { UserSortKey } from "./utils";
 
 interface SearchHeaderProps {
@@ -18,15 +19,19 @@ const sortOptions: { label: string; value: UserSortKey }[] = [
 ];
 
 export default function SearchHeader({ sortKey, onSortChange }: SearchHeaderProps) {
+  const isMobile = useIsMobile();
+
   return (
-    <div className="flex items-center justify-between px-4 pb-4">
+    <div className="px-4 pb-4">
       <Tabs
         variant="light"
+        size={isMobile ? "sm" : "md"}
         radius="md"
         classNames={{
           cursor: "rounded-medium",
+          tabList: "max-w-full overflow-x-auto no-scrollbar",
         }}
-        className="-ml-1"
+        className={isMobile ? "w-full" : "-ml-1"}
         selectedKey={sortKey}
         onSelectionChange={key => onSortChange(key as UserSortKey)}
       >

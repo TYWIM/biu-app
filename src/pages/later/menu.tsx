@@ -7,8 +7,9 @@ import {
   RiPlayListAddLine,
 } from "@remixicon/react";
 
-export const getContextMenus = ({ is_pgc }: { is_pgc: boolean }) => {
+export const getContextMenus = ({ is_pgc, canDownload }: { is_pgc: boolean; canDownload?: boolean }) => {
   const cannotPlay = is_pgc;
+  const resolvedCanDownload = canDownload ?? (typeof window !== "undefined" && Boolean(window.electron?.addMediaDownloadTask));
 
   return [
     {
@@ -27,13 +28,13 @@ export const getContextMenus = ({ is_pgc }: { is_pgc: boolean }) => {
       icon: <RiFileMusicLine size={18} />,
       key: "download-audio",
       label: "下载音频",
-      hidden: cannotPlay,
+      hidden: cannotPlay || !resolvedCanDownload,
     },
     {
       icon: <RiFileVideoLine size={18} />,
       key: "download-video",
       label: "下载视频",
-      hidden: cannotPlay,
+      hidden: cannotPlay || !resolvedCanDownload,
     },
     {
       key: "bililink",

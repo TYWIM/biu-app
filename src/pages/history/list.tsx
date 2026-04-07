@@ -17,6 +17,7 @@ interface HistoryListProps {
   loading: boolean;
   onLoadMore: () => void;
   getScrollElement: () => HTMLElement | null;
+  canDownload: boolean;
   onMenuAction: (key: string, item: HistoryListItemType) => void;
 }
 
@@ -26,6 +27,7 @@ const HistoryList: React.FC<HistoryListProps> = ({
   loading,
   onLoadMore,
   getScrollElement,
+  canDownload,
   onMenuAction,
 }) => {
   const displayMode = useSettings(state => state.displayMode);
@@ -71,6 +73,7 @@ const HistoryList: React.FC<HistoryListProps> = ({
               onPress={item.history.business === "pgc" ? undefined : () => handlePress(item)}
               menus={getContextMenus({
                 business: item.history.business,
+                canDownload,
               })}
               onMenuAction={key => onMenuAction(key, item)}
               isCompact={isCompact}

@@ -14,6 +14,7 @@ interface PostGridListProps {
   loading: boolean;
   onLoadMore: () => void;
   getScrollElement: () => HTMLElement | null;
+  canDownload?: boolean;
   onMenuAction: (key: string, item: SpaceArcVListItem) => void;
 }
 
@@ -23,6 +24,7 @@ const PostGridList: React.FC<PostGridListProps> = ({
   loading,
   onLoadMore,
   getScrollElement,
+  canDownload,
   onMenuAction,
 }) => {
   const renderGridItem = useCallback(
@@ -37,7 +39,7 @@ const PostGridList: React.FC<PostGridListProps> = ({
           ownerName={item.author}
           ownerMid={item.mid}
           time={item.created}
-          menus={getContextMenus()}
+          menus={getContextMenus({ canDownload })}
           onMenuAction={key => {
             onMenuAction(key, item);
           }}
@@ -54,7 +56,7 @@ const PostGridList: React.FC<PostGridListProps> = ({
         />
       );
     },
-    [onMenuAction],
+    [canDownload, onMenuAction],
   );
 
   return (

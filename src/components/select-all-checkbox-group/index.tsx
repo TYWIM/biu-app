@@ -1,6 +1,7 @@
 import React from "react";
-
+ 
 import { Checkbox, CheckboxGroup } from "@heroui/react";
+import useIsMobile from "@/common/hooks/use-is-mobile";
 
 interface SelectAllCheckboxGroupProps {
   groupName: string;
@@ -19,6 +20,7 @@ const SelectAllCheckboxGroup: React.FC<SelectAllCheckboxGroupProps> = ({
   disabled = false,
   items,
 }) => {
+  const isMobile = useIsMobile();
   const isSelectAll = groupKeys.length > 0 && selectedKeys.length === groupKeys.length;
 
   const handleSelectAllChange = (checked: boolean) => {
@@ -48,7 +50,7 @@ const SelectAllCheckboxGroup: React.FC<SelectAllCheckboxGroupProps> = ({
         onValueChange={handleCheckboxGroupChange}
         isDisabled={disabled || !groupKeys.length}
         color="success"
-        orientation="horizontal"
+        orientation={isMobile ? "vertical" : "horizontal"}
         classNames={{
           wrapper: "gap-4",
         }}

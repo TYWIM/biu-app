@@ -22,6 +22,14 @@ interface Props {
 const LyricsSearchModal = ({ isOpen, onOpenChange, onLyricsAdopted }: Props) => {
   const playId = usePlayList(state => state.playId);
   const getPlayItem = usePlayList(state => state.getPlayItem);
+  const electron = typeof window !== "undefined" ? window.electron : undefined;
+  const searchNeteaseSongs = electron?.searchNeteaseSongs;
+  const searchLrclibLyrics = electron?.searchLrclibLyrics;
+  const getStore = electron?.getStore;
+  const setStore = electron?.setStore;
+  const canSearchNetease = Boolean(electron?.searchNeteaseSongs);
+  const canSearchLrclib = Boolean(electron?.searchLrclibLyrics);
+  const canPersistLyrics = Boolean(electron?.getStore && electron?.setStore);
   const [keyword, setKeyword] = useState("");
   const [activeTab, setActiveTab] = useState<"netease" | "lrclib">("netease");
   const [neteaseSongs, setNeteaseSongs] = useState<NeteaseSong[]>([]);
@@ -59,10 +67,16 @@ const LyricsSearchModal = ({ isOpen, onOpenChange, onLyricsAdopted }: Props) => 
       if (query === "") return;
 
       if (tab === "netease") {
+        if (!canSearchNetease) {
+          setNeteaseSongs([]);
+          setNeteaseLoading(false);
+          return;
+        }
+
         setLrclibLoading(false);
         try {
           setNeteaseLoading(true);
-          const res = await window.electron.searchNeteaseSongs({
+          const res = await searchNeteaseSongs?.({
             s: query,
             type: NETEASE_TYPE_SONG,
             limit: DEFAULT_LIMIT,
@@ -77,10 +91,16 @@ const LyricsSearchModal = ({ isOpen, onOpenChange, onLyricsAdopted }: Props) => 
           setNeteaseLoading(false);
         }
       } else {
+        if (!canSearchLrclib) {
+          setLrclibSongs([]);
+          setLrclibLoading(false);
+          return;
+        }
+
         setNeteaseLoading(false);
         try {
           setLrclibLoading(true);
-          const res = await window.electron.searchLrclibLyrics({ q: query });
+          const res = await searchLrclibLyrics?.({ q: query });
           setLrclibSongs(res ?? []);
         } catch {
           setLrclibSongs([]);
@@ -116,12 +136,17 @@ const LyricsSearchModal = ({ isOpen, onOpenChange, onLyricsAdopted }: Props) => 
         tLyrics: tLyricsText,
       };
 
+      if (!canPersistLyrics) {
+        onLyricsAdopted?.(lyricsText, tLyricsText);
+        return true;
+      }
+
       try {
-        const store = await window.electron.getStore(StoreNameMap.LyricsCache);
+        const store = await getStore?.(StoreNameMap.LyricsCache);
         const key = `${current.bvid}-${current.cid}`;
         const prev = store?.[key] || {};
         const nextStore = { ...(store ?? {}), [key]: { ...prev, ...nextLyrics } };
-        await window.electron.setStore(StoreNameMap.LyricsCache, nextStore);
+        await setStore?.(StoreNameMap.LyricsCache, nextStore);
         onLyricsAdopted?.(lyricsText, tLyricsText);
         return true;
       } catch {
@@ -129,7 +154,7 @@ const LyricsSearchModal = ({ isOpen, onOpenChange, onLyricsAdopted }: Props) => 
         return false;
       }
     },
-    [getPlayItem, onLyricsAdopted],
+    [canPersistLyrics, getPlayItem, getStore, onLyricsAdopted, searchLrclibLyrics, searchNeteaseSongs, setStore],
   );
 
   const handleOpenChange = useCallback(
@@ -147,6 +172,9 @@ const LyricsSearchModal = ({ isOpen, onOpenChange, onLyricsAdopted }: Props) => 
       <ModalContent>
         <ModalHeader className="flex flex-col gap-1">搜索歌词</ModalHeader>
         <ModalBody className="pb-6">
+          {!canSearchNetease && !canSearchLrclib && (
+            <div className="text-default-500 text-sm">浏览器预览模式暂不支持在线歌词搜索</div>
+          )}
           <div className="flex gap-2">
             <Input
               value={keyword}
@@ -156,7 +184,7 @@ const LyricsSearchModal = ({ isOpen, onOpenChange, onLyricsAdopted }: Props) => 
                 if (e.key === "Enter") handleSubmit(activeTab);
               }}
             />
-            <Button color="primary" onPress={() => handleSubmit(activeTab)}>
+            <Button color="primary" onPress={() => handleSubmit(activeTab)} isDisabled={!canSearchNetease && !canSearchLrclib}>
               搜索
             </Button>
           </div>

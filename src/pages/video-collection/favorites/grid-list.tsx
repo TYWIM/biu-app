@@ -14,6 +14,7 @@ interface FavoriteGridListProps {
   onLoadMore: () => void;
   getScrollElement: () => HTMLElement | null;
   isCreatedBySelf: boolean;
+  canDownload?: boolean;
   onMenuAction: (key: string, item: FavMedia) => void;
   onItemPress: (item: FavMedia) => void;
 }
@@ -25,6 +26,7 @@ const FavoriteGridList: React.FC<FavoriteGridListProps> = ({
   onLoadMore,
   getScrollElement,
   isCreatedBySelf,
+  canDownload,
   onMenuAction,
   onItemPress,
 }) => {
@@ -45,6 +47,7 @@ const FavoriteGridList: React.FC<FavoriteGridListProps> = ({
           menus={getContextMenus({
             isCreatedBySelf,
             type: item.type,
+            canDownload,
           })}
           onMenuAction={key => {
             onMenuAction(key, item);
@@ -53,7 +56,7 @@ const FavoriteGridList: React.FC<FavoriteGridListProps> = ({
         />
       );
     },
-    [isCreatedBySelf, onItemPress, onMenuAction],
+    [canDownload, isCreatedBySelf, onItemPress, onMenuAction],
   );
 
   return (

@@ -4,12 +4,14 @@ import { Button, Input } from "@heroui/react";
 import { RiSearchLine } from "@remixicon/react";
 import { useClickAway, useDebounceFn } from "ahooks";
 import { motion, AnimatePresence } from "framer-motion";
+import useIsMobile from "@/common/hooks/use-is-mobile";
 
 interface Props {
   onSearch?: (value: string) => void;
 }
 
 const SearchButton = ({ onSearch }: Props) => {
+  const isMobile = useIsMobile();
   const [isExpanded, setIsExpanded] = useState(false);
   const [value, setValue] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
@@ -37,6 +39,37 @@ const SearchButton = ({ onSearch }: Props) => {
       return () => clearTimeout(timer);
     }
   }, [isExpanded]);
+
+  if (isMobile) {
+    return (
+      <div ref={containerRef} className="w-full">
+        <Input
+          isClearable
+          radius="md"
+          value={value}
+          onValueChange={val => {
+            setValue(val);
+            handleSearch(val);
+          }}
+          onClear={() => {
+            setValue("");
+            handleSearch("");
+          }}
+          onKeyDown={e => {
+            if (e.key === "Enter") {
+              handleSearch(value);
+            }
+          }}
+          placeholder="搜索"
+          startContent={<RiSearchLine size={18} className="text-default-400" />}
+          className="w-full"
+          classNames={{
+            inputWrapper: "h-10 pr-1",
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div ref={containerRef} className="flex items-center justify-end">

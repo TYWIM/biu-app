@@ -31,7 +31,7 @@ export const useSettings = create<AppSettings & SettingsActions>()(
       name: "settings",
       storage: {
         getItem: async () => {
-          const store = await window.electron.getStore(StoreNameMap.AppSettings);
+          const store = await window.electron?.getStore?.(StoreNameMap.AppSettings);
 
           // 兼容之前的错误默认值
           if (store?.appSettings?.fontFamily === "system-default") {
@@ -44,7 +44,7 @@ export const useSettings = create<AppSettings & SettingsActions>()(
         },
 
         setItem: async (_, value) => {
-          if (value.state) {
+          if (value.state && window.electron?.setStore) {
             await window.electron.setStore(StoreNameMap.AppSettings, {
               appSettings: value.state,
             });
@@ -52,7 +52,7 @@ export const useSettings = create<AppSettings & SettingsActions>()(
         },
 
         removeItem: async () => {
-          await window.electron.clearStore(StoreNameMap.AppSettings);
+          await window.electron?.clearStore?.(StoreNameMap.AppSettings);
         },
       },
       partialize: state => {

@@ -4,6 +4,7 @@ import { useParams } from "react-router";
 import { addToast, Spinner } from "@heroui/react";
 import { RiPlayFill } from "@remixicon/react";
 
+import useIsMobile from "@/common/hooks/use-is-mobile";
 import AsyncButton from "@/components/async-button";
 import SearchWithSort from "@/components/search-with-sort";
 import { getSpaceWbiArcSearch, type SpaceArcVListItem } from "@/service/space-wbi-arc-search";
@@ -20,7 +21,11 @@ interface VideoPostProps {
 
 const VideoPost: React.FC<VideoPostProps> = ({ getScrollElement }) => {
   const { id } = useParams();
+  const isMobile = useIsMobile();
   const displayMode = useSettings(state => state.displayMode);
+  const addMediaDownloadTask = typeof window !== "undefined" ? window.electron?.addMediaDownloadTask : undefined;
+  const canDownload = Boolean(addMediaDownloadTask);
+  const shouldUseGrid = isMobile || displayMode === "card";
 
   const [keyword, setKeyword] = useState("");
   const [order, setOrder] = useState("pubdate");
@@ -120,19 +125,33 @@ const VideoPost: React.FC<VideoPostProps> = ({ getScrollElement }) => {
         ]);
         break;
       case "download-audio":
-        window.electron?.addMediaDownloadTask({
-          outputFileType: "audio",
-          title: item.title,
-          cover: item.pic,
-          bvid: item.bvid,
-        });
-        addToast({
-          title: "已添加下载任务",
-          color: "success",
-        });
+        {
+          const downloadTask = addMediaDownloadTask;
+          if (!downloadTask) {
+            addToast({ title: "浏览器预览模式不支持下载", color: "default" });
+            return;
+          }
+
+          void downloadTask({
+            outputFileType: "audio",
+            title: item.title,
+            cover: item.pic,
+            bvid: item.bvid,
+          });
+          addToast({
+            title: "已添加下载任务",
+            color: "success",
+          });
+        }
         break;
-      case "download-video":
-        window.electron?.addMediaDownloadTask({
+      case "download-video": {
+        const downloadTask = addMediaDownloadTask;
+        if (!downloadTask) {
+          addToast({ title: "浏览器预览模式不支持下载", color: "default" });
+          return;
+        }
+
+        void downloadTask({
           outputFileType: "video",
           title: item.title,
           cover: item.pic,
@@ -143,6 +162,7 @@ const VideoPost: React.FC<VideoPostProps> = ({ getScrollElement }) => {
           color: "success",
         });
         break;
+      }
       case "favorite":
         useModalStore.getState().onOpenFavSelectModal({
           rid: item.aid,
@@ -151,7 +171,7 @@ const VideoPost: React.FC<VideoPostProps> = ({ getScrollElement }) => {
         });
         break;
     }
-  }, []);
+  }, [addMediaDownloadTask]);
 
   const handlePlayAll = useCallback(async () => {
     if (!id) {
@@ -233,20 +253,20 @@ const VideoPost: React.FC<VideoPostProps> = ({ getScrollElement }) => {
 
   return (
     <div className="h-full w-full">
-      <div className="mb-4 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
-        <div className="flex items-center">
+      <div className={isMobile ? "mb-4 flex flex-col gap-3" : "mb-4 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center"}>
+        <div className={isMobile ? "flex w-full flex-col gap-2" : "flex items-center"}>
           <AsyncButton
             color="primary"
             startContent={<RiPlayFill size={18} />}
             isDisabled={initialLoading || items.length === 0}
             onPress={handlePlayAll}
-            className="dark:text-black"
+            className={isMobile ? "w-full dark:text-black" : "dark:text-black"}
           >
             播放
           </AsyncButton>
-          <div className="text-default-500 pl-2 text-sm">共 {total} 条</div>
+          <div className={isMobile ? "text-default-500 text-sm" : "text-default-500 pl-2 text-sm"}>共 {total} 条</div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className={isMobile ? "w-full" : "flex items-center gap-3"}>
           <SearchWithSort
             onKeywordSearch={setKeyword}
             order={order}
@@ -263,13 +283,14 @@ const VideoPost: React.FC<VideoPostProps> = ({ getScrollElement }) => {
         <div className="flex h-[280px] items-center justify-center">
           <Spinner label="加载中" />
         </div>
-      ) : displayMode === "card" ? (
+      ) : shouldUseGrid ? (
         <PostGridList
           items={items}
           hasMore={hasMore}
           loading={loadingMore}
           getScrollElement={getScrollElement}
           onLoadMore={handleLoadMore}
+          canDownload={canDownload}
           onMenuAction={handleMenuAction}
         />
       ) : (
@@ -279,6 +300,7 @@ const VideoPost: React.FC<VideoPostProps> = ({ getScrollElement }) => {
           loading={loadingMore}
           getScrollElement={getScrollElement}
           onLoadMore={handleLoadMore}
+          canDownload={canDownload}
           onMenuAction={handleMenuAction}
         />
       )}

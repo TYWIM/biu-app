@@ -2,6 +2,7 @@ import React, { useRef, useState } from "react";
 
 import { Tabs, Tab } from "@heroui/react";
 
+import useIsMobile from "@/common/hooks/use-is-mobile";
 import Empty from "@/components/empty";
 import ScrollContainer, { type ScrollRefObject } from "@/components/scroll-container";
 import { useSearchHistory } from "@/store/search-history";
@@ -14,6 +15,7 @@ const Search = () => {
   const scrollerRef = useRef<ScrollRefObject>(null);
   const [searchType, setSearchType] = useState(SearchType.Video);
   const keyword = useSearchHistory(s => s.keyword);
+  const isMobile = useIsMobile();
 
   if (!keyword) {
     return <Empty />;
@@ -21,16 +23,18 @@ const Search = () => {
 
   return (
     <ScrollContainer enableBackToTop ref={scrollerRef} className="h-full w-full">
-      <div className="px-4">
+      <div className={isMobile ? "px-4 py-3" : "px-4"}>
         <h1>搜索【{keyword}】的结果</h1>
-        <div className="flex items-center justify-between py-4">
+        <div className={isMobile ? "pt-3" : "flex items-center justify-between py-4"}>
           <Tabs
             variant="solid"
+            size={isMobile ? "sm" : "md"}
             radius="md"
             classNames={{
               cursor: "rounded-medium",
+              tabList: "max-w-full overflow-x-auto no-scrollbar",
             }}
-            className="-ml-1"
+            className={isMobile ? "w-full" : "-ml-1"}
             items={SearchTypeOptions}
             selectedKey={searchType}
             onSelectionChange={v => {

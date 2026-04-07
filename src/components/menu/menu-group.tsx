@@ -2,16 +2,16 @@ import clx from "classnames";
 
 import MenuItem, { type MenuItemProps } from "../../components/menu/menu-item";
 
-interface Props {
+interface Props<T extends MenuItemProps = MenuItemProps> {
   title?: React.ReactNode;
   titleExtra?: React.ReactNode;
-  items: MenuItemProps[];
+  items: T[];
   collapsed?: boolean;
   className?: string;
-  renderItem?: (item: MenuItemProps, index: number) => React.ReactNode;
+  renderItem?: (item: T, index: number) => React.ReactNode;
 }
 
-const MenuGroup = ({ title, titleExtra, items, collapsed, className, renderItem }: Props) => {
+const MenuGroup = <T extends MenuItemProps,>({ title, titleExtra, items, collapsed, className, renderItem }: Props<T>) => {
   return (
     <>
       {!collapsed && Boolean(title) && (

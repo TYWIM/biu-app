@@ -9,6 +9,8 @@ import { encodeParamsWbi } from "./wbi-sign";
 let refreshCookiePromise: Promise<any> | null = null;
 
 export const requestInterceptors = async (config: InternalAxiosRequestConfig) => {
+  const getCookie = typeof window !== "undefined" ? window.electron?.getCookie : undefined;
+
   if (!config.skipRefreshCheck && (useToken.getState().nextCheckRefreshTime || 0) < moment().unix()) {
     if (!refreshCookiePromise) {
       useToken.setState({ nextCheckRefreshTime: moment().add(30, "seconds").unix() });
@@ -24,7 +26,7 @@ export const requestInterceptors = async (config: InternalAxiosRequestConfig) =>
   }
 
   if (config.useCSRF) {
-    const csrfToken = await window.electron.getCookie("bili_jct");
+    const csrfToken = await getCookie?.("bili_jct");
     if (csrfToken) {
       if (config.method === "post") {
         config.data ??= {};

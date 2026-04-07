@@ -4,6 +4,7 @@ import { addToast, Button, Select, SelectItem } from "@heroui/react";
 import { RiDeleteBinLine, RiFolderAddLine, RiRefreshLine, RiPlayFill, RiPlayListAddLine } from "@remixicon/react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
+import useIsMobile from "@/common/hooks/use-is-mobile";
 import Empty from "@/components/empty";
 import IconButton from "@/components/icon-button";
 import ScrollContainer, { type ScrollRefObject } from "@/components/scroll-container";
@@ -20,12 +21,14 @@ const LocalMusicPage = () => {
   const localDirs = useSettings(s => s.localMusicDirs);
   const updateSettings = useSettings(s => s.update);
   const { onOpenConfirmModal } = useModalStore();
+  const isMobile = useIsMobile();
   const [list, setList] = useState<LocalMusicItem[]>([]);
   const [selectedDir, setSelectedDir] = useState<string>("all");
   const [keyword, setKeyword] = useState<string>("");
   const scrollRef = useRef<ScrollRefObject | null>(null);
   const playId = usePlayList(s => s.playId);
   const playList = usePlayList(s => s.list);
+  const itemRowHeight = isMobile ? 96 : rowHeight;
 
   const playItem = useMemo(() => playList.find(item => item.id === playId), [playId, playList]);
 
@@ -58,7 +61,7 @@ const LocalMusicPage = () => {
   const rowVirtualizer = useVirtualizer({
     count: filtered.length,
     getScrollElement: () => scrollRef.current?.osInstance()?.elements().viewport as HTMLElement | null,
-    estimateSize: () => rowHeight,
+    estimateSize: () => itemRowHeight,
     overscan: 10,
   });
 
@@ -182,8 +185,8 @@ const LocalMusicPage = () => {
   };
 
   return (
-    <ScrollContainer ref={scrollRef} enableBackToTop className="h-full w-full px-4">
-      <div className="mb-2 flex items-center justify-between">
+    <ScrollContainer ref={scrollRef} enableBackToTop className={isMobile ? "h-full w-full px-4 py-3" : "h-full w-full px-4"}>
+      <div className={isMobile ? "mb-3 flex flex-col items-start gap-3" : "mb-2 flex items-center justify-between"}>
         <h1 className="flex items-center space-x-1">本地音乐</h1>
         <div className="flex items-center space-x-1">
           <Button size="sm" variant="flat" startContent={<RiFolderAddLine size={18} />} onPress={addDirectory}>
@@ -191,8 +194,8 @@ const LocalMusicPage = () => {
           </Button>
         </div>
       </div>
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
+      <div className={isMobile ? "mb-4 flex flex-col gap-3" : "mb-3 flex items-center justify-between gap-2"}>
+        <div className={isMobile ? "flex w-full flex-wrap items-center gap-2" : "flex items-center gap-2"}>
           {Boolean(list.length) && (
             <Button
               color="primary"
@@ -210,14 +213,14 @@ const LocalMusicPage = () => {
             </IconButton>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className={isMobile ? "flex w-full flex-wrap items-center gap-2" : "flex items-center gap-2"}>
           <SearchButton
             onSearch={val => {
               setKeyword(val);
             }}
           />
           <Select
-            className="w-[200px]"
+            className={isMobile ? "min-w-[180px] flex-1" : "w-[200px]"}
             disallowEmptySelection
             listboxProps={{
               color: "primary",
@@ -235,7 +238,7 @@ const LocalMusicPage = () => {
           >
             {item => <SelectItem key={item.key}>{item.label as string}</SelectItem>}
           </Select>
-          <IconButton variant="flat" size="md" color="default" tooltip="刷新" onPress={rescan}>
+          <IconButton variant="flat" size="md" color="default" tooltip="刷新" onPress={rescan} className={isMobile ? "shrink-0" : undefined}>
             <RiRefreshLine size={18} />
           </IconButton>
           <IconButton
@@ -245,20 +248,23 @@ const LocalMusicPage = () => {
             color="default"
             isDisabled={selectedDir === "all"}
             onPress={removeSelectedDirectory}
+            className={isMobile ? "shrink-0" : undefined}
           >
             <RiDeleteBinLine size={18} />
           </IconButton>
         </div>
       </div>
-      <div className="text-foreground-500 grid w-full grid-cols-[40px_minmax(0,1fr)_100px_100px_100px_100px_40px] items-center gap-4 rounded-md px-2 py-1 text-xs">
-        <div className="text-center">#</div>
-        <div>标题</div>
-        <div className="text-right">大小</div>
-        <div className="text-right">格式</div>
-        <div className="text-right">时长</div>
-        <div className="text-right">创建时间</div>
-        <div className="text-right" />
-      </div>
+      {!isMobile && (
+        <div className="text-foreground-500 grid w-full grid-cols-[40px_minmax(0,1fr)_100px_100px_100px_100px_40px] items-center gap-4 rounded-md px-2 py-1 text-xs">
+          <div className="text-center">#</div>
+          <div>标题</div>
+          <div className="text-right">大小</div>
+          <div className="text-right">格式</div>
+          <div className="text-right">时长</div>
+          <div className="text-right">创建时间</div>
+          <div className="text-right" />
+        </div>
+      )}
       {filtered.length === 0 ? (
         <Empty />
       ) : (
@@ -281,7 +287,7 @@ const LocalMusicPage = () => {
                     top: 0,
                     left: 0,
                     width: "100%",
-                    height: rowHeight,
+                    height: itemRowHeight,
                     transform: `translateY(${vItem.start}px)`,
                   }}
                 >
@@ -289,6 +295,7 @@ const LocalMusicPage = () => {
                     data={song}
                     isPlaying={playItem?.id === song.id}
                     index={vItem.index + 1}
+                    isMobile={isMobile}
                     onAddToNext={() => addToNext(song)}
                     onAddToPlayList={() => addToPlayList(song)}
                     onPlay={() => playFile(song)}

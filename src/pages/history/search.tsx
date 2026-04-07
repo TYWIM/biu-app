@@ -4,6 +4,7 @@ import { Input } from "@heroui/react";
 import { RiSearchLine } from "@remixicon/react";
 import { useDebounceFn } from "ahooks";
 
+import useIsMobile from "@/common/hooks/use-is-mobile";
 import DateRangePicker from "@/components/date-range-picker";
 
 interface Props {
@@ -13,6 +14,7 @@ interface Props {
 
 const HistorySearch = ({ onSearch, onDateRangeChange }: Props) => {
   const [keyword, setKeyword] = useState("");
+  const isMobile = useIsMobile();
 
   const { run: handleSearch } = useDebounceFn(
     (val: string) => {
@@ -22,7 +24,7 @@ const HistorySearch = ({ onSearch, onDateRangeChange }: Props) => {
   );
 
   return (
-    <div className="flex w-full items-center justify-between space-x-2 py-2">
+    <div className={isMobile ? "flex w-full flex-col gap-3 py-2" : "flex w-full items-center justify-between space-x-2 py-2"}>
       <DateRangePicker onDateRangeChange={onDateRangeChange} />
       <Input
         placeholder="搜索标题/UP主名称"
@@ -35,7 +37,7 @@ const HistorySearch = ({ onSearch, onDateRangeChange }: Props) => {
           handleSearch("");
         }}
         radius="md"
-        className="max-w-50 flex-auto"
+        className={isMobile ? "w-full" : "max-w-50 flex-auto"}
       />
     </div>
   );

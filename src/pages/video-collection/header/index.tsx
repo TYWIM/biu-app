@@ -5,6 +5,7 @@ import { RiEdit2Line } from "@remixicon/react";
 import { useRequest } from "ahooks";
 import clx from "classnames";
 
+import useIsMobile from "@/common/hooks/use-is-mobile";
 import { CollectionType } from "@/common/constants/collection";
 import { isPrivateFav } from "@/common/utils/fav";
 import Image from "@/components/image";
@@ -23,6 +24,8 @@ interface Props {
 }
 
 const Header = memo(({ loading, type, attr, cover, title, desc, upMid, mediaCount, onEdit }: Props) => {
+  const isMobile = useIsMobile();
+
   const { data: upInfo } = useRequest(
     async () => {
       const res = await getWebInterfaceCard({
@@ -39,9 +42,9 @@ const Header = memo(({ loading, type, attr, cover, title, desc, upMid, mediaCoun
 
   if (loading) {
     return (
-      <div className="mb-4 flex space-x-4">
-        <Skeleton className="h-[168px] w-[200px] rounded-md" />
-        <div className="flex min-w-0 flex-col items-start space-y-4">
+      <div className={isMobile ? "mb-4 flex flex-col gap-3" : "mb-4 flex space-x-4"}>
+        <Skeleton className={isMobile ? "aspect-video w-full rounded-md" : "h-[168px] w-[200px] rounded-md"} />
+        <div className={isMobile ? "flex min-w-0 flex-col items-start space-y-3" : "flex min-w-0 flex-col items-start space-y-4"}>
           <Skeleton className="h-[24px] w-[200px] rounded-md" />
           <Skeleton className="h-[16px] w-[200px] rounded-md" />
           <Skeleton className="h-[16px] w-[200px] rounded-md" />
@@ -52,16 +55,16 @@ const Header = memo(({ loading, type, attr, cover, title, desc, upMid, mediaCoun
 
   return (
     <>
-      <div className="mb-4 flex space-x-4">
-        <div className="group relative flex-none">
+      <div className={isMobile ? "mb-4 flex flex-col gap-4" : "mb-4 flex space-x-4"}>
+        <div className={clx("group relative flex-none", isMobile ? "w-full" : undefined)}>
           <Image
             radius="md"
             src={cover}
             alt={title}
-            width={200}
-            height={168}
+            width={isMobile ? "100%" : 200}
+            height={isMobile ? 220 : 168}
             params="672w_378h_1c.avif"
-            className={clx({
+            className={clx(isMobile ? "h-[220px] w-full" : undefined, {
               "border-content3 border": !cover,
             })}
           />
@@ -81,10 +84,10 @@ const Header = memo(({ loading, type, attr, cover, title, desc, upMid, mediaCoun
             </div>
           )}
         </div>
-        <div className="flex min-w-0 flex-col items-start space-y-4">
-          <h1 className="text-3xl font-bold">{title}</h1>
-          {Boolean(desc) && <p className="text-foreground-400 line-clamp-1 text-sm">{desc}</p>}
-          <div className="text-foreground-400 flex items-center space-x-1 text-sm">
+        <div className={isMobile ? "flex min-w-0 flex-col items-start space-y-3" : "flex min-w-0 flex-col items-start space-y-4"}>
+          <h1 className={isMobile ? "text-2xl font-bold" : "text-3xl font-bold"}>{title}</h1>
+          {Boolean(desc) && <p className={isMobile ? "text-foreground-400 line-clamp-2 text-sm" : "text-foreground-400 line-clamp-1 text-sm"}>{desc}</p>}
+          <div className="text-foreground-400 flex flex-wrap items-center gap-x-1 gap-y-1 text-sm">
             <span>
               {type === CollectionType.Favorite
                 ? `${attr ? (isPrivateFav(attr as number) ? "私密" : "公开") : ""}收藏夹`
@@ -105,7 +108,7 @@ const Header = memo(({ loading, type, attr, cover, title, desc, upMid, mediaCoun
                 {upInfo?.card?.name}
               </Link>
             }
-            className="justify-start"
+            className={isMobile ? "w-full justify-start" : "justify-start"}
           />
         </div>
       </div>

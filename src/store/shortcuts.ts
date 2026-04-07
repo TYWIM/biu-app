@@ -15,7 +15,7 @@ export const useShortcutSettings = create<ShortcutSettings & ShortcutActions>()(
     set => ({
       ...defaultShortcutSettings,
       refresh: async () => {
-        const store = await window.electron.getStore(StoreNameMap.ShortcutSettings);
+        const store = await window.electron?.getStore?.(StoreNameMap.ShortcutSettings);
         if (store) {
           set(store);
         }
@@ -31,7 +31,7 @@ export const useShortcutSettings = create<ShortcutSettings & ShortcutActions>()(
       name: "shortcut-settings",
       storage: {
         getItem: async () => {
-          const store = await window.electron.getStore(StoreNameMap.ShortcutSettings);
+          const store = await window.electron?.getStore?.(StoreNameMap.ShortcutSettings);
 
           return {
             state: store,
@@ -39,13 +39,13 @@ export const useShortcutSettings = create<ShortcutSettings & ShortcutActions>()(
         },
 
         setItem: async (_, value) => {
-          if (value.state) {
+          if (value.state && window.electron?.setStore) {
             await window.electron.setStore(StoreNameMap.ShortcutSettings, value.state);
           }
         },
 
         removeItem: async () => {
-          await window.electron.clearStore(StoreNameMap.ShortcutSettings);
+          await window.electron?.clearStore?.(StoreNameMap.ShortcutSettings);
         },
       },
       partialize: state => ({

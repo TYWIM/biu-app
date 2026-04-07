@@ -17,6 +17,7 @@ interface LaterListProps {
   loading: boolean;
   onLoadMore: () => void;
   getScrollElement: () => HTMLElement | null;
+  canDownload?: boolean;
   onMenuAction: (key: string, item: ToViewVideoItem) => void;
 }
 
@@ -26,6 +27,7 @@ const LaterList: React.FC<LaterListProps> = ({
   loading,
   onLoadMore,
   getScrollElement,
+  canDownload,
   onMenuAction,
 }) => {
   const displayMode = useSettings(state => state.displayMode);
@@ -69,6 +71,7 @@ const LaterList: React.FC<LaterListProps> = ({
               onPress={item.is_pgc ? undefined : () => handlePress(item)}
               menus={getContextMenus({
                 is_pgc: item.is_pgc,
+                canDownload,
               })}
               onMenuAction={key => onMenuAction(key, item)}
             />

@@ -17,6 +17,7 @@ interface MusicRecommendListProps {
   loading: boolean;
   onLoadMore: () => void;
   getScrollElement: () => HTMLElement | null;
+  canDownload?: boolean;
   onMenuAction: (key: string, item: RecommendItem) => void;
 }
 
@@ -26,6 +27,7 @@ const MusicRecommendList: React.FC<MusicRecommendListProps> = ({
   loading,
   onLoadMore,
   getScrollElement,
+  canDownload,
   onMenuAction,
 }) => {
   const user = useUser(state => state.user);
@@ -71,6 +73,7 @@ const MusicRecommendList: React.FC<MusicRecommendListProps> = ({
               onPress={() => handlePress(item)}
               menus={getContextMenus({
                 isLogin: user?.isLogin,
+                canDownload,
               })}
               onMenuAction={key => onMenuAction(key, item)}
             />

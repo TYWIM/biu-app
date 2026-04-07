@@ -14,8 +14,9 @@ export default function FontSelect({ value = defaultAppSettings.fontFamily, onCh
   const [fonts, setFonts] = useState<Partial<IFontInfo>[]>([]);
 
   const getFonts = async () => {
-    const fonts = await window.electron.getFonts();
-    setFonts([{ name: "系统默认", familyName: defaultAppSettings.fontFamily }, ...fonts]);
+    const systemFont = [{ name: "系统默认", familyName: defaultAppSettings.fontFamily }];
+    const fonts = await window.electron?.getFonts?.();
+    setFonts(fonts ? [...systemFont, ...fonts] : systemFont);
   };
 
   useEffect(() => {

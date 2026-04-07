@@ -16,10 +16,11 @@ export interface SeriesGridListProps {
   loading?: boolean;
   className?: string;
   getScrollElement: () => HTMLElement | null;
+  canDownload?: boolean;
   onMenuAction: (key: string, item: Media) => void;
 }
 
-const SeriesGridList = ({ data, loading, className, getScrollElement, onMenuAction }: SeriesGridListProps) => {
+const SeriesGridList = ({ data, loading, className, getScrollElement, canDownload, onMenuAction }: SeriesGridListProps) => {
   const renderGridItem = useCallback(
     (item: Media) => {
       return (
@@ -32,7 +33,7 @@ const SeriesGridList = ({ data, loading, className, getScrollElement, onMenuActi
           ownerName={item.upper?.name}
           ownerMid={item.upper?.mid}
           time={item.pubtime}
-          menus={getContextMenus()}
+          menus={getContextMenus({ canDownload })}
           onMenuAction={key => {
             onMenuAction(key, item);
           }}
@@ -49,7 +50,7 @@ const SeriesGridList = ({ data, loading, className, getScrollElement, onMenuActi
         />
       );
     },
-    [onMenuAction],
+    [canDownload, onMenuAction],
   );
 
   if (loading && data.length === 0) {

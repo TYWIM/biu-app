@@ -5,6 +5,7 @@ import { addToast, useDisclosure } from "@heroui/react";
 import { useRequest } from "ahooks";
 
 import { CollectionType } from "@/common/constants/collection";
+import useIsMobile from "@/common/hooks/use-is-mobile";
 import { getAllFavMedia } from "@/common/utils/fav";
 import { openBiliVideoLink } from "@/common/utils/url";
 import FavoritesEditModal from "@/components/favorites-edit-modal";
@@ -31,10 +32,14 @@ import FavoriteList from "./list";
 /** 收藏夹详情 TODO:加上创建的视频合集 */
 const Favorites = () => {
   const { id: favFolderId } = useParams();
+  const isMobile = useIsMobile();
   const user = useUser(state => state.user);
   const addCollectedFavorite = useFavoritesStore(state => state.addCollectedFavorite);
   const rmCollectedFavorite = useFavoritesStore(state => state.rmCollectedFavorite);
   const displayMode = useSettings(state => state.displayMode);
+  const addMediaDownloadTask = typeof window !== "undefined" ? window.electron?.addMediaDownloadTask : undefined;
+  const canDownload = Boolean(addMediaDownloadTask);
+  const shouldUseGrid = isMobile || displayMode === "card";
 
   const playList = usePlayList(state => state.playList);
   const addToPlayList = usePlayList(state => state.addList);
@@ -394,20 +399,34 @@ const Favorites = () => {
           ]);
           break;
         case "download-audio":
-          await window.electron.addMediaDownloadTask({
-            outputFileType: "audio",
-            title: item.title,
-            cover: item.cover,
-            bvid: item.bvid,
-            sid: item.type === 12 ? item.id : undefined,
-          });
-          addToast({
-            title: "已添加下载任务",
-            color: "success",
-          });
+          {
+            const downloadTask = addMediaDownloadTask;
+            if (!downloadTask) {
+              addToast({ title: "浏览器预览模式不支持下载", color: "default" });
+              return;
+            }
+
+            await downloadTask({
+              outputFileType: "audio",
+              title: item.title,
+              cover: item.cover,
+              bvid: item.bvid,
+              sid: item.type === 12 ? item.id : undefined,
+            });
+            addToast({
+              title: "已添加下载任务",
+              color: "success",
+            });
+          }
           break;
-        case "download-video":
-          await window.electron.addMediaDownloadTask({
+        case "download-video": {
+          const downloadTask = addMediaDownloadTask;
+          if (!downloadTask) {
+            addToast({ title: "浏览器预览模式不支持下载", color: "default" });
+            return;
+          }
+
+          await downloadTask({
             outputFileType: "video",
             title: item.title,
             cover: item.cover,
@@ -418,6 +437,7 @@ const Favorites = () => {
             color: "success",
           });
           break;
+        }
         case "bililink":
           openBiliVideoLink({
             type: item.type === 2 ? "mv" : "audio",
@@ -429,11 +449,11 @@ const Favorites = () => {
           break;
       }
     },
-    [favFolderId, isCreatedBySelf, handleRemoveItem, refreshInfo],
+    [addMediaDownloadTask, favFolderId, isCreatedBySelf, handleRemoveItem, refreshInfo],
   );
 
   return (
-    <ScrollContainer enableBackToTop ref={scrollRef} resetOnChange={favFolderId} className="h-full w-full px-4 pb-6">
+    <ScrollContainer enableBackToTop ref={scrollRef} resetOnChange={favFolderId} className={isMobile ? "h-full w-full px-4 py-3 pb-6" : "h-full w-full px-4 pb-6"}>
       <Header
         loading={loading}
         type={CollectionType.Favorite}
@@ -466,7 +486,7 @@ const Favorites = () => {
         onClearInvalid={clearInvalid}
       />
 
-      {displayMode === "card" ? (
+      {shouldUseGrid ? (
         <FavoriteGridList
           items={items}
           hasMore={hasMore}
@@ -474,6 +494,7 @@ const Favorites = () => {
           getScrollElement={() => (scrollRef.current?.osInstance()?.elements().viewport as HTMLElement | null) ?? null}
           onLoadMore={handleLoadMore}
           isCreatedBySelf={isCreatedBySelf}
+          canDownload={canDownload}
           onMenuAction={handleMenuAction}
           onItemPress={handleItemPress}
         />
@@ -485,6 +506,7 @@ const Favorites = () => {
           onLoadMore={handleLoadMore}
           getScrollElement={() => (scrollRef.current?.osInstance()?.elements().viewport as HTMLElement | null) ?? null}
           isCreatedBySelf={isCreatedBySelf}
+          canDownload={canDownload}
           onMenuAction={handleMenuAction}
           onItemPress={handleItemPress}
         />

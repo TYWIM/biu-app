@@ -14,13 +14,14 @@ import { getContextMenus } from "./menu";
 interface ListProps {
   items: SearchVideoItem[];
   getScrollElement: () => HTMLElement | null;
+  canDownload?: boolean;
   onMenuAction: (key: string, item: SearchVideoItem) => void;
   loading: boolean;
   hasMore: boolean;
   onLoadMore: () => void;
 }
 
-const List: React.FC<ListProps> = ({ items, getScrollElement, onMenuAction, loading, hasMore, onLoadMore }) => {
+const List: React.FC<ListProps> = ({ items, getScrollElement, canDownload, onMenuAction, loading, hasMore, onLoadMore }) => {
   const displayMode = useSettings(state => state.displayMode);
   const isCompact = displayMode === "compact";
 
@@ -60,7 +61,7 @@ const List: React.FC<ListProps> = ({ items, getScrollElement, onMenuAction, load
               duration={item.duration}
               pubTime={formatSecondsToDate(item.pubdate)}
               onPress={() => handlePress(item)}
-              menus={getContextMenus()}
+              menus={getContextMenus({ canDownload })}
               onMenuAction={key => onMenuAction(key, item)}
             />
           );

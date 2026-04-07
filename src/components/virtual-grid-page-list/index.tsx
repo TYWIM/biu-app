@@ -47,6 +47,7 @@ const VirtualGridPageList = <T,>({
   const lastIsIntersectingRef = useRef(false);
   const DEBOUNCE_DELAY = 300; // 防抖延迟 300ms
   const width = size?.width || initialWidthRef.current || 0;
+  const rowGap = width > 0 && width < 640 ? 12 : ROW_GAP;
 
   useLayoutEffect(() => {
     if (initialWidthRef.current) return;
@@ -60,7 +61,8 @@ const VirtualGridPageList = <T,>({
     if (width >= 1280) return 5;
     if (width >= 1024) return 4;
     if (width >= 768) return 3;
-    return 2;
+    if (width >= 640) return 2;
+    return 1;
   }, [width]);
 
   const rows = useMemo(() => {
@@ -74,7 +76,7 @@ const VirtualGridPageList = <T,>({
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement,
-    estimateSize: () => rowHeight + ROW_GAP,
+    estimateSize: () => rowHeight + rowGap,
     overscan: 5,
   });
 
@@ -182,11 +184,11 @@ const VirtualGridPageList = <T,>({
                 top: 0,
                 left: 0,
                 width: "100%",
-                height: virtualRow.size - ROW_GAP,
+                height: virtualRow.size - rowGap,
                 transform: `translate3d(0, ${virtualRow.start}px, 0)`,
                 display: "grid",
                 gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-                gap: `${ROW_GAP}px`,
+                gap: `${rowGap}px`,
               }}
             >
               {rowItems.map((item, colIndex) => {

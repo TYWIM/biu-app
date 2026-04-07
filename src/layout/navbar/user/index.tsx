@@ -42,13 +42,19 @@ const UserCard = ({ onDropdownOpenChange }: UserCardProps) => {
   const clearToken = useToken(s => s.clear);
   const navigate = useNavigate();
   const updateSettings = useSettings(s => s.update);
+  const electron = typeof window !== "undefined" ? window.electron : undefined;
 
   const { isOpen: isLoginModalOpen, onOpen: openLoginModal, onOpenChange: onLoginModalOpenChange } = useDisclosure();
 
   const onOpenConfirmModal = useModalStore(s => s.onOpenConfirmModal);
 
   const logout = async () => {
-    const csrfToken = await window.electron.getCookie("bili_jct");
+    if (!electron?.getCookie) {
+      addToast({ title: "浏览器预览模式不支持退出登录操作", color: "default" });
+      return false;
+    }
+
+    const csrfToken = await electron.getCookie("bili_jct");
     if (!csrfToken) {
       addToast({
         title: "CSRF Token 不存在",
@@ -135,7 +141,14 @@ const UserCard = ({ onDropdownOpenChange }: UserCardProps) => {
       label: "问题反馈",
       startContent: <RiFeedbackLine size={18} />,
       endContent: <RiExternalLinkLine size={18} />,
-      onPress: () => window.electron.openExternal("https://github.com/wood3n/biu/issues"),
+      onPress: () => {
+        const url = "https://github.com/wood3n/biu/issues";
+        if (electron?.openExternal) {
+          electron.openExternal(url);
+          return;
+        }
+        window.open(url, "_blank", "noopener,noreferrer");
+      },
     },
     {
       key: "logout",

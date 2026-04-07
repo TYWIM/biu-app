@@ -21,5 +21,12 @@ export const openBiliVideoLink = (data: {
   sid?: string | number;
   pageIndex?: number;
 }) => {
-  window.electron.openExternal(getBiliVideoLink(data));
+  const url = getBiliVideoLink(data);
+
+  if (window.electron?.openExternal) {
+    window.electron.openExternal(url);
+    return;
+  }
+
+  window.open(url, "_blank", "noopener,noreferrer");
 };

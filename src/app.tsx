@@ -134,6 +134,10 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    if (!window.electron?.onUpdateAvailable) {
+      return;
+    }
+
     const removeListener = window.electron.onUpdateAvailable(updateInfo => {
       setUpdate({
         isUpdateAvailable: true,

@@ -5,6 +5,8 @@ import { addToast } from "@heroui/react";
 import { useRequest } from "ahooks";
 
 import { CollectionType } from "@/common/constants/collection";
+import useIsMobile from "@/common/hooks/use-is-mobile";
+import { openBiliVideoLink } from "@/common/utils/url";
 import ScrollContainer, { type ScrollRefObject } from "@/components/scroll-container";
 import { postFavSeasonFav } from "@/service/fav-season-fav";
 import { postFavSeasonUnfav } from "@/service/fav-season-unfav";
@@ -23,11 +25,15 @@ import SeriesList from "./list";
 /** 视频合集 */
 const VideoCollections = () => {
   const { id } = useParams();
+  const isMobile = useIsMobile();
   const user = useUser(state => state.user);
   const collectedFavorites = useFavoritesStore(state => state.collectedFavorites);
   const addCollectedFavorite = useFavoritesStore(state => state.addCollectedFavorite);
   const rmCollectedFavorite = useFavoritesStore(state => state.rmCollectedFavorite);
   const displayMode = useSettings(state => state.displayMode);
+  const addMediaDownloadTask = typeof window !== "undefined" ? window.electron?.addMediaDownloadTask : undefined;
+  const canDownload = Boolean(addMediaDownloadTask);
+  const shouldUseGrid = isMobile || displayMode === "card";
   const playList = usePlayList(state => state.playList);
   const addList = usePlayList(state => state.addList);
   const isFavorite = collectedFavorites?.some(item => item.id === Number(id));
@@ -182,19 +188,33 @@ const VideoCollections = () => {
         });
         break;
       case "download-audio":
-        await window.electron.addMediaDownloadTask({
-          outputFileType: "audio",
-          title: item.title,
-          cover: item.cover,
-          bvid: item.bvid,
-        });
-        addToast({
-          title: "已添加下载任务",
-          color: "success",
-        });
+        {
+          const downloadTask = addMediaDownloadTask;
+          if (!downloadTask) {
+            addToast({ title: "浏览器预览模式不支持下载", color: "default" });
+            return;
+          }
+
+          await downloadTask({
+            outputFileType: "audio",
+            title: item.title,
+            cover: item.cover,
+            bvid: item.bvid,
+          });
+          addToast({
+            title: "已添加下载任务",
+            color: "success",
+          });
+        }
         break;
-      case "download-video":
-        await window.electron.addMediaDownloadTask({
+      case "download-video": {
+        const downloadTask = addMediaDownloadTask;
+        if (!downloadTask) {
+          addToast({ title: "浏览器预览模式不支持下载", color: "default" });
+          return;
+        }
+
+        await downloadTask({
           outputFileType: "video",
           title: item.title,
           cover: item.cover,
@@ -205,8 +225,9 @@ const VideoCollections = () => {
           color: "success",
         });
         break;
+      }
       case "bililink":
-        window.electron.openExternal(`https://www.bilibili.com/video/${item.bvid}`);
+        openBiliVideoLink({ type: "mv", bvid: item.bvid });
         break;
       default:
         break;
@@ -220,7 +241,7 @@ const VideoCollections = () => {
   }, []);
 
   return (
-    <ScrollContainer enableBackToTop ref={scrollRef} resetOnChange={id} className="h-full w-full px-4 pb-6">
+    <ScrollContainer enableBackToTop ref={scrollRef} resetOnChange={id} className={isMobile ? "h-full w-full px-4 py-3 pb-6" : "h-full w-full px-4 pb-6"}>
       <Header
         type={CollectionType.VideoCollections}
         cover={data?.info?.cover}
@@ -249,12 +270,13 @@ const VideoCollections = () => {
         onAddToPlayList={addToPlayList}
       />
 
-      {displayMode === "card" ? (
+      {shouldUseGrid ? (
         <SeriesGridList
           className="min-h-0 flex-1"
           data={filteredMedias}
           loading={loading}
           getScrollElement={getScrollElement}
+          canDownload={canDownload}
           onMenuAction={handleMenuAction}
         />
       ) : (
@@ -263,6 +285,7 @@ const VideoCollections = () => {
           data={filteredMedias}
           loading={loading}
           getScrollElement={getScrollElement}
+          canDownload={canDownload}
           onMenuAction={handleMenuAction}
         />
       )}

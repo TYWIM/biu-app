@@ -5,6 +5,7 @@ import { RiArrowLeftSLine, RiArrowRightSLine, RiMusic2Line, RiPlayFill } from "@
 import log from "electron-log/renderer";
 
 import { formatNumber } from "@/common/utils/number";
+import useIsMobile from "@/common/hooks/use-is-mobile";
 import IconButton from "@/components/icon-button";
 import Image from "@/components/image";
 import { getNewMusic } from "@/service/web-interface-new-music";
@@ -28,6 +29,7 @@ type NewMusicTopProps = {
 };
 
 const NewMusicTop = ({ onLayoutChange }: NewMusicTopProps) => {
+  const isMobile = useIsMobile();
   const [items, setItems] = useState<UnifiedItem[]>([]);
   const [newLoading, setNewLoading] = useState(true);
   const [newPage, setNewPage] = useState(1);
@@ -172,13 +174,13 @@ const NewMusicTop = ({ onLayoutChange }: NewMusicTopProps) => {
 
   return (
     <div ref={containerRef} className="mb-4 space-y-3">
-      <div className="flex items-center justify-between">
+      <div className={isMobile ? "flex flex-col gap-3" : "flex items-center justify-between"}>
         <div className="flex items-center gap-2">
           <RiMusic2Line className="text-primary" />
           <h1>新歌速递</h1>
         </div>
         {newLoading ? null : (
-          <div className="flex items-center gap-2">
+          <div className={isMobile ? "flex w-full items-center justify-between" : "flex items-center gap-2"}>
             <IconButton
               isDisabled={newPage <= 1 || totalPages === 0}
               onPress={() => setNewPage(p => Math.max(1, p - 1))}

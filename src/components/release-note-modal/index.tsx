@@ -22,11 +22,15 @@ const ReleaseNoteModal = () => {
   const [downloadProgress, setDownloadProgress] = useState<DownloadAppProgressInfo>();
   const [downloadInfo, setDownloadInfo] = useState<DownloadInfo>();
   const [error, setError] = useState<string>();
+  const electron = window.electron;
 
   const startDownload = async () => {
+    if (!electron?.downloadAppUpdate) {
+      return;
+    }
     setStatus("downloading");
     try {
-      await window.electron.downloadAppUpdate();
+      await electron.downloadAppUpdate();
     } catch (e) {
       setStatus("error");
       setError(e instanceof Error ? e.message : String(e));
@@ -35,8 +39,8 @@ const ReleaseNoteModal = () => {
 
   const handleOpenInstaller = async () => {
     try {
-      if (downloadInfo?.filePath) {
-        const ok = await window.electron.showFileInFolder(downloadInfo.filePath);
+      if (downloadInfo?.filePath && electron?.showFileInFolder) {
+        const ok = await electron.showFileInFolder(downloadInfo.filePath);
         if (!ok) {
           addToast({
             title: "无法打开安装包文件夹",
@@ -54,7 +58,11 @@ const ReleaseNoteModal = () => {
   };
 
   useEffect(() => {
-    const removeListener = window.electron.onDownloadAppProgress(info => {
+    if (!electron?.onDownloadAppProgress) {
+      return;
+    }
+
+    const removeListener = electron.onDownloadAppProgress(info => {
       setStatus(info.status);
       switch (info.status) {
         case "downloading":
@@ -72,7 +80,7 @@ const ReleaseNoteModal = () => {
     return () => {
       removeListener();
     };
-  }, []);
+  }, [electron]);
 
   return (
     <>
@@ -112,8 +120,8 @@ const ReleaseNoteModal = () => {
                   <RiInformationLine size={16} />
                   <span className="text-sm text-zinc-500 dark:text-zinc-400">安装包已下载完成</span>
                 </span>
-                {window.electron.isSupportAutoUpdate() ? (
-                  <Button color="primary" onPress={window.electron.quitAndInstall}>
+                {electron?.isSupportAutoUpdate?.() ? (
+                  <Button color="primary" onPress={electron.quitAndInstall}>
                     退出并安装更新
                   </Button>
                 ) : (
@@ -134,6 +142,7 @@ const ReleaseNoteModal = () => {
                 <Button
                   color="primary"
                   isLoading={status === "downloading"}
+                  isDisabled={!electron?.downloadAppUpdate}
                   onPress={startDownload}
                   startContent={
                     Boolean(downloadProgress?.percent) && <span>{downloadProgress?.percent.toFixed(2)}%</span>

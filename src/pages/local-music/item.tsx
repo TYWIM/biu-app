@@ -14,6 +14,7 @@ interface Props {
   data: LocalMusicItem;
   isPlaying: boolean;
   index: number;
+  isMobile?: boolean;
   onAddToNext: () => void;
   onAddToPlayList: () => void;
   onPlay: () => void;
@@ -32,6 +33,7 @@ const LocalMusicItemRow = ({
   data,
   isPlaying,
   index,
+  isMobile = false,
   onAddToNext,
   onAddToPlayList,
   onPlay,
@@ -57,44 +59,78 @@ const LocalMusicItemRow = ({
         disableAnimation
         color={isPlaying ? "primary" : "default"}
         variant={isPlaying ? "flat" : "light"}
+        onClick={isMobile ? onPlay : undefined}
         onDoubleClick={() => onPlay()}
-        className="group flex w-full items-center justify-between rounded-md p-2"
+        className={clsx("group flex w-full items-center justify-between rounded-md", isMobile ? "p-3" : "p-2")}
       >
-        <div className="grid w-full grid-cols-[40px_minmax(0,1fr)_100px_100px_100px_100px_40px] items-center gap-4">
-          <div className="text-foreground-500 min-w-8 text-center text-xs tabular-nums">
-            <span
-              className={clsx({
-                "group-hover:hidden": !isPlaying,
-              })}
-            >
-              {index}
-            </span>
-            {!isPlaying && <RiPlayFill size={16} className="hidden align-middle group-hover:inline" />}
-          </div>
-          <div className="min-w-0 truncate">{data.title}</div>
-          <div className="text-foreground-500 flex justify-end text-xs tabular-nums">{filesize(data.size)}</div>
-          <div className="text-foreground-500 flex justify-end text-xs">{data.format?.toUpperCase() || "-"}</div>
-          <div className="text-foreground-500 flex justify-end text-xs tabular-nums">
-            {typeof data.duration === "number" ? formatDuration(Math.round(data.duration)) : "-"}
-          </div>
-          <div className="text-foreground-500 flex justify-end text-xs">
-            {data.createdTime ? formatMillisecond(data.createdTime) : "-"}
-          </div>
-          <div
-            className="flex h-full items-center justify-end"
-            onClick={e => {
-              e.stopPropagation();
-            }}
-          >
-            <OperationMenu
-              items={items}
-              onOpenChange={open => {
-                setIsOpOpen(open);
+        {isMobile ? (
+          <div className="flex w-full items-start gap-3">
+            <div className="text-foreground-500 flex h-10 w-10 flex-none items-center justify-center rounded-full bg-default-100 text-xs tabular-nums">
+              {isPlaying ? <RiPlayFill size={16} /> : index}
+            </div>
+            <div className="min-w-0 flex-1 space-y-1">
+              <div className="truncate text-left font-medium">{data.title}</div>
+              <div className="text-foreground-500 flex flex-wrap gap-x-3 gap-y-1 text-xs">
+                <span>{filesize(data.size)}</span>
+                <span>{data.format?.toUpperCase() || "-"}</span>
+                <span>{typeof data.duration === "number" ? formatDuration(Math.round(data.duration)) : "-"}</span>
+              </div>
+              <div className="text-foreground-500 truncate text-left text-xs">
+                {data.createdTime ? formatMillisecond(data.createdTime) : "-"}
+              </div>
+            </div>
+            <div
+              className="flex h-10 flex-none items-center justify-end"
+              onClick={e => {
+                e.stopPropagation();
               }}
-              onAction={onAction}
-            />
+            >
+              <OperationMenu
+                items={items}
+                onOpenChange={open => {
+                  setIsOpOpen(open);
+                }}
+                onAction={onAction}
+              />
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="grid w-full grid-cols-[40px_minmax(0,1fr)_100px_100px_100px_100px_40px] items-center gap-4">
+            <div className="text-foreground-500 min-w-8 text-center text-xs tabular-nums">
+              <span
+                className={clsx({
+                  "group-hover:hidden": !isPlaying,
+                })}
+              >
+                {index}
+              </span>
+              {!isPlaying && <RiPlayFill size={16} className="hidden align-middle group-hover:inline" />}
+            </div>
+            <div className="min-w-0 truncate">{data.title}</div>
+            <div className="text-foreground-500 flex justify-end text-xs tabular-nums">{filesize(data.size)}</div>
+            <div className="text-foreground-500 flex justify-end text-xs">{data.format?.toUpperCase() || "-"}</div>
+            <div className="text-foreground-500 flex justify-end text-xs tabular-nums">
+              {typeof data.duration === "number" ? formatDuration(Math.round(data.duration)) : "-"}
+            </div>
+            <div className="text-foreground-500 flex justify-end text-xs">
+              {data.createdTime ? formatMillisecond(data.createdTime) : "-"}
+            </div>
+            <div
+              className="flex h-full items-center justify-end"
+              onClick={e => {
+                e.stopPropagation();
+              }}
+            >
+              <OperationMenu
+                items={items}
+                onOpenChange={open => {
+                  setIsOpOpen(open);
+                }}
+                onAction={onAction}
+              />
+            </div>
+          </div>
+        )}
       </Button>
     </ContextMenu>
   );

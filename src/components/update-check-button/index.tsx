@@ -8,6 +8,7 @@ import AsyncButton from "../async-button";
 const UpdateCheckButton = () => {
   const isUpdateAvailable = useAppUpdateStore(s => s.isUpdateAvailable);
   const onOpenReleaseNoteModal = useModalStore(s => s.onOpenReleaseNoteModal);
+  const electron = window.electron;
 
   const checkUpdate = async () => {
     if (isUpdateAvailable) {
@@ -16,7 +17,15 @@ const UpdateCheckButton = () => {
       return;
     }
 
-    const res = await window.electron.checkAppUpdate();
+    if (!electron?.checkAppUpdate) {
+      addToast({
+        title: "浏览器预览模式不支持检查更新",
+        color: "default",
+      });
+      return;
+    }
+
+    const res = await electron.checkAppUpdate();
 
     if (res?.error) {
       addToast({

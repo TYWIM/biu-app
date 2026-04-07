@@ -12,11 +12,13 @@ const ImportExport = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const updateSettings = useSettings(s => s.update);
   const getSettings = useSettings(s => s.getSettings);
+  const getStore = typeof window !== "undefined" ? window.electron?.getStore : undefined;
 
   const handleExport = async () => {
     try {
-      const settingStore = await window.electron.getStore(StoreNameMap.AppSettings);
-      const blob = new Blob([JSON.stringify(settingStore?.appSettings ?? defaultAppSettings, null, 2)], {
+      const settingStore = await getStore?.(StoreNameMap.AppSettings);
+      const exportData = settingStore?.appSettings ?? getSettings() ?? defaultAppSettings;
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], {
         type: "application/json",
       });
       const url = URL.createObjectURL(blob);

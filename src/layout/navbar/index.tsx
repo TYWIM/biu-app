@@ -12,10 +12,9 @@ import Search from "./search";
 import UserCard from "./user";
 import UserFeed from "./user-feed";
 
-const platform = window.electron.getPlatform();
-
 const LayoutNavbar = () => {
   const user = useUser(s => s.user);
+  const platform = typeof window !== "undefined" ? window.electron?.getPlatform?.() : undefined;
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
 
@@ -37,7 +36,7 @@ const LayoutNavbar = () => {
         <Dev />
         {Boolean(user?.isLogin) && <UserFeed />}
         <UserCard onDropdownOpenChange={setIsUserDropdownOpen} />
-        {["linux", "windows"].includes(platform) && <WindowAction />}
+        {(platform === "linux" || platform === "windows") && <WindowAction />}
       </div>
     </div>
   );

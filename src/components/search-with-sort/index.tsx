@@ -1,17 +1,20 @@
 import { Select, SelectItem } from "@heroui/react";
-
+ 
+import useIsMobile from "@/common/hooks/use-is-mobile";
 import SearchButton from "@/components/search-button";
-
+ 
 export interface SearchProps {
   onKeywordSearch?: (keyword: string) => void;
   orderOptions?: { key: string; label: string }[];
   order?: string;
   onOrderChange?: (order: string) => void;
 }
-
+ 
 const SearchWithSort = ({ onKeywordSearch, orderOptions, order, onOrderChange }: SearchProps) => {
+  const isMobile = useIsMobile();
+
   return (
-    <div className="flex items-center space-x-2">
+    <div className={isMobile ? "flex w-full flex-col gap-2" : "flex items-center space-x-2"}>
       <SearchButton onSearch={onKeywordSearch} />
       {Boolean(orderOptions?.length) && (
         <Select
@@ -30,9 +33,9 @@ const SearchWithSort = ({ onKeywordSearch, orderOptions, order, onOrderChange }:
             color: "primary",
             hideSelectedIcon: true,
           }}
-          className="max-w-xs"
+          className={isMobile ? "w-full" : "max-w-xs"}
           classNames={{
-            innerWrapper: "w-20",
+            innerWrapper: isMobile ? "w-full" : "w-20",
           }}
         >
           {item => (

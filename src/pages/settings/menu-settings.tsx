@@ -2,6 +2,7 @@ import React from "react";
 import { type Control, Controller } from "react-hook-form";
 
 import { DefaultMenuList } from "@/common/constants/menus";
+import useIsMobile from "@/common/hooks/use-is-mobile";
 import SelectAllCheckboxGroup from "@/components/select-all-checkbox-group";
 import { useFavoritesStore } from "@/store/favorite";
 import { useUser } from "@/store/user";
@@ -14,14 +15,17 @@ const MenuSettings: React.FC<MenuSettingsProps> = ({ control }) => {
   const user = useUser(state => state.user);
   const createdFavorites = useFavoritesStore(state => state.createdFavorites);
   const collectedFavorites = useFavoritesStore(state => state.collectedFavorites);
+  const isMobile = useIsMobile();
+  const sectionClass = isMobile ? "flex w-full flex-col gap-3" : "flex w-full items-start space-x-[100px]";
+  const contentClass = isMobile ? "w-full" : "max-w-[480px]";
 
   return (
     <div className="space-y-6">
       <h2>设置侧边菜单项显示和隐藏</h2>
       <div className="w-full space-y-8">
-        <div className="flex w-full items-start space-x-[100px]">
+        <div className={sectionClass}>
           <div className="text-medium font-medium">系统默认菜单</div>
-          <div className="max-w-[480px]">
+          <div className={contentClass}>
             <Controller
               control={control}
               name="hiddenMenuKeys"
@@ -57,9 +61,9 @@ const MenuSettings: React.FC<MenuSettingsProps> = ({ control }) => {
 
         {user?.isLogin && (
           <>
-            <div className="flex w-full items-start space-x-[100px]">
+            <div className={sectionClass}>
               <div className="text-medium font-medium">个人创建菜单</div>
-              <div className="max-w-[480px]">
+              <div className={contentClass}>
                 <Controller
                   control={control}
                   name="hiddenMenuKeys"
@@ -94,9 +98,9 @@ const MenuSettings: React.FC<MenuSettingsProps> = ({ control }) => {
                 />
               </div>
             </div>
-            <div className="flex w-full items-start space-x-[100px]">
+            <div className={sectionClass}>
               <div className="text-medium font-medium">个人收藏菜单</div>
-              <div className="max-w-[480px]">
+              <div className={contentClass}>
                 <Controller
                   control={control}
                   name="hiddenMenuKeys"

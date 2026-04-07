@@ -27,9 +27,9 @@ import { useGlassmorphism } from "./glassmorphism";
 import PageList from "./page-list";
 import FullScreenPlayerSettingsPanel from "./settings-panel";
 
-const platform = window.electron.getPlatform();
-
 const FullScreenPlayer = () => {
+  const electron = typeof window !== "undefined" ? window.electron : undefined;
+  const platform = electron?.getPlatform?.();
   const isOpen = useModalStore(s => s.isFullScreenPlayerOpen);
   const close = useModalStore(s => s.closeFullScreenPlayer);
   const { playId, list } = usePlayList(

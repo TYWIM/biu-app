@@ -25,6 +25,17 @@ const PasswordLogin = ({ onClose, updateUserData }: PasswordLoginProps) => {
   const usernameRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
 
+  const openPasswordHelp = () => {
+    const url = "https://passport.bilibili.com/pc/passport/findPassword";
+
+    if (window.electron?.openExternal) {
+      window.electron.openExternal(url);
+      return;
+    }
+
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
   useEffect(() => {
     const timer = setTimeout(() => {
       usernameRef.current?.focus();
@@ -163,9 +174,7 @@ const PasswordLogin = ({ onClose, updateUserData }: PasswordLoginProps) => {
                     isIconOnly
                     size="sm"
                     variant="light"
-                    onPress={() =>
-                      window.electron.openExternal("https://passport.bilibili.com/pc/passport/findPassword")
-                    }
+                    onPress={openPasswordHelp}
                   >
                     <RiQuestionLine size={18} />
                   </Button>

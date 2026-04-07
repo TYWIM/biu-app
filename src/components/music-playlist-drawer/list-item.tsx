@@ -13,13 +13,14 @@ import { getMenus } from "./menu";
 interface Props {
   data: PlayData;
   isLogin: boolean;
+  canDownload?: boolean;
   isPlaying?: boolean;
   onAction: (key: string) => void;
   onClose: VoidFunction;
   onPress?: VoidFunction;
 }
 
-const ListItem = ({ data, isLogin, isPlaying, onAction, onClose, onPress }: Props) => {
+const ListItem = ({ data, isLogin, canDownload, isPlaying, onAction, onClose, onPress }: Props) => {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
 
@@ -88,7 +89,7 @@ const ListItem = ({ data, isLogin, isPlaying, onAction, onClose, onPress }: Prop
 
           <DropdownMenu
             aria-label="播放列表操作菜单"
-            items={getMenus({ isLogin, isLocal: data.source === "local" })}
+            items={getMenus({ isLogin, isLocal: data.source === "local", canDownload })}
             // @ts-ignore 忽略onAction类型问题
             onAction={onAction}
           >

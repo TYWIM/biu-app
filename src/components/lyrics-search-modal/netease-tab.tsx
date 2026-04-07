@@ -20,6 +20,7 @@ const NeteaseTab = ({ songs, loading, onAdoptLyrics }: NeteaseTabProps) => {
   const [lyrics, setLyrics] = useState<string>("");
   const [tlyrics, setTlyrics] = useState<string>("");
   const [previewLoading, setPreviewLoading] = useState(false);
+  const canPreviewLyrics = typeof window !== "undefined" && Boolean(window.electron?.getNeteaseLyrics);
 
   const renderDuration = (value?: number) => {
     const seconds = value ? Math.round(value / 1000) : undefined;
@@ -36,6 +37,11 @@ const NeteaseTab = ({ songs, loading, onAdoptLyrics }: NeteaseTabProps) => {
   };
 
   const handleSelect = useCallback(async (song: NeteaseSong) => {
+    if (!canPreviewLyrics) {
+      addToast({ title: "浏览器预览模式暂不支持歌词预览", color: "default" });
+      return;
+    }
+
     const id = song.id;
     if (!id) {
       addToast({ title: "缺少歌曲 ID，无法预览", color: "warning" });
@@ -48,7 +54,7 @@ const NeteaseTab = ({ songs, loading, onAdoptLyrics }: NeteaseTabProps) => {
     setPreviewLoading(true);
 
     try {
-      const res = await window.electron.getNeteaseLyrics({ id });
+      const res = await window.electron?.getNeteaseLyrics?.({ id });
       const text = res?.lrc?.lyric?.trim() || res?.klyric?.lyric?.trim() || "";
       const translation = res?.tlyric?.lyric?.trim() || "";
 
@@ -67,7 +73,7 @@ const NeteaseTab = ({ songs, loading, onAdoptLyrics }: NeteaseTabProps) => {
     } finally {
       setPreviewLoading(false);
     }
-  }, []);
+  }, [canPreviewLyrics]);
 
   const handleAdopt = useCallback(
     async (lyricsText: string, tLyricsText?: string) => {

@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import { Spinner, Button } from "@heroui/react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
+import useIsMobile from "@/common/hooks/use-is-mobile";
 import ScrollContainer, { type ScrollRefObject } from "@/components/scroll-container";
 import { getWebDynamicFeedAll, getWebDynamicFeedSpace, type WebDynamicItem } from "@/service/web-dynamic";
 
@@ -10,6 +11,7 @@ import AuthorList from "./author-list";
 import DynamicItem from "./item";
 
 const DynamicFeedPage = () => {
+  const isMobile = useIsMobile();
   const [items, setItems] = useState<WebDynamicItem[]>([]);
   const [offset, setOffset] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
@@ -97,7 +99,7 @@ const DynamicFeedPage = () => {
   const rowVirtualizer = useVirtualizer({
     count: items.length,
     getScrollElement: () => scrollElement,
-    estimateSize: () => 280,
+    estimateSize: () => (isMobile ? 420 : 280),
     overscan: 5,
   });
 
@@ -135,13 +137,13 @@ const DynamicFeedPage = () => {
   }, [handleScroll]);
 
   return (
-    <div className="flex h-full w-full">
+    <div className={isMobile ? "flex h-full w-full flex-col" : "flex h-full w-full"}>
       <AuthorList selectedAuthorMid={selectedAuthorMid} onSelect={handleSelectAuthor} />
 
-      <div className="flex min-w-0 flex-1">
-        <ScrollContainer ref={scrollRef} className="h-full w-full px-4">
+      <div className="flex min-h-0 min-w-0 flex-1">
+        <ScrollContainer ref={scrollRef} className={isMobile ? "h-full w-full px-0" : "h-full w-full px-4"}>
           <div
-            className="relative w-full px-4 py-4"
+            className={isMobile ? "relative w-full px-4 py-3" : "relative w-full px-4 py-4"}
             style={{
               height: `${rowVirtualizer.getTotalSize()}px`,
             }}
@@ -168,21 +170,19 @@ const DynamicFeedPage = () => {
             {isLoading && (
               <div className="text-default-500 flex items-center gap-2">
                 <Spinner size="sm" />
-                <span>Loading...</span>
+                <span>加载中...</span>
               </div>
             )}
             {!isLoading && error && (
               <div className="flex flex-col items-center gap-2">
                 <p className="text-danger">{error}</p>
                 <Button size="sm" onPress={() => fetchData(offset, selectedAuthorMid, requestIdRef.current)}>
-                  Retry
+                  重试
                 </Button>
               </div>
             )}
-            {!isLoading && !hasMore && items.length > 0 && <p className="text-default-400 text-sm">No more dynamics</p>}
-            {!isLoading && !hasMore && items.length === 0 && !error && (
-              <p className="text-default-400 text-sm">Empty</p>
-            )}
+            {!isLoading && !hasMore && items.length > 0 && <p className="text-default-400 text-sm">没有更多动态了</p>}
+            {!isLoading && !hasMore && items.length === 0 && !error && <p className="text-default-400 text-sm">暂无动态</p>}
           </div>
         </ScrollContainer>
       </div>

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button, Spinner } from "@heroui/react";
 
+import useIsMobile from "@/common/hooks/use-is-mobile";
 import ScrollContainer, { type ScrollRefObject } from "@/components/scroll-container";
 import { getRelationFollowings } from "@/service/relation-followings";
 import { useUser } from "@/store/user";
@@ -14,6 +15,7 @@ interface AuthorListProps {
 }
 
 const AuthorList: React.FC<AuthorListProps> = ({ selectedAuthorMid, onSelect }) => {
+  const isMobile = useIsMobile();
   const user = useUser(s => s.user);
   const scrollRef = useRef<ScrollRefObject>(null);
   const [scrollElement, setScrollElement] = useState<HTMLElement | null>(null);
@@ -69,6 +71,8 @@ const AuthorList: React.FC<AuthorListProps> = ({ selectedAuthorMid, onSelect }) 
   }, [scrollElement, loading, hasMore, error, fetchFollowings, page]);
 
   useEffect(() => {
+    if (isMobile) return;
+
     const initScrollElement = () => {
       if (scrollRef.current) {
         const instance = scrollRef.current.osInstance();
@@ -80,10 +84,11 @@ const AuthorList: React.FC<AuthorListProps> = ({ selectedAuthorMid, onSelect }) 
     initScrollElement();
     const timer = setTimeout(initScrollElement, 100);
     return () => clearTimeout(timer);
-  }, []);
+  }, [isMobile]);
 
   useEffect(() => {
-    if (!scrollRef.current) return;
+    if (isMobile || !scrollRef.current) return;
+
     const instance = scrollRef.current.osInstance();
     if (!instance) return;
     const viewport = instance.elements().viewport;
@@ -91,7 +96,7 @@ const AuthorList: React.FC<AuthorListProps> = ({ selectedAuthorMid, onSelect }) 
     return () => {
       viewport.removeEventListener("scroll", handleScroll);
     };
-  }, [handleScroll]);
+  }, [handleScroll, isMobile]);
 
   useEffect(() => {
     setList([]);
@@ -101,6 +106,45 @@ const AuthorList: React.FC<AuthorListProps> = ({ selectedAuthorMid, onSelect }) 
       fetchFollowings(1);
     }
   }, [fetchFollowings, user?.mid]);
+
+  if (isMobile) {
+    return (
+      <div className="border-divider/40 border-b px-4 py-3">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h1 className="min-w-0 truncate">用户动态</h1>
+          {hasMore && !error ? (
+            <Button size="sm" variant="light" onPress={() => fetchFollowings(page + 1)} isLoading={loading}>
+              更多
+            </Button>
+          ) : null}
+        </div>
+        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+          <UserItem compact author={null} isSelected={selectedAuthorMid === null} onSelect={onSelect} />
+          {list.map(author => (
+            <UserItem
+              compact
+              key={author.mid}
+              author={author}
+              isSelected={selectedAuthorMid === author.mid}
+              onSelect={onSelect}
+            />
+          ))}
+          {loading && (
+            <div className="text-default-500 border-default-200 bg-content1 flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-sm">
+              <Spinner size="sm" />
+              <span>加载中...</span>
+            </div>
+          )}
+          {!loading && error && (
+            <Button size="sm" color="danger" variant="flat" className="shrink-0" onPress={() => fetchFollowings(page)}>
+              重试
+            </Button>
+          )}
+        </div>
+        {!loading && !hasMore && list.length === 0 && !error && <p className="text-default-400 mt-2 text-sm">暂无关注</p>}
+      </div>
+    );
+  }
 
   return (
     <div className="h-full w-64">

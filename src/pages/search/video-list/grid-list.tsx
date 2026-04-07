@@ -11,13 +11,14 @@ import { getContextMenus } from "./menu";
 interface GridListProps {
   items: SearchVideoItem[];
   getScrollElement: () => HTMLElement | null;
+  canDownload?: boolean;
   onMenuAction: (key: string, item: SearchVideoItem) => void;
   loading: boolean;
   hasMore: boolean;
   onLoadMore: () => void;
 }
 
-const GridList: React.FC<GridListProps> = ({ items, getScrollElement, onMenuAction, loading, hasMore, onLoadMore }) => {
+const GridList: React.FC<GridListProps> = ({ items, getScrollElement, canDownload, onMenuAction, loading, hasMore, onLoadMore }) => {
   const renderGridItem = useCallback(
     (item: SearchVideoItem) => {
       return (
@@ -30,7 +31,7 @@ const GridList: React.FC<GridListProps> = ({ items, getScrollElement, onMenuActi
           ownerName={item.author}
           ownerMid={item.mid}
           time={item.pubdate}
-          menus={getContextMenus()}
+          menus={getContextMenus({ canDownload })}
           onMenuAction={key => {
             onMenuAction(key, item);
           }}
@@ -47,7 +48,7 @@ const GridList: React.FC<GridListProps> = ({ items, getScrollElement, onMenuActi
         />
       );
     },
-    [onMenuAction],
+    [canDownload, onMenuAction],
   );
 
   return (

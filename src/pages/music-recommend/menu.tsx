@@ -7,7 +7,9 @@ import {
   RiStarLine,
 } from "@remixicon/react";
 
-export const getContextMenus = ({ isLogin }: { isLogin?: boolean }) => {
+export const getContextMenus = ({ isLogin, canDownload }: { isLogin?: boolean; canDownload?: boolean }) => {
+  const resolvedCanDownload = canDownload ?? (typeof window !== "undefined" && Boolean(window.electron?.addMediaDownloadTask));
+
   return [
     {
       icon: <RiStarLine size={18} />,
@@ -29,11 +31,13 @@ export const getContextMenus = ({ isLogin }: { isLogin?: boolean }) => {
       icon: <RiFileMusicLine size={18} />,
       key: "download-audio",
       label: "下载音频",
+      hidden: !resolvedCanDownload,
     },
     {
       icon: <RiFileVideoLine size={18} />,
       key: "download-video",
       label: "下载视频",
+      hidden: !resolvedCanDownload,
     },
     {
       icon: <RiExternalLinkLine size={18} />,

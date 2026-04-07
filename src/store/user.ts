@@ -36,7 +36,7 @@ export const useUser = create<UserState & Action>()(
       partialize: state => state.user,
       storage: {
         getItem: async () => {
-          const store = await window.electron.getStore(StoreNameMap.UserLoginInfo);
+          const store = await window.electron?.getStore?.(StoreNameMap.UserLoginInfo);
 
           return {
             state: store,
@@ -44,13 +44,13 @@ export const useUser = create<UserState & Action>()(
         },
 
         setItem: async (_, value) => {
-          if (value.state) {
+          if (value.state && window.electron?.setStore) {
             await window.electron.setStore(StoreNameMap.UserLoginInfo, value.state);
           }
         },
 
         removeItem: async () => {
-          await window.electron.clearStore(StoreNameMap.UserLoginInfo);
+          await window.electron?.clearStore?.(StoreNameMap.UserLoginInfo);
         },
       },
     },

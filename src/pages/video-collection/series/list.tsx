@@ -19,6 +19,7 @@ export interface SeriesListProps {
   loading: boolean;
   className?: string;
   getScrollElement: () => HTMLElement | null;
+  canDownload?: boolean;
   onMenuAction: (key: string, item: Media) => void;
   onLoadMore?: () => void;
   hasMore?: boolean;
@@ -29,6 +30,7 @@ const SeriesList = ({
   loading,
   className,
   getScrollElement,
+  canDownload,
   onMenuAction,
   onLoadMore,
   hasMore,
@@ -83,7 +85,7 @@ const SeriesList = ({
               duration={item.duration}
               pubTime={formatSecondsToDate(item.pubtime)}
               onPress={() => handlePress(item)}
-              menus={getContextMenus()}
+              menus={getContextMenus({ canDownload })}
               onMenuAction={key => onMenuAction(key, item)}
             />
           );

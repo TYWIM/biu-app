@@ -35,6 +35,10 @@ const Lyrics = ({ color, centered, showControls }: { color?: string; centered?: 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const rafIdRef = useRef<number | null>(null);
   const lineRefs = useRef<Record<number, HTMLDivElement | null>>({});
+  const electron = typeof window !== "undefined" ? window.electron : undefined;
+  const getStore = electron?.getStore;
+  const setStore = electron?.setStore;
+  const canPersistLyrics = Boolean(electron?.getStore && electron?.setStore);
   const [centerPadding, setCenterPadding] = useState(0);
   const playId = usePlayList(s => s.playId);
   const [lyrics, setLyrics] = useState<LyricLine[]>([]);
@@ -82,14 +86,14 @@ const Lyrics = ({ color, centered, showControls }: { color?: string; centered?: 
 
   const tryLoadCachedLyrics = useCallback(async () => {
     const playItem = usePlayList.getState().getPlayItem();
-    if (!playItem?.bvid || !playItem?.cid) return null;
+    if (!canPersistLyrics || !playItem?.bvid || !playItem?.cid) return null;
 
-    const store = await window.electron.getStore(StoreNameMap.LyricsCache);
+    const store = await getStore?.(StoreNameMap.LyricsCache);
     if (!store || typeof store !== "object") return null;
 
     return store[`${playItem.bvid}-${playItem.cid}`] ?? null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playId]);
+  }, [canPersistLyrics, getStore, playId]);
 
   useEffect(() => {
     let canceled = false;
@@ -190,12 +194,12 @@ const Lyrics = ({ color, centered, showControls }: { color?: string; centered?: 
     () =>
       debounce(async (playItem: PlayItem, nextOffset?: number, nextFontSize?: number) => {
         try {
-          if (!playItem?.bvid || !playItem?.cid) return;
-          const store = await window.electron.getStore(StoreNameMap.LyricsCache);
+          if (!canPersistLyrics || !playItem?.bvid || !playItem?.cid) return;
+          const store = await getStore?.(StoreNameMap.LyricsCache);
           const key = `${playItem.bvid}-${playItem.cid}`;
           const prev = store?.[key] || {};
 
-          await window.electron.setStore(StoreNameMap.LyricsCache, {
+          await setStore?.(StoreNameMap.LyricsCache, {
             ...(store || {}),
             [key]: {
               ...prev,
@@ -207,7 +211,7 @@ const Lyrics = ({ color, centered, showControls }: { color?: string; centered?: 
           addToast({ color: "danger", title: "保存失败" });
         }
       }, 500),
-    [],
+    [canPersistLyrics, getStore, setStore],
   );
 
   const handleOffsetChange = useCallback(

@@ -17,6 +17,7 @@ interface FavoriteListProps {
   onLoadMore: () => void;
   getScrollElement: () => HTMLElement | null;
   isCreatedBySelf: boolean;
+  canDownload?: boolean;
   onMenuAction: (key: string, item: FavMedia) => void;
   onItemPress: (item: FavMedia) => void;
 }
@@ -28,6 +29,7 @@ const FavoriteList: React.FC<FavoriteListProps> = ({
   onLoadMore,
   getScrollElement,
   isCreatedBySelf,
+  canDownload,
   onMenuAction,
   onItemPress,
 }) => {
@@ -65,6 +67,7 @@ const FavoriteList: React.FC<FavoriteListProps> = ({
               menus={getContextMenus({
                 isCreatedBySelf,
                 type: item.type,
+                canDownload,
               })}
               onMenuAction={key => onMenuAction(key, item)}
             />

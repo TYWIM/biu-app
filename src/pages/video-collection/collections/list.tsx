@@ -19,10 +19,11 @@ export interface SeriesListProps {
   loading: boolean;
   className?: string;
   getScrollElement: () => HTMLElement | null;
+  canDownload?: boolean;
   onMenuAction: (key: string, item: Media) => void;
 }
 
-const SeriesList = ({ data, loading, className, getScrollElement, onMenuAction }: SeriesListProps) => {
+const SeriesList = ({ data, loading, className, getScrollElement, canDownload, onMenuAction }: SeriesListProps) => {
   const displayMode = useSettings(state => state.displayMode);
   const isCompact = displayMode === "compact";
 
@@ -74,7 +75,7 @@ const SeriesList = ({ data, loading, className, getScrollElement, onMenuAction }
               duration={item.duration}
               pubTime={formatSecondsToDate(item.pubtime)}
               onPress={() => handlePress(item)}
-              menus={getContextMenus()}
+              menus={getContextMenus({ canDownload })}
               onMenuAction={key => onMenuAction(key, item)}
             />
           );

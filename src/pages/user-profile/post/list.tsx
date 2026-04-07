@@ -17,10 +17,11 @@ interface PostListProps {
   loading: boolean;
   onLoadMore: () => void;
   getScrollElement: () => HTMLElement | null;
+  canDownload?: boolean;
   onMenuAction: (key: string, item: SpaceArcVListItem) => void;
 }
 
-const PostList: React.FC<PostListProps> = ({ items, hasMore, loading, onLoadMore, getScrollElement, onMenuAction }) => {
+const PostList: React.FC<PostListProps> = ({ items, hasMore, loading, onLoadMore, getScrollElement, canDownload, onMenuAction }) => {
   const displayMode = useSettings(state => state.displayMode);
   const isCompact = displayMode === "compact";
 
@@ -61,7 +62,7 @@ const PostList: React.FC<PostListProps> = ({ items, hasMore, loading, onLoadMore
               duration={item.length}
               pubTime={formatSecondsToDate(item.created)}
               onPress={() => handlePress(item)}
-              menus={getContextMenus()}
+              menus={getContextMenus({ canDownload })}
               onMenuAction={key => onMenuAction(key, item)}
             />
           );

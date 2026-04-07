@@ -8,6 +8,7 @@ import { twMerge } from "tailwind-merge";
 
 import type { WebDynamicItem } from "@/service/web-dynamic";
 
+import useIsMobile from "@/common/hooks/use-is-mobile";
 import { formatNumber } from "@/common/utils/number";
 import Image from "@/components/image";
 import { postDynamicFeedThumb } from "@/service/web-dynamic-feed-thumb";
@@ -22,6 +23,9 @@ interface DynamicItemProps {
 }
 
 const DynamicItem: React.FC<DynamicItemProps> = ({ item, className }) => {
+  const isMobile = useIsMobile();
+  const electron = typeof window !== "undefined" ? window.electron : undefined;
+  const canDownload = Boolean(electron?.addMediaDownloadTask);
   const author = item.modules.module_author;
   const dynamic = item.modules.module_dynamic;
   const stat = item.modules.module_stat;
@@ -37,7 +41,12 @@ const DynamicItem: React.FC<DynamicItemProps> = ({ item, className }) => {
   const textContent = dynamic.desc?.text || dynamic.major?.opus?.summary?.text || "";
 
   const handleDownload = async (type: "audio" | "video") => {
-    await window.electron.addMediaDownloadTask({
+    if (!electron?.addMediaDownloadTask) {
+      addToast({ title: "浏览器预览模式不支持下载", color: "default" });
+      return;
+    }
+
+    await electron.addMediaDownloadTask({
       outputFileType: type,
       title: archive?.title as string,
       cover: archive?.cover,
@@ -77,8 +86,8 @@ const DynamicItem: React.FC<DynamicItemProps> = ({ item, className }) => {
   };
 
   return (
-    <Card className="border-default-100 mb-2 w-full rounded-none border-b bg-transparent pb-4 shadow-none">
-      <CardHeader className={twMerge("flex items-start justify-between px-0 pt-4 pb-2", className)}>
+    <Card className={twMerge("border-default-100 mb-2 w-full rounded-none border-b bg-transparent shadow-none", isMobile ? "pb-3" : "pb-4")}>
+      <CardHeader className={twMerge(isMobile ? "flex flex-col gap-3 px-0 pt-3 pb-2" : "flex items-start justify-between px-0 pt-4 pb-2", className)}>
         <User
           isFocusable
           avatarProps={{
@@ -96,7 +105,7 @@ const DynamicItem: React.FC<DynamicItemProps> = ({ item, className }) => {
             </div>
           }
           name={author.name}
-          className="cursor-pointer"
+          className={twMerge("cursor-pointer", isMobile ? "w-full justify-start" : undefined)}
           classNames={{
             name: "hover:underline",
           }}
@@ -104,11 +113,14 @@ const DynamicItem: React.FC<DynamicItemProps> = ({ item, className }) => {
             navigate(`/user/${author.mid}`);
           }}
         />
-        <div className="flex items-center">
+        <div className={isMobile ? "flex w-full items-center gap-2" : "flex items-center"}>
           <Button
             variant="light"
             size="sm"
-            className="text-default-500 data-[hover=true]:bg-default-100 flex-1 gap-1"
+            className={twMerge(
+              "text-default-500 data-[hover=true]:bg-default-100 gap-1",
+              isMobile ? "flex-1 justify-center" : "flex-1",
+            )}
             onPress={handleThumb}
           >
             {isLike ? <RiThumbUpFill size={18} /> : <RiThumbUpLine size={18} />}
@@ -133,6 +145,7 @@ const DynamicItem: React.FC<DynamicItemProps> = ({ item, className }) => {
             }}
             onDownloadAudio={() => handleDownload("audio")}
             onDownloadVideo={() => handleDownload("video")}
+            canDownload={canDownload}
           />
         </div>
       </CardHeader>
@@ -152,8 +165,8 @@ const DynamicItem: React.FC<DynamicItemProps> = ({ item, className }) => {
             });
           }}
         >
-          <div className="flex flex-row">
-            <div className="relative h-32 w-48 shrink-0">
+          <div className={isMobile ? "flex flex-col" : "flex flex-row"}>
+            <div className={isMobile ? "relative aspect-video w-full shrink-0" : "relative h-32 w-48 shrink-0"}>
               <Image
                 params="472w_264h_1c_!web-dynamic.webp"
                 removeWrapper
@@ -173,7 +186,7 @@ const DynamicItem: React.FC<DynamicItemProps> = ({ item, className }) => {
                 {archive?.duration_text || ""}
               </div>
             </div>
-            <div className="flex min-w-0 grow flex-col justify-between p-3">
+            <div className={isMobile ? "flex min-w-0 grow flex-col gap-2 p-3" : "flex min-w-0 grow flex-col justify-between p-3"}>
               <div className="space-y-1">
                 <h3 className="line-clamp-2 text-sm font-medium" title={archive?.title || ""}>
                   {archive?.title || ""}
