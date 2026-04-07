@@ -5,6 +5,7 @@ import { Avatar, Divider, Image, Tooltip } from "@heroui/react";
 import { RiAddLine, RiCheckLine, RiFlashlightFill } from "@remixicon/react";
 
 import { UserRelation } from "@/common/constants/relation";
+import useIsMobile from "@/common/hooks/use-is-mobile";
 import { formatNumber } from "@/common/utils/number";
 import AsyncButton from "@/components/async-button";
 import { postRelationModify, UserRelationAction } from "@/service/relation-modify";
@@ -25,6 +26,7 @@ const SpaceInfo = ({ spaceInfo, relationStats, relationWithMe, refreshRelation }
   const themeMode = useSettings(s => s.themeMode);
   const { id } = useParams();
   const isSelf = user?.mid === Number(id);
+  const isMobile = useIsMobile();
 
   const isFollow = [UserRelation.Followed, UserRelation.MutualFollowed].includes(relationWithMe as UserRelation);
 
@@ -71,8 +73,8 @@ const SpaceInfo = ({ spaceInfo, relationStats, relationWithMe, refreshRelation }
 
   if (relationWithMe === UserRelation.Blocked) {
     return (
-      <div className="flex h-[480px] w-full flex-col items-center justify-center space-y-6">
-        <Avatar src={spaceInfo?.face} alt={spaceInfo?.name} className="h-[120px] w-[120px] shadow-lg" />
+      <div className={isMobile ? "flex h-[320px] w-full flex-col items-center justify-center space-y-4 px-4" : "flex h-[480px] w-full flex-col items-center justify-center space-y-6"}>
+        <Avatar src={spaceInfo?.face} alt={spaceInfo?.name} className={isMobile ? "h-24 w-24 shadow-lg" : "h-[120px] w-[120px] shadow-lg"} />
         <p className="text-lg">已拉黑</p>
       </div>
     );
@@ -80,16 +82,20 @@ const SpaceInfo = ({ spaceInfo, relationStats, relationWithMe, refreshRelation }
 
   return (
     <div
-      className="flex h-[200px] items-end justify-between space-x-8 bg-cover bg-center px-8 py-4 text-white bg-blend-multiply"
+      className={
+        isMobile
+          ? "flex min-h-[240px] flex-col justify-end gap-4 bg-cover bg-center px-4 py-4 text-white bg-blend-multiply"
+          : "flex h-[200px] items-end justify-between space-x-8 bg-cover bg-center px-8 py-4 text-white bg-blend-multiply"
+      }
       style={{
         background: `linear-gradient(rgba(0,0,0,${overlayOpacity}), rgba(0,0,0,${overlayOpacity})), url(${spaceInfo?.top_photo_v2?.l_200h_img}) center/cover no-repeat`,
       }}
     >
-      <div className="flex min-w-0 grow items-end space-x-4">
-        <Avatar src={spaceInfo?.face} alt={spaceInfo?.name} className="h-[140px] w-[140px] flex-none shadow-lg" />
+      <div className={isMobile ? "flex min-w-0 items-end gap-3" : "flex min-w-0 grow items-end space-x-4"}>
+        <Avatar src={spaceInfo?.face} alt={spaceInfo?.name} className={isMobile ? "h-20 w-20 flex-none shadow-lg" : "h-[140px] w-[140px] flex-none shadow-lg"} />
         <div className="flex min-w-0 flex-1 flex-col space-y-2">
-          <div className="flex items-center space-x-2">
-            <div className="flex items-center space-x-2">
+          <div className={isMobile ? "flex flex-wrap items-center gap-2" : "flex items-center space-x-2"}>
+            <div className="flex min-w-0 items-center space-x-2">
               {Boolean(spaceInfo?.official?.role) && (
                 <Tooltip closeDelay={0} content={spaceInfo?.official?.title}>
                   <div className="bg-primary flex h-5 w-5 items-center justify-center rounded-full text-white ring-2 ring-white">
@@ -97,47 +103,75 @@ const SpaceInfo = ({ spaceInfo, relationStats, relationWithMe, refreshRelation }
                   </div>
                 </Tooltip>
               )}
-              <h1 className="text-xl font-semibold drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">{spaceInfo?.name}</h1>
+              <h1 className={isMobile ? "truncate text-lg font-semibold drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]" : "text-xl font-semibold drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]"}>
+                {spaceInfo?.name}
+              </h1>
             </div>
             {Boolean(spaceInfo?.vip?.status) && (
               <Image
-                height={24}
+                height={isMobile ? 20 : 24}
                 src={spaceInfo?.vip?.label?.img_label_uri_hans_static}
                 alt={spaceInfo?.vip?.label?.text}
               />
             )}
           </div>
-          <p className="line-clamp-2 text-sm text-white/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+          <p className={isMobile ? "line-clamp-3 text-sm text-white/85 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]" : "line-clamp-2 text-sm text-white/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]"}>
             {spaceInfo?.sign}
           </p>
         </div>
       </div>
-      <div className="flex flex-none items-center space-x-4">
-        {Boolean(user?.isLogin) && !isSelf && (
-          <AsyncButton
-            variant="shadow"
-            color={isFollow ? "success" : "default"}
-            startContent={isFollow ? <RiCheckLine size={18} /> : <RiAddLine size={18} />}
-            onPress={toggleFollow}
-            className="mt-2"
-          >
-            {isFollow ? "已关注" : "关注"}
-          </AsyncButton>
-        )}
-        {user?.isLogin
-          ? stats.map((item, idx) => (
-              <Fragment key={idx}>
-                <div className="flex flex-col items-center justify-center">
-                  <span className="text-lg font-semibold drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">{item.value}</span>
-                  <span className="text-sm whitespace-nowrap text-white/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-                    {item.title}
-                  </span>
+      {isMobile ? (
+        <div className="rounded-large bg-black/20 p-3 backdrop-blur-sm">
+          {Boolean(user?.isLogin) && !isSelf && (
+            <AsyncButton
+              variant="shadow"
+              color={isFollow ? "success" : "default"}
+              startContent={isFollow ? <RiCheckLine size={18} /> : <RiAddLine size={18} />}
+              onPress={toggleFollow}
+              className="mb-3 w-full"
+            >
+              {isFollow ? "已关注" : "关注"}
+            </AsyncButton>
+          )}
+          {user?.isLogin ? (
+            <div className={stats.length > 2 ? "grid grid-cols-3 gap-3" : "grid grid-cols-2 gap-3"}>
+              {stats.map((item, idx) => (
+                <div key={idx} className="rounded-large bg-white/10 px-3 py-2 text-center">
+                  <span className="block text-base font-semibold drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">{item.value}</span>
+                  <span className="mt-1 block text-xs whitespace-nowrap text-white/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">{item.title}</span>
                 </div>
-                {idx !== stats.length - 1 && <Divider orientation="vertical" className="h-4" />}
-              </Fragment>
-            ))
-          : null}
-      </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : (
+        <div className="flex flex-none items-center space-x-4">
+          {Boolean(user?.isLogin) && !isSelf && (
+            <AsyncButton
+              variant="shadow"
+              color={isFollow ? "success" : "default"}
+              startContent={isFollow ? <RiCheckLine size={18} /> : <RiAddLine size={18} />}
+              onPress={toggleFollow}
+              className="mt-2"
+            >
+              {isFollow ? "已关注" : "关注"}
+            </AsyncButton>
+          )}
+          {user?.isLogin
+            ? stats.map((item, idx) => (
+                <Fragment key={idx}>
+                  <div className="flex flex-col items-center justify-center">
+                    <span className="text-lg font-semibold drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">{item.value}</span>
+                    <span className="text-sm whitespace-nowrap text-white/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                      {item.title}
+                    </span>
+                  </div>
+                  {idx !== stats.length - 1 && <Divider orientation="vertical" className="h-4" />}
+                </Fragment>
+              ))
+            : null}
+        </div>
+      )}
     </div>
   );
 };
