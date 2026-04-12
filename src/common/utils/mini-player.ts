@@ -179,6 +179,16 @@ function stopMiniPlayerMainSync() {
  * 切换mini/完整播放模式
  */
 export async function toggleMiniMode() {
+  const toggleMiniPlayer = typeof window !== "undefined" ? window.electron?.toggleMiniPlayer : undefined;
+
+  if (!toggleMiniPlayer) {
+    addToast({
+      title: "当前运行环境暂不支持迷你播放器",
+      color: "default",
+    });
+    return;
+  }
+
   try {
     const isMiniWindow = window.location.hash.includes("mini-player");
 
@@ -188,7 +198,7 @@ export async function toggleMiniMode() {
       startMiniPlayerMainSync();
     }
 
-    await window.electron.toggleMiniPlayer();
+    await toggleMiniPlayer();
   } catch {
     addToast({
       title: "切换出错",

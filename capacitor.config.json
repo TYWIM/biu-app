@@ -1,0 +1,10 @@
+{
+  "appId": "com.biu.wood3n",
+  "appName": "Biu",
+  "webDir": "dist/web",
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": false
+    }
+  }
+}

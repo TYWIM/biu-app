@@ -2,12 +2,11 @@ import type { AxiosResponse } from "axios";
 
 import axios from "axios";
 
-export const geetestInterceptors = async (response: AxiosResponse) => {
-  const getCookie = typeof window !== "undefined" ? window.electron?.getCookie : undefined;
-  const setCookie = typeof window !== "undefined" ? window.electron?.setCookie : undefined;
+import { canUseRuntimeCookieApi, getRuntimeCookie, setRuntimeCookie } from "@/common/utils/runtime-cookie";
 
+export const geetestInterceptors = async (response: AxiosResponse) => {
   if (response?.data?.data?.v_voucher) {
-    if (!getCookie || !setCookie) {
+    if (!canUseRuntimeCookieApi()) {
       return response;
     }
 
@@ -15,7 +14,7 @@ export const geetestInterceptors = async (response: AxiosResponse) => {
     const { postGaiaVGateRegister, postGaiaVGateValidate } = await import("@/service/gaia-vgate");
 
     // 获取 csrf token (bili_jct)
-    const csrf = await getCookie("bili_jct");
+    const csrf = await getRuntimeCookie("bili_jct");
 
     const v_voucher = response.data.data.v_voucher;
 
@@ -43,7 +42,7 @@ export const geetestInterceptors = async (response: AxiosResponse) => {
         config.params = { ...config.params, gaia_vtoken };
 
         // 5. Cookie 加入 x-bili-gaia-vtoken
-        await setCookie("x-bili-gaia-vtoken", gaia_vtoken);
+        await setRuntimeCookie("x-bili-gaia-vtoken", gaia_vtoken);
 
         return axios(config);
       }

@@ -22,6 +22,13 @@ const LocalMusicPage = () => {
   const updateSettings = useSettings(s => s.update);
   const { onOpenConfirmModal } = useModalStore();
   const isMobile = useIsMobile();
+  const electron = typeof window !== "undefined" ? window.electron : undefined;
+  const scanLocalMusic = electron?.scanLocalMusic;
+  const selectDirectory = electron?.selectDirectory;
+  const showFileInFolder = electron?.showFileInFolder;
+  const deleteLocalMusicFile = electron?.deleteLocalMusicFile;
+  const canScanLocalMusic = Boolean(scanLocalMusic);
+  const canSelectDirectory = Boolean(selectDirectory);
   const [list, setList] = useState<LocalMusicItem[]>([]);
   const [selectedDir, setSelectedDir] = useState<string>("all");
   const [keyword, setKeyword] = useState<string>("");
@@ -34,15 +41,15 @@ const LocalMusicPage = () => {
 
   useEffect(() => {
     const init = async () => {
-      if (localDirs?.length) {
-        const data = await window.electron.scanLocalMusic(localDirs);
+      if (localDirs?.length && scanLocalMusic) {
+        const data = await scanLocalMusic(localDirs);
         setList(data);
       } else {
         setList([]);
       }
     };
     init();
-  }, [localDirs]);
+  }, [localDirs, scanLocalMusic]);
 
   const filtered = useMemo(() => {
     return list
@@ -94,7 +101,12 @@ const LocalMusicPage = () => {
   };
 
   const addDirectory = async () => {
-    const dir = await window.electron.selectDirectory();
+    if (!selectDirectory) {
+      addToast({ title: "当前运行环境暂不支持添加本地目录", color: "default" });
+      return;
+    }
+
+    const dir = await selectDirectory();
     if (!dir) return;
     const next = Array.from(new Set([...(localDirs || []), dir]));
     updateSettings({ localMusicDirs: next });
@@ -122,12 +134,24 @@ const LocalMusicPage = () => {
       setList([]);
       return;
     }
-    const data = await window.electron.scanLocalMusic(localDirs);
+
+    if (!scanLocalMusic) {
+      addToast({ title: "当前运行环境暂不支持扫描本地音乐", color: "default" });
+      setList([]);
+      return;
+    }
+
+    const data = await scanLocalMusic(localDirs);
     setList(data);
   };
 
   const openFile = async (filePath: string) => {
-    await window.electron.showFileInFolder(filePath);
+    if (!showFileInFolder) {
+      addToast({ title: "当前运行环境暂不支持打开文件位置", color: "default" });
+      return;
+    }
+
+    await showFileInFolder(filePath);
   };
 
   const playFile = async (song: LocalMusicItem) => {
@@ -172,7 +196,12 @@ const LocalMusicPage = () => {
       title: "删除文件",
       description: "该操作会删除本地文件且不可恢复，请谨慎操作",
       onConfirm: async () => {
-        const ok = await window.electron.deleteLocalMusicFile(filePath);
+        if (!deleteLocalMusicFile) {
+          addToast({ title: "当前运行环境暂不支持删除本地文件", color: "default" });
+          return false;
+        }
+
+        const ok = await deleteLocalMusicFile(filePath);
         if (ok) {
           setList(prev => prev.filter(i => i.path !== filePath));
           return true;
@@ -189,7 +218,7 @@ const LocalMusicPage = () => {
       <div className={isMobile ? "mb-3 flex flex-col items-start gap-3" : "mb-2 flex items-center justify-between"}>
         <h1 className="flex items-center space-x-1">本地音乐</h1>
         <div className="flex items-center space-x-1">
-          <Button size="sm" variant="flat" startContent={<RiFolderAddLine size={18} />} onPress={addDirectory}>
+          <Button size="sm" variant="flat" startContent={<RiFolderAddLine size={18} />} onPress={addDirectory} isDisabled={!canSelectDirectory}>
             添加目录
           </Button>
         </div>
@@ -238,7 +267,15 @@ const LocalMusicPage = () => {
           >
             {item => <SelectItem key={item.key}>{item.label as string}</SelectItem>}
           </Select>
-          <IconButton variant="flat" size="md" color="default" tooltip="刷新" onPress={rescan} className={isMobile ? "shrink-0" : undefined}>
+          <IconButton
+            variant="flat"
+            size="md"
+            color="default"
+            tooltip="刷新"
+            onPress={rescan}
+            className={isMobile ? "shrink-0" : undefined}
+            isDisabled={!canScanLocalMusic}
+          >
             <RiRefreshLine size={18} />
           </IconButton>
           <IconButton

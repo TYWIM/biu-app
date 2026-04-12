@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import { Card, Spinner, addToast } from "@heroui/react";
 import { RiArrowLeftSLine, RiArrowRightSLine, RiMusic2Line, RiPlayFill } from "@remixicon/react";
-import log from "electron-log/renderer";
+import log from "@/common/utils/logger";
 
 import { formatNumber } from "@/common/utils/number";
 import useIsMobile from "@/common/hooks/use-is-mobile";

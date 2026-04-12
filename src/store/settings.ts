@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+import { clearRuntimeStore, getRuntimeStore, setRuntimeStore } from "@/common/utils/runtime-store";
 import { defaultAppSettings } from "@shared/settings/app-settings";
 import { StoreNameMap } from "@shared/store";
 
@@ -31,7 +32,7 @@ export const useSettings = create<AppSettings & SettingsActions>()(
       name: "settings",
       storage: {
         getItem: async () => {
-          const store = await window.electron?.getStore?.(StoreNameMap.AppSettings);
+          const store = await getRuntimeStore(StoreNameMap.AppSettings);
 
           // 兼容之前的错误默认值
           if (store?.appSettings?.fontFamily === "system-default") {
@@ -44,15 +45,15 @@ export const useSettings = create<AppSettings & SettingsActions>()(
         },
 
         setItem: async (_, value) => {
-          if (value.state && window.electron?.setStore) {
-            await window.electron.setStore(StoreNameMap.AppSettings, {
+          if (value.state) {
+            await setRuntimeStore(StoreNameMap.AppSettings, {
               appSettings: value.state,
             });
           }
         },
 
         removeItem: async () => {
-          await window.electron?.clearStore?.(StoreNameMap.AppSettings);
+          await clearRuntimeStore(StoreNameMap.AppSettings);
         },
       },
       partialize: state => {

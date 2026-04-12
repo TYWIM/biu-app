@@ -9,7 +9,7 @@ const Fallback = ({ resetErrorBoundary }: FallbackProps) => {
   const navigate = useNavigate();
 
   const openIssuePage = () => {
-    const url = "https://github.com/wood3n/biu/issues";
+    const url = "https://github.com/TYWIM/biu-app/issues";
 
     if (window.electron?.openExternal) {
       window.electron.openExternal(url);

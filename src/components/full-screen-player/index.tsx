@@ -1,14 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { Drawer, DrawerBody, DrawerContent, Image, Popover, PopoverContent, PopoverTrigger } from "@heroui/react";
-import { RiArrowDownSLine, RiArrowLeftSLine, RiSettings3Line } from "@remixicon/react";
+import { Drawer, DrawerBody, DrawerContent, Image, Popover, PopoverContent, PopoverTrigger, Slider } from "@heroui/react";
+import {
+  RiArrowDownSLine,
+  RiArrowLeftSLine,
+  RiSettings3Line,
+  RiVolumeDownLine,
+  RiVolumeMuteLine,
+  RiVolumeUpLine,
+} from "@remixicon/react";
 import { useClickAway } from "ahooks";
 import clsx from "classnames";
 import { readableColor } from "color2k";
 import { useShallow } from "zustand/shallow";
 
+import useIsMobile from "@/common/hooks/use-is-mobile";
 import { Themes } from "@/common/constants/theme";
 import { hexToHsl, resolveTheme, isHex } from "@/common/utils/color";
+import { shouldUseNativePlayer } from "@/common/utils/native-player";
 import AudioWaveform from "@/components/audio-waveform";
 import Lyrics from "@/components/lyrics";
 import { useFullScreenPlayerSettings } from "@/store/full-screen-player-settings";
@@ -27,9 +36,89 @@ import { useGlassmorphism } from "./glassmorphism";
 import PageList from "./page-list";
 import FullScreenPlayerSettingsPanel from "./settings-panel";
 
+const MobileVolumeControl = () => {
+  if (shouldUseNativePlayer()) {
+    return null;
+  }
+
+  const volume = usePlayList(s => s.volume);
+  const isMuted = usePlayList(s => s.isMuted);
+  const toggleMute = usePlayList(s => s.toggleMute);
+  const setVolume = usePlayList(s => s.setVolume);
+  const previousVolumeRef = useRef(volume > 0 ? volume : 0.5);
+
+  useEffect(() => {
+    if (!isMuted && volume > 0) {
+      previousVolumeRef.current = volume;
+    }
+  }, [isMuted, volume]);
+
+  const effectiveVolume = isMuted ? 0 : volume;
+
+  const handleVolumeChange = (value: number | number[]) => {
+    const nextVolume = Array.isArray(value) ? value[0] : value;
+
+    if (nextVolume <= 0) {
+      setVolume(0);
+      if (!isMuted) {
+        toggleMute();
+      }
+      return;
+    }
+
+    previousVolumeRef.current = nextVolume;
+    setVolume(nextVolume);
+    if (isMuted) {
+      toggleMute();
+    }
+  };
+
+  const handleToggleMute = () => {
+    if (effectiveVolume > 0 && !isMuted) {
+      previousVolumeRef.current = effectiveVolume;
+      setVolume(0);
+      toggleMute();
+      return;
+    }
+
+    const restoredVolume = previousVolumeRef.current > 0 ? previousVolumeRef.current : 0.5;
+    setVolume(restoredVolume);
+    if (isMuted) {
+      toggleMute();
+    }
+  };
+
+  const VolumeIcon = isMuted || effectiveVolume === 0 ? RiVolumeMuteLine : effectiveVolume > 0.5 ? RiVolumeUpLine : RiVolumeDownLine;
+
+  return (
+    <div className="flex w-full items-center gap-3 px-1">
+      <IconButton onPress={handleToggleMute} className="text-foreground-700 size-10 min-w-10">
+        <VolumeIcon size={20} />
+      </IconButton>
+      <Slider
+        aria-label="音量"
+        minValue={0}
+        maxValue={1}
+        step={0.01}
+        value={effectiveVolume}
+        onChange={v => handleVolumeChange(v as number)}
+        size="sm"
+        color="primary"
+        className="flex-1"
+        classNames={{
+          track: "h-[4px]",
+          thumb: "w-4 h-4 bg-primary after:hidden",
+        }}
+      />
+      <span className="text-foreground-500 w-10 text-right text-xs tabular-nums">{Math.round(effectiveVolume * 100)}%</span>
+    </div>
+  );
+};
+
 const FullScreenPlayer = () => {
   const electron = typeof window !== "undefined" ? window.electron : undefined;
   const platform = electron?.getPlatform?.();
+  const isMobile = useIsMobile();
   const isOpen = useModalStore(s => s.isFullScreenPlayerOpen);
   const close = useModalStore(s => s.closeFullScreenPlayer);
   const { playId, list } = usePlayList(
@@ -109,6 +198,9 @@ const FullScreenPlayer = () => {
   }, [isUiVisible, isSettingsOpen]);
 
   const handleMouseEnter = () => {
+    if (isMobile) {
+      return;
+    }
     if (hideUiTimeoutRef.current) {
       window.clearTimeout(hideUiTimeoutRef.current);
       hideUiTimeoutRef.current = null;
@@ -119,6 +211,7 @@ const FullScreenPlayer = () => {
   };
 
   const scheduleHideUi = (delay: number) => {
+    if (isMobile) return;
     if (isSettingsOpen) return;
     if (hideUiTimeoutRef.current) {
       window.clearTimeout(hideUiTimeoutRef.current);
@@ -129,6 +222,9 @@ const FullScreenPlayer = () => {
   };
 
   const handleMouseLeave = () => {
+    if (isMobile) {
+      return;
+    }
     scheduleHideUi(3000);
   };
 
@@ -184,9 +280,11 @@ const FullScreenPlayer = () => {
 
   if (!playItem) return null;
 
-  const coverWidth = Math.max(260, Math.min(windowWidth * 0.7, windowHeight * 0.48, 520));
-  const coverHeight = coverWidth * 0.75;
-  const waveformWidth = Math.min(640, Math.max(400, Math.round(windowWidth * 0.5)));
+  const coverWidth = isMobile
+    ? Math.max(220, Math.min(windowWidth - 48, windowHeight * 0.34, 360))
+    : Math.max(260, Math.min(windowWidth * 0.7, windowHeight * 0.48, 520));
+  const coverHeight = isMobile ? coverWidth : coverWidth * 0.75;
+  const waveformWidth = isMobile ? Math.min(windowWidth - 32, 360) : Math.min(640, Math.max(400, Math.round(windowWidth * 0.5)));
   const waveformBarCount = Math.max(48, Math.min(128, Math.round(waveformWidth / 7.5)));
 
   return (
@@ -206,7 +304,7 @@ const FullScreenPlayer = () => {
         })}
         style={{
           ...themeVars,
-          cursor: isUiVisible ? "auto" : "none",
+          cursor: !isMobile && !isUiVisible ? "none" : "auto",
         }}
       >
         {onClose =>
@@ -214,14 +312,20 @@ const FullScreenPlayer = () => {
             <Empty />
           ) : (
             <DrawerBody
-              className="group/player relative flex flex-row gap-0 overflow-hidden bg-transparent p-0"
+              className={clsx("group/player relative gap-0 overflow-hidden bg-transparent p-0", isMobile ? "flex flex-col" : "flex flex-row")}
               onMouseEnter={handleMouseEnter}
               onMouseLeave={handleMouseLeave}
               onMouseMove={() => {
+                if (isMobile) {
+                  return;
+                }
                 if (!isUiVisible) {
                   setIsUiVisible(true);
                 }
                 scheduleHideUi(3000);
+              }}
+              onTouchStart={() => {
+                setIsUiVisible(true);
               }}
             >
               {!showBlurredBackground && (
@@ -288,15 +392,21 @@ const FullScreenPlayer = () => {
                 </div>
               )}
               <div
-                className={`absolute top-0 right-0 z-20 flex w-full justify-between px-6 py-4 transition-opacity duration-200 ${isUiVisible ? "opacity-100" : "pointer-events-none opacity-0"}`}
+                className={clsx(
+                  "absolute top-0 right-0 z-20 flex w-full justify-between transition-opacity duration-200",
+                  isMobile ? "px-4 py-[calc(var(--safe-area-top)+12px)]" : "px-6 py-4",
+                  isUiVisible || isMobile ? "opacity-100" : "pointer-events-none opacity-0",
+                )}
               >
-                <div className="window-no-drag top-0 right-0 left-0 flex w-full max-w-2/5 items-center space-x-2">
+                <div className={clsx("window-no-drag top-0 right-0 left-0 flex items-center space-x-2", isMobile ? "min-w-0 flex-1" : "w-full max-w-2/5")}>
                   <IconButton title="关闭弹窗" onPress={onClose} className="">
                     <RiArrowDownSLine size={28} />
                   </IconButton>
-                  <h2 className="truncate text-xl select-none">{playItem.pageTitle || playItem.title}</h2>
+                  <h2 className={clsx("truncate select-none", isMobile ? "min-w-0 flex-1 text-base" : "text-xl")}>
+                    {playItem.pageTitle || playItem.title}
+                  </h2>
                   <Popover
-                    isOpen={isSettingsOpen && isUiVisible}
+                    isOpen={isSettingsOpen && (isUiVisible || isMobile)}
                     onOpenChange={open => {
                       setIsSettingsOpen(open);
                       if (open) {
@@ -320,58 +430,89 @@ const FullScreenPlayer = () => {
                   </Popover>
                 </div>
                 <div className="window-no-drag top-0 right-0">
-                  {platform === "linux" || platform === "windows" ? <WindowAction /> : null}
+                  {!isMobile && (platform === "linux" || platform === "windows") ? <WindowAction /> : null}
                 </div>
               </div>
 
-              <div className="flex h-full w-full items-center justify-center">
-                {!isLocal && showCover && (
-                  <div
-                    className={clsx(
-                      "flex h-full w-full items-center px-12",
-                      showLyrics ? "justify-end" : "justify-center",
-                    )}
-                  >
-                    <Image
-                      src={coverSrc}
-                      radius="lg"
-                      className="transition-shadow ease-out"
-                      classNames={{
-                        wrapper: "pointer-events-none",
-                        img: "w-full h-full object-cover select-none pointer-events-none",
-                      }}
-                      style={{
-                        width: coverWidth,
-                        height: coverHeight,
-                        boxShadow: `0 28px 90px -35px rgb(var(--glow-rgb) / 0.55), 0 10px 32px -18px rgb(0 0 0 / 0.55)`,
-                        transition: `box-shadow ${effectsProfile.transitionMs}ms ease`,
-                        aspectRatio: "4 / 3",
-                      }}
-                    />
-                  </div>
-                )}
+              {isMobile ? (
+                <div className="flex h-full w-full flex-col pt-[calc(var(--safe-area-top)+72px)] pb-[calc(var(--safe-area-bottom)+148px)]">
+                  {!isLocal && showCover && (
+                    <div className={clsx("flex flex-none justify-center px-6", showLyrics ? "pt-2" : "flex-1 items-center pb-6") }>
+                      <Image
+                        src={coverSrc}
+                        radius="lg"
+                        className="transition-shadow ease-out"
+                        classNames={{
+                          wrapper: "pointer-events-none max-w-full",
+                          img: "w-full h-full object-cover select-none pointer-events-none",
+                        }}
+                        style={{
+                          width: coverWidth,
+                          height: coverHeight,
+                          boxShadow: `0 24px 72px -32px rgb(var(--glow-rgb) / 0.55), 0 10px 32px -18px rgb(0 0 0 / 0.55)`,
+                          transition: `box-shadow ${effectsProfile.transitionMs}ms ease`,
+                          aspectRatio: "1 / 1",
+                        }}
+                      />
+                    </div>
+                  )}
 
-                {!isLocal && showLyrics && (
-                  <div
-                    className={clsx(
-                      "h-full w-full overflow-hidden px-12 py-24",
-                      !showCover ? "flex items-center justify-center" : "",
-                    )}
-                  >
-                    <Lyrics color={lyricsColor} centered={!showCover} showControls={isUiVisible} />
-                  </div>
-                )}
-              </div>
+                  {!isLocal && showLyrics && (
+                    <div className={clsx("min-h-0 flex-1 overflow-hidden px-4 pb-4", !showCover ? "pt-6" : "pt-4")}>
+                      <Lyrics color={lyricsColor} centered={!showCover} showControls={true} />
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex h-full w-full items-center justify-center">
+                  {!isLocal && showCover && (
+                    <div
+                      className={clsx(
+                        "flex h-full w-full items-center px-12",
+                        showLyrics ? "justify-end" : "justify-center",
+                      )}
+                    >
+                      <Image
+                        src={coverSrc}
+                        radius="lg"
+                        className="transition-shadow ease-out"
+                        classNames={{
+                          wrapper: "pointer-events-none",
+                          img: "w-full h-full object-cover select-none pointer-events-none",
+                        }}
+                        style={{
+                          width: coverWidth,
+                          height: coverHeight,
+                          boxShadow: `0 28px 90px -35px rgb(var(--glow-rgb) / 0.55), 0 10px 32px -18px rgb(0 0 0 / 0.55)`,
+                          transition: `box-shadow ${effectsProfile.transitionMs}ms ease`,
+                          aspectRatio: "4 / 3",
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  {!isLocal && showLyrics && (
+                    <div
+                      className={clsx(
+                        "h-full w-full overflow-hidden px-12 py-24",
+                        !showCover ? "flex items-center justify-center" : "",
+                      )}
+                    >
+                      <Lyrics color={lyricsColor} centered={!showCover} showControls={isUiVisible} />
+                    </div>
+                  )}
+                </div>
+              )}
 
               {showSpectrum && (
                 <div
                   className="pointer-events-none absolute inset-x-0 z-30 flex w-full justify-center"
                   style={{
-                    bottom: isUiVisible ? controlsHeight + 12 : 24,
+                    bottom: isUiVisible || isMobile ? controlsHeight + 12 : 24,
                     transition: "bottom 300ms ease",
                   }}
                 >
-                  <div className="mx-auto flex w-full max-w-6xl justify-center px-12">
+                  <div className={clsx("mx-auto flex w-full justify-center", isMobile ? "px-4" : "max-w-6xl px-12")}>
                     <AudioWaveform
                       width={waveformWidth}
                       height={40}
@@ -386,14 +527,22 @@ const FullScreenPlayer = () => {
                 ref={controlsRef}
                 className={clsx(
                   "absolute inset-x-0 bottom-0 z-40 transform transition-transform duration-300 ease-out",
-                  isUiVisible
+                  isUiVisible || isMobile
                     ? "pointer-events-auto translate-y-0 opacity-100"
                     : "pointer-events-none translate-y-full opacity-0",
                 )}
               >
-                <div className="mx-auto mb-4 flex w-full max-w-6xl flex-col items-center gap-2 px-12">
-                  <MusicPlayProgress className="w-full" trackClassName="h-[6px]" />
-                  <div className="flex w-full items-center justify-center space-x-4">
+                <div
+                  className={clsx(
+                    "mx-auto flex w-full flex-col items-center gap-2",
+                    isMobile
+                      ? "border-t border-white/10 bg-black/20 px-4 pt-3 pb-[calc(var(--safe-area-bottom)+12px)] backdrop-blur-xl"
+                      : "mb-4 max-w-6xl px-12",
+                  )}
+                >
+                  {isMobile && <MobileVolumeControl />}
+                  <MusicPlayProgress className="w-full" trackClassName={isMobile ? "h-[4px]" : "h-[6px]"} />
+                  <div className={clsx("flex w-full items-center justify-center", isMobile ? "gap-3" : "space-x-4")}>
                     <MusicPlayMode />
                     <MusicPlayControl />
                     <OpenPlaylistDrawerButton />
@@ -401,7 +550,7 @@ const FullScreenPlayer = () => {
                 </div>
               </div>
 
-              {isUiVisible && playItem.hasMultiPart && !isPageListOpen && (
+              {!isMobile && isUiVisible && playItem.hasMultiPart && !isPageListOpen && (
                 <div className="absolute top-1/2 right-0 z-20 -translate-y-1/2">
                   <IconButton
                     className="h-24 w-6 min-w-0 rounded-l-xl rounded-r-none bg-white/10 px-0 backdrop-blur-md transition-colors hover:bg-white/20"
@@ -422,7 +571,7 @@ const FullScreenPlayer = () => {
                   isPageListOpen ? "translate-x-0 opacity-100" : "pointer-events-none translate-x-full opacity-0"
                 }`}
                 style={{
-                  width: 280,
+                  width: isMobile ? Math.min(windowWidth - 16, 360) : 280,
                   height: "min(60vh, 420px)",
                 }}
                 onClose={() => setIsPageListOpen(false)}

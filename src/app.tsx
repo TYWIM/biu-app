@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useHref, useNavigate, useRoutes } from "react-router";
+import { useHref, useLocation, useNavigate, useRoutes } from "react-router";
 
 import { HeroUIProvider, ToastProvider } from "@heroui/react";
 import moment from "moment";
@@ -10,6 +10,7 @@ import { mapKeyToElectronAccelerator } from "./common/utils/shortcut";
 import Theme from "./components/theme";
 import routes from "./routes";
 import { useAppUpdateStore } from "./store/app-update";
+import { useModalStore } from "./store/modal";
 import { usePlayList } from "./store/play-list";
 import { usePlayProgress } from "./store/play-progress";
 import { useShortcutSettings } from "./store/shortcuts";
@@ -23,12 +24,55 @@ moment.locale("zh-cn");
 
 export function App() {
   const routeElement = useRoutes(routes);
+  const location = useLocation();
   const navigate = useNavigate();
   const setUpdate = useAppUpdateStore(s => s.setUpdate);
+  const initPlayList = usePlayList(s => s.init);
 
   useEffect(() => {
     getCookitFromBSite();
   }, []);
+
+  useEffect(() => {
+    void initPlayList();
+  }, [initPlayList]);
+
+  useEffect(() => {
+    const handleAndroidBack = () => {
+      const modalStore = useModalStore.getState();
+
+      if (modalStore.isConfirmModalOpen) {
+        modalStore.onCloseConfirmModal();
+        return;
+      }
+
+      if (modalStore.isPlayListDrawerOpen) {
+        modalStore.closePlayListDrawer();
+        return;
+      }
+
+      if (modalStore.isFullScreenPlayerOpen) {
+        modalStore.closeFullScreenPlayer();
+        return;
+      }
+
+      const canGoBack = (window.history?.state?.idx ?? 0) > 0;
+      if (canGoBack) {
+        navigate(-1);
+        return;
+      }
+
+      if (location.pathname !== "/") {
+        navigate("/");
+      }
+    };
+
+    window.addEventListener("biuandroidbackbutton", handleAndroidBack);
+
+    return () => {
+      window.removeEventListener("biuandroidbackbutton", handleAndroidBack);
+    };
+  }, [location.pathname, navigate]);
 
   useEffect(() => {
     if (window.electron && window.electron.navigate) {

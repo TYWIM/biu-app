@@ -1,5 +1,5 @@
 import { addToast } from "@heroui/react";
-import log from "electron-log/renderer";
+import log from "@/common/utils/logger";
 import { shuffle } from "es-toolkit/array";
 import { remove } from "es-toolkit/array";
 import { uniqueId } from "es-toolkit/compat";
@@ -9,6 +9,12 @@ import { immer } from "zustand/middleware/immer";
 
 import { getPlayModeList, PlayMode } from "@/common/constants/audio";
 import { getAudioUrl, getDashUrl, isUrlValid } from "@/common/utils/audio";
+import {
+  createPlaybackAudio,
+  type PlaybackAudio,
+  shouldUseNativePlayer,
+  updateNativePlayerMetadata,
+} from "@/common/utils/native-player";
 import { beginPlayReport, endPlayReport, reportHeartbeat } from "@/common/utils/play-report";
 import { stripHtml } from "@/common/utils/str";
 import { formatUrlProtocol } from "@/common/utils/url";
@@ -120,7 +126,7 @@ interface Action {
   next: () => Promise<void>;
   prev: () => Promise<void>;
 
-  getAudio: () => HTMLAudioElement;
+  getAudio: () => PlaybackAudio;
   getPlayItem: () => PlayData | undefined;
 }
 
@@ -188,6 +194,12 @@ const handlePlayError = (error: any) => {
 };
 
 const updateMediaSession = ({ title, artist, cover }: { title: string; artist?: string; cover?: string }) => {
+  void updateNativePlayerMetadata({
+    title,
+    artist,
+    cover,
+  });
+
   if ("mediaSession" in navigator) {
     navigator.mediaSession.metadata = new MediaMetadata({
       title,
@@ -197,13 +209,7 @@ const updateMediaSession = ({ title, artist, cover }: { title: string; artist?: 
   }
 };
 
-const createAudio = (): HTMLAudioElement => {
-  const audio = new Audio();
-  audio.preload = "metadata";
-  audio.controls = false;
-  audio.crossOrigin = "anonymous";
-  return audio;
-};
+const createAudio = (): PlaybackAudio => createPlaybackAudio();
 
 export const audio = createAudio();
 
@@ -251,6 +257,18 @@ const updatePositionState = () => {
   }
 };
 
+const syncCurrentTimeState = () => {
+  const currentTime = Math.max(0, Math.round(audio.currentTime * 100) / 100);
+  usePlayProgress.getState().setCurrentTime(currentTime);
+};
+
+const syncDurationState = () => {
+  const dur = audio.duration;
+  usePlayList.setState({
+    duration: !Number.isNaN(dur) && dur !== Infinity && dur > 0 ? Math.round(dur * 100) / 100 : undefined,
+  });
+};
+
 export const isSame = (
   item1?: { type: "mv" | "audio"; sid?: number; bvid?: string; source?: "local" | "online"; id?: string },
   item2?: { type: "mv" | "audio"; sid?: number; bvid?: string; source?: "local" | "online"; id?: string },
@@ -276,6 +294,18 @@ export const isSame = (
 const shouldReportPlayRecord = (item?: { type: PlayDataType; source?: "local" | "online" }) =>
   item?.type === "mv" && item?.source !== "local";
 
+const shouldReuseAudioUrl = (item?: Pick<PlayData, "source" | "audioUrl" | "isLossless" | "isDolby">) => {
+  if (!item?.audioUrl) {
+    return false;
+  }
+
+  if (!isUrlValid(item.audioUrl)) {
+    return false;
+  }
+
+  return true;
+};
+
 export const usePlayList = create<State & Action>()(
   persist(
     immer((set, get) => {
@@ -292,9 +322,10 @@ export const usePlayList = create<State & Action>()(
           }
           return;
         }
-        if (isUrlValid(currentPlayItem?.audioUrl)) {
-          if (audio.src !== currentPlayItem.audioUrl) {
-            audio.src = currentPlayItem.audioUrl;
+        const reusableAudioUrl = currentPlayItem && shouldReuseAudioUrl(currentPlayItem) ? currentPlayItem.audioUrl : undefined;
+        if (reusableAudioUrl) {
+          if (audio.src !== reusableAudioUrl) {
+            audio.src = reusableAudioUrl;
           }
           const currentTime = usePlayProgress.getState().currentTime;
           if (typeof currentTime === "number" && currentTime > 0) {
@@ -366,7 +397,7 @@ export const usePlayList = create<State & Action>()(
       return {
         isPlaying: false,
         isMuted: false,
-        volume: 0.5,
+        volume: shouldUseNativePlayer() ? 1 : 0.5,
         playMode: PlayMode.Loop,
         rate: 1,
         duration: undefined,
@@ -374,29 +405,45 @@ export const usePlayList = create<State & Action>()(
         list: [],
         init: async () => {
           if (audio) {
-            audio.volume = get().volume;
-            audio.muted = get().isMuted;
+            const useSystemVolume = shouldUseNativePlayer();
+            const initialVolume = useSystemVolume ? 1 : get().volume;
+            const initialMuted = useSystemVolume ? false : get().isMuted;
+
+            audio.volume = initialVolume;
+            audio.muted = initialMuted;
             audio.playbackRate = get().rate;
             audio.loop = get().playMode === PlayMode.Single;
 
+            if (useSystemVolume) {
+              set({ volume: 1, isMuted: false });
+            }
+
+            audio.onloadedmetadata = () => {
+              syncDurationState();
+              syncCurrentTimeState();
+              updatePositionState();
+            };
+
+            audio.oncanplay = () => {
+              syncDurationState();
+              updatePositionState();
+            };
+
             audio.ondurationchange = () => {
-              const dur = audio.duration;
-              if (!Number.isNaN(dur) && dur !== Infinity) {
-                set({ duration: Math.round(dur * 100) / 100 });
-                updatePositionState();
-              }
+              syncDurationState();
+              updatePositionState();
             };
 
             audio.ontimeupdate = () => {
-              const currentTime = Math.round(audio.currentTime * 100) / 100;
-              usePlayProgress.getState().setCurrentTime(currentTime);
+              syncCurrentTimeState();
               const playItem = get().getPlayItem?.();
               if (shouldReportPlayRecord(playItem)) {
-                void reportHeartbeat(playItem, currentTime, audio.duration, 0);
+                void reportHeartbeat(playItem, audio.currentTime, audio.duration, 0);
               }
             };
 
             audio.onseeked = () => {
+              syncCurrentTimeState();
               updatePositionState();
             };
 
@@ -404,8 +451,16 @@ export const usePlayList = create<State & Action>()(
               updatePositionState();
             };
 
+            audio.onplaying = () => {
+              set({ isPlaying: true });
+              syncDurationState();
+              updatePlaybackState();
+              updatePositionState();
+            };
+
             audio.onplay = () => {
               set({ isPlaying: true });
+              syncDurationState();
               updatePlaybackState();
               updatePositionState();
               const playItem = get().getPlayItem?.();
@@ -416,12 +471,24 @@ export const usePlayList = create<State & Action>()(
 
             audio.onpause = () => {
               set({ isPlaying: false });
+              syncCurrentTimeState();
               updatePlaybackState();
               updatePositionState();
               const playItem = get().getPlayItem?.();
               if (shouldReportPlayRecord(playItem)) {
                 void reportHeartbeat(playItem, audio.currentTime, audio.duration, 2);
               }
+            };
+
+            audio.onerror = () => {
+              set({ isPlaying: false, duration: undefined });
+              updatePlaybackState();
+            };
+
+            audio.onemptied = () => {
+              set({ isPlaying: false, duration: undefined });
+              usePlayProgress.getState().setCurrentTime(0);
+              updatePlaybackState();
             };
 
             audio.onended = () => {
@@ -488,12 +555,20 @@ export const usePlayList = create<State & Action>()(
           }
         },
         toggleMute: () => {
+          if (shouldUseNativePlayer()) {
+            set({ isMuted: false, volume: 1 });
+            return;
+          }
           if (audio) {
             audio.muted = !audio.muted;
           }
           set(s => ({ isMuted: !s.isMuted }));
         },
         setVolume: volume => {
+          if (shouldUseNativePlayer()) {
+            set({ volume: 1, isMuted: false });
+            return;
+          }
           if (audio) {
             audio.volume = volume;
           }
@@ -538,16 +613,10 @@ export const usePlayList = create<State & Action>()(
           }
 
           if (audio.paused) {
-            set(state => {
-              state.isPlaying = true;
-            });
             await ensureAudioSrcValid();
             await playAudioSafely();
           } else {
             audio.pause();
-            set(state => {
-              state.isPlaying = false;
-            });
           }
         },
         setShouldKeepPagesOrderInRandomPlayMode: shouldKeep => {
@@ -572,12 +641,6 @@ export const usePlayList = create<State & Action>()(
           const existItem = list?.find(item => isSame(item, candidate));
           if (existItem) {
             set({ playId: existItem.id });
-            try {
-              await ensureAudioSrcValid();
-              await playAudioSafely();
-            } catch (error) {
-              handlePlayError(error);
-            }
             return;
           }
 
@@ -630,6 +693,9 @@ export const usePlayList = create<State & Action>()(
         },
         playListItem: async (id: string) => {
           if (get().playId === id) {
+            if (audio.paused) {
+              await get().togglePlay();
+            }
             return;
           }
 
@@ -1033,6 +1099,13 @@ async function refreshCurrentAudioSource(): Promise<boolean> {
 }
 
 function resetAudioAndPlay(url: string) {
+  console.log("[audio] resetAudioAndPlay:", url?.substring(0, 120));
+  usePlayList.setState({
+    isPlaying: false,
+    duration: undefined,
+  });
+  usePlayProgress.getState().setCurrentTime(0);
+  updatePlaybackState();
   audio.src = url;
   audio.currentTime = 0;
   audio.load();
@@ -1061,12 +1134,13 @@ usePlayList.subscribe(async (state, prevState) => {
           void beginPlayReport(playItem);
         }
       }
-      if (playItem?.source === "local" && playItem?.audioUrl && audio.paused) {
+      if (playItem?.source === "local" && playItem?.audioUrl) {
         resetAudioAndPlay(playItem.audioUrl);
         return;
       }
-      if (isUrlValid(playItem?.audioUrl) && audio.paused) {
-        resetAudioAndPlay(playItem.audioUrl);
+      const reusableAudioUrl = playItem && shouldReuseAudioUrl(playItem) ? playItem.audioUrl : undefined;
+      if (reusableAudioUrl) {
+        resetAudioAndPlay(reusableAudioUrl);
         return;
       }
 

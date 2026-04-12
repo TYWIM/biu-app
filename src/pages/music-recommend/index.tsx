@@ -4,6 +4,7 @@ import { addToast, Spinner, Tab, Tabs } from "@heroui/react";
 import { RiPlayFill } from "@remixicon/react";
 
 import useIsMobile from "@/common/hooks/use-is-mobile";
+import { isBrowserPreview as checkIsBrowserPreview } from "@/common/utils/runtime-platform";
 import { openBiliVideoLink } from "@/common/utils/url";
 import AsyncButton from "@/components/async-button";
 import Empty from "@/components/empty";
@@ -63,7 +64,7 @@ const normalizeRegionItem = (item: Archive, fallbackId: string | number): Recomm
 const MusicRecommend = () => {
   const scrollerRef = useRef<ScrollRefObject>(null);
   const isMobile = useIsMobile();
-  const isBrowserPreview = typeof window !== "undefined" && !window.electron;
+  const isBrowserPreview = checkIsBrowserPreview();
   const addMediaDownloadTask = typeof window !== "undefined" ? window.electron?.addMediaDownloadTask : undefined;
   const canDownload = Boolean(addMediaDownloadTask);
 

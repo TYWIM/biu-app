@@ -4,6 +4,7 @@ import { Checkbox, addToast } from "@heroui/react";
 import { useShallow } from "zustand/react/shallow";
 
 import useIsMobile from "@/common/hooks/use-is-mobile";
+import { getUnsupportedFeatureMessage } from "@/common/utils/runtime-platform";
 import AsyncButton from "@/components/async-button";
 import ShortcutKeyInput from "@/components/shortcut-key-input";
 import { useShortcutSettings } from "@/store/shortcuts";
@@ -52,7 +53,7 @@ const ShortcutSettingsPage = () => {
 
   const handleChangeGlobalShortcut = async (id: ShortcutCommand, shortcut: string) => {
     if (!registerShortcut || !unregisterShortcut || !registerAllShortcuts || !unregisterAllShortcuts) {
-      addToast({ title: "浏览器预览模式不支持全局快捷键", color: "default" });
+      addToast({ title: getUnsupportedFeatureMessage("全局快捷键"), color: "default" });
       return;
     }
 
@@ -89,7 +90,7 @@ const ShortcutSettingsPage = () => {
 
   const handleToggleEnableGlobalShortcut = async (enabled: boolean) => {
     if (!registerAllShortcuts || !unregisterAllShortcuts) {
-      addToast({ title: "浏览器预览模式不支持全局快捷键", color: "default" });
+      addToast({ title: getUnsupportedFeatureMessage("全局快捷键"), color: "default" });
       return;
     }
 
@@ -109,7 +110,7 @@ const ShortcutSettingsPage = () => {
   const handleReset = async () => {
     reset();
     if (!registerAllShortcuts) {
-      addToast({ title: "浏览器预览模式不支持全局快捷键", color: "default" });
+      addToast({ title: getUnsupportedFeatureMessage("全局快捷键"), color: "default" });
       return;
     }
 

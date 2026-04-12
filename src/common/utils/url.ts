@@ -4,6 +4,10 @@ export const getUrlParams = (url: string) => {
 };
 
 export const formatUrlProtocol = (url?: string) => {
+  if (url && url.startsWith("http://")) {
+    return url.replace("http://", "https://");
+  }
+
   if (url && !url.startsWith("http")) {
     return `https:${url}`;
   }

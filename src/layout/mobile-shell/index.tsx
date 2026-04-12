@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router";
 
 import { Button, Drawer, DrawerBody, DrawerContent, DrawerHeader, useDisclosure } from "@heroui/react";
@@ -23,6 +23,8 @@ import { formatUrlProtocol } from "@/common/utils/url";
 import IconButton from "@/components/icon-button";
 import MusicPlayProgress from "@/components/music-play-progress";
 import OpenPlaylistDrawerButton from "@/components/open-playlist-drawer-button";
+import UserCard from "@/layout/navbar/user";
+import { useFavoritesStore } from "@/store/favorite";
 import { useModalStore } from "@/store/modal";
 import { usePlayList } from "@/store/play-list";
 import { useSettings } from "@/store/settings";
@@ -151,11 +153,24 @@ const MobileShell = ({ children }: Props) => {
   const navigate = useNavigate();
   const location = useLocation();
   const user = useUser(s => s.user);
+  const createdFavorites = useFavoritesStore(s => s.createdFavorites);
+  const collectedFavorites = useFavoritesStore(s => s.collectedFavorites);
+  const updateCreatedFavorites = useFavoritesStore(s => s.updateCreatedFavorites);
+  const updateCollectedFavorites = useFavoritesStore(s => s.updateCollectedFavorites);
   const hiddenMenuKeys = useSettings(s => s.hiddenMenuKeys);
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
 
   const canGoBack = (window.history?.state?.idx ?? 0) > 0;
   const title = getPageTitle(location.pathname);
+
+  useEffect(() => {
+    if (!user?.mid) {
+      return;
+    }
+
+    void updateCreatedFavorites(user.mid);
+    void updateCollectedFavorites(user.mid);
+  }, [updateCollectedFavorites, updateCreatedFavorites, user?.mid]);
 
   const menuItems = useMemo(() => {
     const items = [
@@ -166,6 +181,16 @@ const MobileShell = ({ children }: Props) => {
     return items.filter(item => (item.needLogin ? Boolean(user?.isLogin) : true));
   }, [hiddenMenuKeys, user?.isLogin]);
 
+  const visibleCreatedFavorites = useMemo(
+    () => createdFavorites.filter(item => !hiddenMenuKeys.includes(String(item.id))),
+    [createdFavorites, hiddenMenuKeys],
+  );
+
+  const visibleCollectedFavorites = useMemo(
+    () => collectedFavorites.filter(item => !hiddenMenuKeys.includes(String(item.id))),
+    [collectedFavorites, hiddenMenuKeys],
+  );
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="border-divider/40 border-b" style={{ paddingTop: "var(--safe-area-top)" }}>
@@ -175,7 +200,11 @@ const MobileShell = ({ children }: Props) => {
               <Button isIconOnly variant="light" radius="full" onPress={() => navigate(-1)}>
                 <RiArrowLeftSLine size={20} />
               </Button>
-            ) : null}
+            ) : (
+              <Button isIconOnly variant="light" radius="full" onPress={onOpen}>
+                <RiMenuLine size={20} />
+              </Button>
+            )}
           </div>
           <div className="min-w-0 flex-1 text-center">
             {location.pathname === "/" ? (
@@ -188,9 +217,7 @@ const MobileShell = ({ children }: Props) => {
             )}
           </div>
           <div className="flex w-10 items-center justify-end">
-            <Button isIconOnly variant="light" radius="full" onPress={onOpen}>
-              <RiMenuLine size={20} />
-            </Button>
+            <UserCard />
           </div>
         </div>
       </div>
@@ -255,6 +282,58 @@ const MobileShell = ({ children }: Props) => {
                   </Button>
                 );
               })}
+
+              {Boolean(user?.isLogin && visibleCreatedFavorites.length) && (
+                <div className="mt-3 flex flex-col gap-2">
+                  <div className="text-foreground-500 px-2 text-xs">我创建的</div>
+                  {visibleCreatedFavorites.map(item => {
+                    const href = `/collection/${item.id}?mid=${item.mid}`;
+                    const active = isPathActive(location.pathname, `/collection/${item.id}`);
+
+                    return (
+                      <Button
+                        key={`created-${item.id}`}
+                        variant={active ? "solid" : "light"}
+                        color={active ? "primary" : "default"}
+                        startContent={<RiFolderMusicLine size={18} />}
+                        className="justify-start"
+                        onPress={() => {
+                          navigate(href);
+                          onOpenChange();
+                        }}
+                      >
+                        <span className="truncate">{item.title}</span>
+                      </Button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {Boolean(user?.isLogin && visibleCollectedFavorites.length) && (
+                <div className="mt-3 flex flex-col gap-2">
+                  <div className="text-foreground-500 px-2 text-xs">我收藏的</div>
+                  {visibleCollectedFavorites.map(item => {
+                    const href = `/collection/${item.id}?type=${item.type}&mid=${item.mid}`;
+                    const active = isPathActive(location.pathname, `/collection/${item.id}`);
+
+                    return (
+                      <Button
+                        key={`collected-${item.id}`}
+                        variant={active ? "solid" : "light"}
+                        color={active ? "primary" : "default"}
+                        startContent={<RiFolderMusicLine size={18} />}
+                        className="justify-start"
+                        onPress={() => {
+                          navigate(href);
+                          onOpenChange();
+                        }}
+                      >
+                        <span className="truncate">{item.title}</span>
+                      </Button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </DrawerBody>
         </DrawerContent>

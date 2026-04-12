@@ -3,11 +3,16 @@ import React, { useRef, useState, useEffect, useCallback } from "react";
 import { Tooltip, Slider } from "@heroui/react";
 import { RiVolumeDownLine, RiVolumeMuteLine, RiVolumeUpLine } from "@remixicon/react";
 
+import { shouldUseNativePlayer } from "@/common/utils/native-player";
 import { usePlayList } from "@/store/play-list";
 
 import IconButton from "../icon-button";
 
 const Volume = () => {
+  if (shouldUseNativePlayer()) {
+    return null;
+  }
+
   const volume = usePlayList(s => s.volume);
   const isMuted = usePlayList(s => s.isMuted);
   const toggleMute = usePlayList(s => s.toggleMute);

@@ -63,34 +63,58 @@ const UserCard = ({ u, refresh, onSetGroup }: Props) => {
       key={u.mid}
       radius="md"
       as="div"
-      isHoverable
-      isPressable
-      onPress={() => navigate(`/user/${u.mid}`)}
+      isHoverable={!isMobile}
+      isPressable={!isMobile}
+      onPress={!isMobile ? () => navigate(`/user/${u.mid}`) : undefined}
       className="group relative h-full w-full overflow-hidden"
     >
-      <CardBody className={isMobile ? "flex items-center gap-3 overflow-hidden p-4" : "flex items-center space-y-2 overflow-hidden p-4"}>
-        <div className={isMobile ? "relative h-20 w-20 flex-none" : "relative h-32 w-32 flex-none"}>
-          <Avatar
-            className={isMobile ? "text-large h-20 w-20" : "text-large h-32 w-32"}
-            src={`${u.face}@160w_160h_1c_1s.webp`}
-            name={u.uname}
-          />
-          {u.official_verify?.type === 0 && (
-            <div className={isMobile ? "bg-warning ring-background absolute right-0 bottom-0 flex h-5 w-5 items-center justify-center rounded-full text-white ring-2" : "bg-warning ring-background absolute right-1 bottom-1 flex h-6 w-6 items-center justify-center rounded-full text-white ring-2"}>
-              <RiFlashlightFill size={14} />
+      {isMobile ? (
+        <button type="button" onClick={() => navigate(`/user/${u.mid}`)} className="w-full text-left">
+          <CardBody className="flex items-center gap-3 overflow-hidden p-4">
+            <div className="relative h-20 w-20 flex-none">
+              <Avatar
+                className="text-large h-20 w-20"
+                src={`${u.face}@160w_160h_1c_1s.webp`}
+                name={u.uname}
+              />
+              {u.official_verify?.type === 0 && (
+                <div className="bg-warning ring-background absolute right-0 bottom-0 flex h-5 w-5 items-center justify-center rounded-full text-white ring-2">
+                  <RiFlashlightFill size={14} />
+                </div>
+              )}
+              {u.official_verify?.type === 1 && (
+                <div className="bg-primary ring-background absolute right-0 bottom-0 flex h-5 w-5 items-center justify-center rounded-full text-white ring-2">
+                  <RiFlashlightFill size={14} />
+                </div>
+              )}
             </div>
-          )}
-          {u.official_verify?.type === 1 && (
-            <div className={isMobile ? "bg-primary ring-background absolute right-0 bottom-0 flex h-5 w-5 items-center justify-center rounded-full text-white ring-2" : "bg-primary ring-background absolute right-1 bottom-1 flex h-6 w-6 items-center justify-center rounded-full text-white ring-2"}>
-              <RiFlashlightFill size={14} />
+            <div className="flex min-w-0 flex-1 flex-col items-start space-y-1">
+              <span className="max-w-full min-w-0 truncate text-base font-medium">{u.uname}</span>
+              <span className="text-foreground-500 line-clamp-2 w-full text-left text-sm">{u.sign}</span>
             </div>
-          )}
-        </div>
-        <div className={isMobile ? "flex min-w-0 flex-1 flex-col items-start space-y-1" : "flex w-full flex-col items-center space-y-1"}>
-          <span className={isMobile ? "max-w-full min-w-0 truncate text-base font-medium" : "max-w-full min-w-0 truncate text-lg"}>{u.uname}</span>
-          <span className={isMobile ? "text-foreground-500 line-clamp-2 w-full text-left text-sm" : "text-foreground-500 line-clamp-2 w-full text-center text-sm"}>{u.sign}</span>
-        </div>
-      </CardBody>
+          </CardBody>
+        </button>
+      ) : (
+        <CardBody className="flex items-center space-y-2 overflow-hidden p-4">
+          <div className="relative h-32 w-32 flex-none">
+            <Avatar className="text-large h-32 w-32" src={`${u.face}@160w_160h_1c_1s.webp`} name={u.uname} />
+            {u.official_verify?.type === 0 && (
+              <div className="bg-warning ring-background absolute right-1 bottom-1 flex h-6 w-6 items-center justify-center rounded-full text-white ring-2">
+                <RiFlashlightFill size={14} />
+              </div>
+            )}
+            {u.official_verify?.type === 1 && (
+              <div className="bg-primary ring-background absolute right-1 bottom-1 flex h-6 w-6 items-center justify-center rounded-full text-white ring-2">
+                <RiFlashlightFill size={14} />
+              </div>
+            )}
+          </div>
+          <div className="flex w-full flex-col items-center space-y-1">
+            <span className="max-w-full min-w-0 truncate text-lg">{u.uname}</span>
+            <span className="text-foreground-500 line-clamp-2 w-full text-center text-sm">{u.sign}</span>
+          </div>
+        </CardBody>
+      )}
 
       <div
         className={

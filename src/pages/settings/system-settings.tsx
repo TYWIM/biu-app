@@ -27,6 +27,7 @@ import {
   RiSunLine,
 } from "@remixicon/react";
 
+import { getUnsupportedFeatureMessage, isCapacitorNative } from "@/common/utils/runtime-platform";
 import useIsMobile from "@/common/hooks/use-is-mobile";
 import FontSelect from "@/components/font-select";
 import UpdateCheckButton from "@/components/update-check-button";
@@ -52,6 +53,7 @@ export const SystemSettingsTab = ({
   setValue,
 }: SystemSettingsTabProps) => {
   const isMobile = useIsMobile();
+  const showDesktopOnlyPaths = !isCapacitorNative();
   const selectDirectory = typeof window !== "undefined" ? window.electron?.selectDirectory : undefined;
   const selectFile = typeof window !== "undefined" ? window.electron?.selectFile : undefined;
   const settingRowClass = isMobile ? "flex w-full flex-col gap-3 items-start" : "flex w-full items-center justify-between";
@@ -297,74 +299,77 @@ export const SystemSettingsTab = ({
       </div>
 
       <Divider />
-      <h2>下载</h2>
-      <div className={settingRowClass}>
-        <div className={labelClass}>
-          <div className="text-medium font-medium">下载目录</div>
-          <div className="text-sm text-zinc-500">选择音视频保存的位置</div>
-        </div>
-        <div className={wideControlClass}>
-          <Controller
-            control={control}
-            name="downloadPath"
-            render={({ field }) => (
-              <div className={isMobile ? "flex flex-col gap-2" : "flex items-center space-x-1"}>
-                <Input isDisabled placeholder="选择文件夹" value={field.value} onValueChange={field.onChange} />
-                <Button
-                  variant="flat"
-                  isDisabled={!selectDirectory}
-                  onPress={async () => {
-                    if (!selectDirectory) {
-                      addToast({ title: "浏览器预览模式不支持选择目录", color: "default" });
-                      return;
-                    }
+      {showDesktopOnlyPaths && (
+        <>
+          <h2>下载</h2>
+          <div className={settingRowClass}>
+            <div className={labelClass}>
+              <div className="text-medium font-medium">下载目录</div>
+              <div className="text-sm text-zinc-500">选择音视频保存的位置</div>
+            </div>
+            <div className={wideControlClass}>
+              <Controller
+                control={control}
+                name="downloadPath"
+                render={({ field }) => (
+                  <div className={isMobile ? "flex flex-col gap-2" : "flex items-center space-x-1"}>
+                    <Input isDisabled placeholder="选择文件夹" value={field.value} onValueChange={field.onChange} />
+                    <Button
+                      variant="flat"
+                      isDisabled={!selectDirectory}
+                      onPress={async () => {
+                        if (!selectDirectory) {
+                          addToast({ title: getUnsupportedFeatureMessage("选择目录"), color: "default" });
+                          return;
+                        }
 
-                    const path = await selectDirectory();
-                    if (path) setValue("downloadPath", path, { shouldDirty: true, shouldTouch: true });
-                  }}
-                >
-                  选择
-                </Button>
-              </div>
-            )}
-          />
-        </div>
-      </div>
+                        const path = await selectDirectory();
+                        if (path) setValue("downloadPath", path, { shouldDirty: true, shouldTouch: true });
+                      }}
+                    >
+                      选择
+                    </Button>
+                  </div>
+                )}
+              />
+            </div>
+          </div>
 
-      {/* FFmpeg 路径配置 */}
-      <div className={settingRowClass}>
-        <div className={labelClass}>
-          <div className="text-medium font-medium">FFmpeg 路径</div>
-          <div className="text-sm text-zinc-500">手动指定 FFmpeg 可执行文件路径</div>
-        </div>
-        <div className={wideControlClass}>
-          <Controller
-            control={control}
-            name="ffmpegPath"
-            render={({ field }) => (
-              <div className={isMobile ? "flex flex-col gap-2" : "flex items-center space-x-1"}>
-                <Input isDisabled placeholder="自动检测" value={field.value} onValueChange={field.onChange} />
-                <Button
-                  variant="flat"
-                  isDisabled={!selectFile}
-                  onPress={async () => {
-                    if (!selectFile) {
-                      addToast({ title: "浏览器预览模式不支持选择文件", color: "default" });
-                      return;
-                    }
+          <div className={settingRowClass}>
+            <div className={labelClass}>
+              <div className="text-medium font-medium">FFmpeg 路径</div>
+              <div className="text-sm text-zinc-500">手动指定 FFmpeg 可执行文件路径</div>
+            </div>
+            <div className={wideControlClass}>
+              <Controller
+                control={control}
+                name="ffmpegPath"
+                render={({ field }) => (
+                  <div className={isMobile ? "flex flex-col gap-2" : "flex items-center space-x-1"}>
+                    <Input isDisabled placeholder="自动检测" value={field.value} onValueChange={field.onChange} />
+                    <Button
+                      variant="flat"
+                      isDisabled={!selectFile}
+                      onPress={async () => {
+                        if (!selectFile) {
+                          addToast({ title: getUnsupportedFeatureMessage("选择文件"), color: "default" });
+                          return;
+                        }
 
-                    const path = await selectFile();
-                    if (path) setValue("ffmpegPath", path, { shouldDirty: true, shouldTouch: true });
-                  }}
-                >
-                  选择
-                </Button>
-              </div>
-            )}
-          />
-        </div>
-      </div>
-      <Divider />
+                        const path = await selectFile();
+                        if (path) setValue("ffmpegPath", path, { shouldDirty: true, shouldTouch: true });
+                      }}
+                    >
+                      选择
+                    </Button>
+                  </div>
+                )}
+              />
+            </div>
+          </div>
+          <Divider />
+        </>
+      )}
       <h2>搜索</h2>
       {/* 显示搜索历史 */}
       <div className={settingRowClass}>

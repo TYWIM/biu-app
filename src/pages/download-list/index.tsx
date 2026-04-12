@@ -19,6 +19,7 @@ import { RiDeleteBinLine, RiExternalLinkLine, RiFolderLine } from "@remixicon/re
 import { filesize } from "filesize";
 
 import { formatMillisecond } from "@/common/utils/time";
+import { getUnsupportedFeatureMessage, isBrowserPreview as checkIsBrowserPreview } from "@/common/utils/runtime-platform";
 import { openBiliVideoLink } from "@/common/utils/url";
 import Empty from "@/components/empty";
 import Image from "@/components/image";
@@ -33,7 +34,7 @@ const DownloadList = () => {
   const downloadPath = useSettings(s => s.downloadPath);
   const isMobile = useIsMobile();
   const electron = window.electron;
-  const isBrowserPreview = !electron;
+  const isBrowserPreview = checkIsBrowserPreview();
   const [downloadList, setDownloadList] = useState<MediaDownloadTask[]>([]);
   const [fileType, setFileType] = useState<string>("all");
 
@@ -114,7 +115,7 @@ const DownloadList = () => {
         </div>
       </div>
       {isBrowserPreview && (
-        <Empty className="py-8" title="浏览器预览模式下不提供 Electron 下载记录，这里只用于检查手机端排版。" />
+        <Empty className="py-8" title={`${getUnsupportedFeatureMessage("下载记录")}，这里仅用于检查页面排版。`} />
       )}
       <Card radius="md" shadow="sm">
         <CardBody>
@@ -204,7 +205,7 @@ const DownloadList = () => {
                 })}
               </div>
             ) : (
-              <Empty title={isBrowserPreview ? "浏览器预览模式下暂无下载数据" : undefined} />
+              <Empty title={isBrowserPreview ? `${getUnsupportedFeatureMessage("下载记录")}，暂无可显示的数据` : undefined} />
             )
           ) : (
             <div className="w-full overflow-x-auto">
@@ -230,7 +231,7 @@ const DownloadList = () => {
                     操作
                   </TableColumn>
                 </TableHeader>
-                <TableBody items={filteredDownloadList} emptyContent={<Empty title={isBrowserPreview ? "浏览器预览模式下暂无下载数据" : undefined} />}>
+                <TableBody items={filteredDownloadList} emptyContent={<Empty title={isBrowserPreview ? `${getUnsupportedFeatureMessage("下载记录")}，暂无可显示的数据` : undefined} />}>
                   {item => {
                     const quality = getFileQuality(item);
 

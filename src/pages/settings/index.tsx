@@ -5,6 +5,7 @@ import { Tab, Tabs } from "@heroui/react";
 import { useShallow } from "zustand/react/shallow";
 
 import useIsMobile from "@/common/hooks/use-is-mobile";
+import { isCapacitorNative } from "@/common/utils/runtime-platform";
 import ScrollContainer from "@/components/scroll-container";
 import { useAppUpdateStore } from "@/store/app-update";
 import { useSettings } from "@/store/settings";
@@ -118,6 +119,7 @@ const useSystemSettingsForm = () => {
 const SettingsPage = () => {
   const system = useSystemSettingsForm();
   const isMobile = useIsMobile();
+  const showDesktopOnlySettings = !isCapacitorNative();
 
   return (
     <ScrollContainer enableBackToTop className="h-full w-full">
@@ -140,12 +142,16 @@ const SettingsPage = () => {
             <Tab key="menu" title="菜单设置">
               <MenuSettings control={system.control} />
             </Tab>
-            <Tab key="shortcut" title="快捷键设置">
-              <ShortcutSettingsPage />
-            </Tab>
-            <Tab key="proxy" title="代理设置">
-              <ProxySettings control={system.control} />
-            </Tab>
+            {showDesktopOnlySettings && (
+              <Tab key="shortcut" title="快捷键设置">
+                <ShortcutSettingsPage />
+              </Tab>
+            )}
+            {showDesktopOnlySettings && (
+              <Tab key="proxy" title="代理设置">
+                <ProxySettings control={system.control} />
+              </Tab>
+            )}
           </Tabs>
         </div>
       </div>

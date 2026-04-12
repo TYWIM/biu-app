@@ -5,6 +5,7 @@ import { RiTBoxLine } from "@remixicon/react";
 import clsx from "classnames";
 import { debounce } from "es-toolkit";
 
+import { canUseRuntimeStore, getRuntimeStore, setRuntimeStore } from "@/common/utils/runtime-store";
 import type { WebPlayerParams } from "@/service/web-player";
 
 import { usePlayList } from "@/store/play-list";
@@ -35,10 +36,7 @@ const Lyrics = ({ color, centered, showControls }: { color?: string; centered?: 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const rafIdRef = useRef<number | null>(null);
   const lineRefs = useRef<Record<number, HTMLDivElement | null>>({});
-  const electron = typeof window !== "undefined" ? window.electron : undefined;
-  const getStore = electron?.getStore;
-  const setStore = electron?.setStore;
-  const canPersistLyrics = Boolean(electron?.getStore && electron?.setStore);
+  const canPersistLyrics = canUseRuntimeStore();
   const [centerPadding, setCenterPadding] = useState(0);
   const playId = usePlayList(s => s.playId);
   const [lyrics, setLyrics] = useState<LyricLine[]>([]);
@@ -88,12 +86,12 @@ const Lyrics = ({ color, centered, showControls }: { color?: string; centered?: 
     const playItem = usePlayList.getState().getPlayItem();
     if (!canPersistLyrics || !playItem?.bvid || !playItem?.cid) return null;
 
-    const store = await getStore?.(StoreNameMap.LyricsCache);
+    const store = await getRuntimeStore(StoreNameMap.LyricsCache);
     if (!store || typeof store !== "object") return null;
 
     return store[`${playItem.bvid}-${playItem.cid}`] ?? null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canPersistLyrics, getStore, playId]);
+  }, [canPersistLyrics, playId]);
 
   useEffect(() => {
     let canceled = false;
@@ -195,11 +193,11 @@ const Lyrics = ({ color, centered, showControls }: { color?: string; centered?: 
       debounce(async (playItem: PlayItem, nextOffset?: number, nextFontSize?: number) => {
         try {
           if (!canPersistLyrics || !playItem?.bvid || !playItem?.cid) return;
-          const store = await getStore?.(StoreNameMap.LyricsCache);
+          const store = await getRuntimeStore(StoreNameMap.LyricsCache);
           const key = `${playItem.bvid}-${playItem.cid}`;
           const prev = store?.[key] || {};
 
-          await setStore?.(StoreNameMap.LyricsCache, {
+          await setRuntimeStore(StoreNameMap.LyricsCache, {
             ...(store || {}),
             [key]: {
               ...prev,
@@ -211,7 +209,7 @@ const Lyrics = ({ color, centered, showControls }: { color?: string; centered?: 
           addToast({ color: "danger", title: "保存失败" });
         }
       }, 500),
-    [canPersistLyrics, getStore, setStore],
+    [canPersistLyrics],
   );
 
   const handleOffsetChange = useCallback(
