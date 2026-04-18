@@ -166,8 +166,8 @@ public class BiuPlayerManager {
 
     public JSObject configure(double nextVolume, boolean nextMuted, double nextPlaybackRate, boolean nextLoop) {
         ensurePlayer();
-        volume = 1.0f;
-        muted = false;
+        volume = (float) Math.max(0d, Math.min(1d, nextVolume));
+        muted = nextMuted;
         playbackRate = (float) Math.max(0.25, Math.min(4, nextPlaybackRate));
         loop = nextLoop;
         applyConfig();
@@ -284,7 +284,7 @@ public class BiuPlayerManager {
             return;
         }
 
-        player.setVolume(1f);
+        player.setVolume(muted ? 0f : volume);
         player.setRepeatMode(loop ? Player.REPEAT_MODE_ONE : Player.REPEAT_MODE_OFF);
         player.setPlaybackParameters(new PlaybackParameters(playbackRate));
     }

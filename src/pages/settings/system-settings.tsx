@@ -29,6 +29,7 @@ import {
 
 import { getUnsupportedFeatureMessage, isCapacitorNative } from "@/common/utils/runtime-platform";
 import useIsMobile from "@/common/hooks/use-is-mobile";
+import { shouldUseNativePlayer } from "@/common/utils/native-player";
 import FontSelect from "@/components/font-select";
 import UpdateCheckButton from "@/components/update-check-button";
 
@@ -54,6 +55,7 @@ export const SystemSettingsTab = ({
 }: SystemSettingsTabProps) => {
   const isMobile = useIsMobile();
   const showDesktopOnlyPaths = !isCapacitorNative();
+  const supportsSystemVolumeFollow = shouldUseNativePlayer();
   const selectDirectory = typeof window !== "undefined" ? window.electron?.selectDirectory : undefined;
   const selectFile = typeof window !== "undefined" ? window.electron?.selectFile : undefined;
   const settingRowClass = isMobile ? "flex w-full flex-col gap-3 items-start" : "flex w-full items-center justify-between";
@@ -284,6 +286,21 @@ export const SystemSettingsTab = ({
             )}
           />
         </div>
+      </div>
+      <div className={settingRowClass}>
+        <div className={labelClass}>
+          <div className="text-medium font-medium">跟随系统音量</div>
+          <div className="text-sm text-zinc-500">
+            {supportsSystemVolumeFollow
+              ? "开启后使用系统音量键调节播放音量；关闭后使用应用内独立音量并保留上次设置"
+              : "当前运行环境仍使用应用内音量控制；该选项主要对 Android 原生播放器生效"}
+          </div>
+        </div>
+        <Controller
+          control={control}
+          name="followSystemVolume"
+          render={({ field }) => <Switch disableAnimation isSelected={field.value} onValueChange={field.onChange} />}
+        />
       </div>
       {/* 播放记录上报 */}
       <div className={settingRowClass}>

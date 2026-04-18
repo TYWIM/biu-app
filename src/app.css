@@ -1,9 +1,9 @@
-@import 'tailwindcss';
+@import "tailwindcss";
 
-@plugin './hero.ts';
+@plugin "./hero.ts";
 @plugin "@tailwindcss/typography";
 
-@source '../node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}';
+@source "../node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -35,11 +35,25 @@
   --safe-area-right: env(safe-area-inset-right, 0px);
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
   --safe-area-left: env(safe-area-inset-left, 0px);
+  --mobile-shell-bg: #07111f;
+  --mobile-shell-panel: rgb(9 18 31 / 72%);
+  --mobile-shell-border: rgb(255 255 255 / 10%);
+  --mobile-shell-glow-a: rgb(99 102 241 / 22%);
+  --mobile-shell-glow-b: rgb(34 197 94 / 16%);
+  --mobile-shell-glow-c: rgb(59 130 246 / 20%);
 }
 
-html, body, #root {
+html,
+body,
+#root {
   height: 100%;
   overflow: hidden;
+}
+
+body {
+  background:
+    radial-gradient(circle at top, rgb(99 102 241 / 12%), transparent 26%),
+    radial-gradient(circle at 80% 14%, rgb(59 130 246 / 10%), transparent 24%), var(--mobile-shell-bg);
 }
 
 .no-scrollbar {
@@ -51,9 +65,10 @@ html, body, #root {
   display: none;
 }
 
-.suggest_high_light,.keyword {
+.suggest_high_light,
+.keyword {
   font-style: normal;
-  color: #F54180;
+  color: #f54180;
 }
 
 .os-scrollbar {
@@ -63,4 +78,95 @@ html, body, #root {
   --os-handle-bg-hover: hsl(var(--heroui-default-400) / 100%);
 
   padding: 0;
+}
+
+@keyframes mobileAmbientFloat {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  50% {
+    transform: translate3d(0, -18px, 0) scale(1.06);
+  }
+}
+
+@keyframes mobileAmbientDrift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  50% {
+    transform: translate3d(16px, 12px, 0) scale(1.08);
+  }
+}
+
+@keyframes mobileNoisePulse {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+
+  50% {
+    opacity: 0.65;
+  }
+}
+
+.mobile-shell-backdrop {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: linear-gradient(180deg, rgb(3 9 21 / 92%) 0%, rgb(5 12 24 / 78%) 30%, rgb(6 14 26 / 100%) 100%);
+}
+
+.mobile-shell-backdrop::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgb(5 12 24 / 20%) 0%, rgb(5 12 24 / 65%) 62%, rgb(5 12 24 / 96%) 100%);
+}
+
+.mobile-shell-noise {
+  position: absolute;
+  inset: -20%;
+  background-image: radial-gradient(circle, rgb(255 255 255 / 0.08) 0.6px, transparent 0.8px);
+  background-size: 20px 20px;
+  mix-blend-mode: soft-light;
+  animation: mobileNoisePulse 9s ease-in-out infinite;
+}
+
+.mobile-shell-ambient {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(84px);
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+
+.mobile-shell-ambient-a {
+  top: -12%;
+  left: -16%;
+  width: 260px;
+  height: 260px;
+  background: var(--mobile-shell-glow-a);
+  animation: mobileAmbientFloat 12s ease-in-out infinite;
+}
+
+.mobile-shell-ambient-b {
+  right: -10%;
+  top: 18%;
+  width: 220px;
+  height: 220px;
+  background: var(--mobile-shell-glow-b);
+  animation: mobileAmbientDrift 14s ease-in-out infinite;
+}
+
+.mobile-shell-ambient-c {
+  bottom: 14%;
+  left: 18%;
+  width: 180px;
+  height: 180px;
+  background: var(--mobile-shell-glow-c);
+  animation: mobileAmbientFloat 10s ease-in-out infinite reverse;
 }

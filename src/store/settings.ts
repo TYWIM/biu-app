@@ -66,6 +66,7 @@ export const useSettings = create<AppSettings & SettingsActions>()(
           backgroundColor: state.backgroundColor,
           borderRadius: state.borderRadius,
           audioQuality: state.audioQuality,
+          followSystemVolume: state.followSystemVolume,
           hiddenMenuKeys: state.hiddenMenuKeys,
           displayMode: state.displayMode,
           ffmpegPath: state.ffmpegPath,

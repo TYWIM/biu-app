@@ -22,6 +22,7 @@ import { getAudioSongInfo } from "@/service/audio-song-info";
 import { getWebInterfaceView } from "@/service/web-interface-view";
 
 import { usePlayProgress } from "./play-progress";
+import { useSettings } from "./settings";
 
 export type PlayDataType = "mv" | "audio";
 
@@ -109,6 +110,7 @@ interface Action {
   togglePlay: () => void;
   toggleMute: () => void;
   setVolume: (volume: number) => void; // 0-1
+  syncVolumePreference: () => void;
   togglePlayMode: () => void;
   setRate: (rate: number) => void; // 0.5-2.0
   seek: (s: number) => void;
@@ -191,6 +193,30 @@ const handlePlayError = (error: any) => {
   if (!errorMsg.includes("interrupted") && !errorMsg.includes("NotAllowed")) {
     toastError(error instanceof Error ? error.message : "获取播放链接失败");
   }
+};
+
+const clampVolume = (value: number) => {
+  if (!Number.isFinite(value)) {
+    return 0.5;
+  }
+
+  return Math.max(0, Math.min(1, value));
+};
+
+const shouldFollowSystemVolume = () => shouldUseNativePlayer() && useSettings.getState().followSystemVolume;
+
+const getRuntimeVolumeState = (state: Pick<State, "volume" | "isMuted">) => {
+  if (shouldFollowSystemVolume()) {
+    return {
+      volume: 1,
+      isMuted: false,
+    };
+  }
+
+  return {
+    volume: clampVolume(state.volume),
+    isMuted: state.isMuted,
+  };
 };
 
 const updateMediaSession = ({ title, artist, cover }: { title: string; artist?: string; cover?: string }) => {
@@ -397,7 +423,7 @@ export const usePlayList = create<State & Action>()(
       return {
         isPlaying: false,
         isMuted: false,
-        volume: shouldUseNativePlayer() ? 1 : 0.5,
+        volume: 0.5,
         playMode: PlayMode.Loop,
         rate: 1,
         duration: undefined,
@@ -405,18 +431,12 @@ export const usePlayList = create<State & Action>()(
         list: [],
         init: async () => {
           if (audio) {
-            const useSystemVolume = shouldUseNativePlayer();
-            const initialVolume = useSystemVolume ? 1 : get().volume;
-            const initialMuted = useSystemVolume ? false : get().isMuted;
+            const { volume: initialVolume, isMuted: initialMuted } = getRuntimeVolumeState(get());
 
             audio.volume = initialVolume;
             audio.muted = initialMuted;
             audio.playbackRate = get().rate;
             audio.loop = get().playMode === PlayMode.Single;
-
-            if (useSystemVolume) {
-              set({ volume: 1, isMuted: false });
-            }
 
             audio.onloadedmetadata = () => {
               syncDurationState();
@@ -555,8 +575,7 @@ export const usePlayList = create<State & Action>()(
           }
         },
         toggleMute: () => {
-          if (shouldUseNativePlayer()) {
-            set({ isMuted: false, volume: 1 });
+          if (shouldFollowSystemVolume()) {
             return;
           }
           if (audio) {
@@ -565,16 +584,28 @@ export const usePlayList = create<State & Action>()(
           set(s => ({ isMuted: !s.isMuted }));
         },
         setVolume: volume => {
-          if (shouldUseNativePlayer()) {
-            set({ volume: 1, isMuted: false });
+          const nextVolume = clampVolume(volume);
+          if (shouldFollowSystemVolume()) {
+            set(state => {
+              state.volume = nextVolume;
+            });
             return;
           }
           if (audio) {
-            audio.volume = volume;
+            audio.volume = nextVolume;
           }
           set(state => {
-            state.volume = volume;
+            state.volume = nextVolume;
           });
+        },
+        syncVolumePreference: () => {
+          if (!audio) {
+            return;
+          }
+
+          const { volume, isMuted } = getRuntimeVolumeState(get());
+          audio.volume = volume;
+          audio.muted = isMuted;
         },
         togglePlayMode: () => {
           const playModeList = getPlayModeList();
@@ -1258,4 +1289,15 @@ usePlayList.subscribe(async (state, prevState) => {
       }
     }
   }
+});
+
+let previousFollowSystemVolume = useSettings.getState().followSystemVolume;
+
+useSettings.subscribe(state => {
+  if (state.followSystemVolume === previousFollowSystemVolume) {
+    return;
+  }
+
+  previousFollowSystemVolume = state.followSystemVolume;
+  usePlayList.getState().syncVolumePreference();
 });

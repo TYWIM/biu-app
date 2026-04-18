@@ -211,47 +211,67 @@ const MusicRecommend = () => {
     addToast({ title: `已添加 ${items.length} 首到播放列表`, color: "success" });
   }, [list]);
 
-  const handleMenuAction = useCallback(async (key: string, item: RecommendItem) => {
-    if (!item.bvid && key !== "favorite") {
-      addToast({ title: "暂无可播放内容", color: "warning" });
-      return;
-    }
-    switch (key) {
-      case "favorite":
-        if (!item.aid) {
-          addToast({ title: "该项目无法收藏", color: "warning" });
-          return;
-        }
-        useModalStore.getState().onOpenFavSelectModal({
-          rid: Number(item.aid),
-          type: 2,
-          title: item.title,
-        });
-        break;
-      case "play-next":
-        usePlayList.getState().addToNext({
-          type: "mv",
-          title: item.title,
-          cover: item.cover,
-          bvid: item.bvid,
-          sid: Number(item.id) || undefined,
-          ownerName: item.author,
-        });
-        break;
-      case "add-to-playlist":
-        usePlayList.getState().addList([
-          {
+  const handleMenuAction = useCallback(
+    async (key: string, item: RecommendItem) => {
+      if (!item.bvid && key !== "favorite") {
+        addToast({ title: "暂无可播放内容", color: "warning" });
+        return;
+      }
+      switch (key) {
+        case "favorite":
+          if (!item.aid) {
+            addToast({ title: "该项目无法收藏", color: "warning" });
+            return;
+          }
+          useModalStore.getState().onOpenFavSelectModal({
+            rid: Number(item.aid),
+            type: 2,
+            title: item.title,
+          });
+          break;
+        case "play-next":
+          usePlayList.getState().addToNext({
             type: "mv",
             title: item.title,
             cover: item.cover,
             bvid: item.bvid,
             sid: Number(item.id) || undefined,
             ownerName: item.author,
-          },
-        ]);
-        break;
-      case "download-audio":
-        {
+          });
+          break;
+        case "add-to-playlist":
+          usePlayList.getState().addList([
+            {
+              type: "mv",
+              title: item.title,
+              cover: item.cover,
+              bvid: item.bvid,
+              sid: Number(item.id) || undefined,
+              ownerName: item.author,
+            },
+          ]);
+          break;
+        case "download-audio":
+          {
+            const downloadTask = addMediaDownloadTask;
+            if (!downloadTask) {
+              addToast({ title: "浏览器预览模式不支持下载", color: "default" });
+              return;
+            }
+
+            await downloadTask({
+              outputFileType: "audio",
+              title: item.title,
+              cover: item.cover,
+              bvid: item.bvid,
+            });
+            addToast({
+              title: "已添加下载任务",
+              color: "success",
+            });
+          }
+          break;
+        case "download-video": {
           const downloadTask = addMediaDownloadTask;
           if (!downloadTask) {
             addToast({ title: "浏览器预览模式不支持下载", color: "default" });
@@ -259,7 +279,7 @@ const MusicRecommend = () => {
           }
 
           await downloadTask({
-            outputFileType: "audio",
+            outputFileType: "video",
             title: item.title,
             cover: item.cover,
             bvid: item.bvid,
@@ -268,39 +288,48 @@ const MusicRecommend = () => {
             title: "已添加下载任务",
             color: "success",
           });
+          break;
         }
-        break;
-      case "download-video": {
-        const downloadTask = addMediaDownloadTask;
-        if (!downloadTask) {
-          addToast({ title: "浏览器预览模式不支持下载", color: "default" });
-          return;
-        }
-
-        await downloadTask({
-          outputFileType: "video",
-          title: item.title,
-          cover: item.cover,
-          bvid: item.bvid,
-        });
-        addToast({
-          title: "已添加下载任务",
-          color: "success",
-        });
-        break;
+        case "bililink":
+          if (item.bvid) {
+            openBiliVideoLink({ type: "mv", bvid: item.bvid });
+          }
+          break;
+        default:
+          break;
       }
-      case "bililink":
-        if (item.bvid) {
-          openBiliVideoLink({ type: "mv", bvid: item.bvid });
-        }
-        break;
-      default:
-        break;
-    }
-  }, [addMediaDownloadTask]);
+    },
+    [addMediaDownloadTask],
+  );
 
   return (
-    <ScrollContainer enableBackToTop ref={scrollerRef} className={isMobile ? "h-full w-full px-4 py-3" : "h-full w-full px-4"}>
+    <ScrollContainer
+      enableBackToTop
+      ref={scrollerRef}
+      className={isMobile ? "h-full w-full px-4 py-4" : "h-full w-full px-4"}
+    >
+      {isMobile && (
+        <div className="mb-4 rounded-[24px] border border-white/8 bg-white/[0.04] px-4 py-4 shadow-[0_18px_40px_rgb(2_6_23_/_0.08)] backdrop-blur-xl">
+          <div className="flex items-end justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-primary mb-1 text-[10px] font-medium tracking-[0.28em] uppercase">Recommend</div>
+              <div className="text-foreground text-[28px] leading-none font-semibold tracking-tight">发现</div>
+              <div className="text-foreground-500 mt-2 text-sm">按分区浏览内容，并一键加入当前播放队列</div>
+            </div>
+            <AsyncButton
+              color="primary"
+              size="sm"
+              radius="full"
+              startContent={<RiPlayFill size={18} />}
+              isDisabled={initialLoading || list.length === 0}
+              onPress={handlePlayAll}
+              className="shrink-0 px-4 dark:text-black"
+            >
+              全部播放
+            </AsyncButton>
+          </div>
+        </div>
+      )}
       <div className={isMobile ? "mb-3 flex flex-col gap-3" : "mb-2 flex items-center justify-between"}>
         <Tabs
           variant="solid"
@@ -308,8 +337,12 @@ const MusicRecommend = () => {
           radius="md"
           className={isMobile ? "w-full" : undefined}
           classNames={{
-            cursor: "rounded-medium",
-            tabList: "max-w-full overflow-x-auto no-scrollbar",
+            cursor: isMobile ? "rounded-full shadow-lg" : "rounded-medium",
+            tabList: isMobile
+              ? "max-w-full gap-1 overflow-x-auto rounded-full bg-white/[0.05] p-1 no-scrollbar"
+              : "max-w-full overflow-x-auto no-scrollbar",
+            tab: isMobile ? "h-10 px-4" : undefined,
+            tabContent: isMobile ? "text-sm font-medium" : undefined,
           }}
           selectedKey={activeTab}
           onSelectionChange={key => {
@@ -331,7 +364,7 @@ const MusicRecommend = () => {
           startContent={<RiPlayFill size={18} />}
           isDisabled={initialLoading || list.length === 0}
           onPress={handlePlayAll}
-          className={isMobile ? "w-full dark:text-black" : "dark:text-black"}
+          className={isMobile ? "hidden dark:text-black" : "dark:text-black"}
         >
           全部播放
         </AsyncButton>

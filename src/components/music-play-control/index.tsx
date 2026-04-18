@@ -1,33 +1,58 @@
-import React from "react";
+import React, { memo } from "react";
 
 import { RiPauseCircleFill, RiPlayCircleFill, RiSkipBackFill, RiSkipForwardFill } from "@remixicon/react";
+import { twMerge } from "tailwind-merge";
+import { useShallow } from "zustand/shallow";
 
 import IconButton from "@/components/icon-button";
 import { usePlayList } from "@/store/play-list";
 
-const MusicPlayControl = () => {
-  const prev = usePlayList(state => state.prev);
-  const next = usePlayList(state => state.next);
-  const list = usePlayList(state => state.list);
-  const togglePlay = usePlayList(state => state.togglePlay);
-  const isPlaying = usePlayList(state => state.isPlaying);
+interface Props {
+  className?: string;
+  secondaryButtonClassName?: string;
+  primaryButtonClassName?: string;
+  secondaryIconSize?: number;
+  primaryIconSize?: number;
+}
 
-  const isEmptyPlayList = list.length === 0;
-  const isSingle = list.length === 1;
+const MusicPlayControl = ({
+  className,
+  secondaryButtonClassName,
+  primaryButtonClassName,
+  secondaryIconSize = 22,
+  primaryIconSize = 48,
+}: Props) => {
+  const { prev, next, togglePlay, isPlaying, listLength } = usePlayList(
+    useShallow(state => ({
+      prev: state.prev,
+      next: state.next,
+      togglePlay: state.togglePlay,
+      isPlaying: state.isPlaying,
+      listLength: state.list.length,
+    })),
+  );
+
+  const isEmptyPlayList = listLength === 0;
+  const isSingle = listLength === 1;
 
   return (
-    <div className="flex items-center justify-center space-x-6">
-      <IconButton radius="md" onPress={prev} isDisabled={isEmptyPlayList || isSingle}>
-        <RiSkipBackFill size={22} />
+    <div className={twMerge("flex items-center justify-center space-x-6", className)}>
+      <IconButton radius="md" onPress={prev} isDisabled={isEmptyPlayList || isSingle} className={secondaryButtonClassName}>
+        <RiSkipBackFill size={secondaryIconSize} />
       </IconButton>
-      <IconButton isDisabled={isEmptyPlayList} radius="full" onPress={togglePlay} className="size-12 min-w-12">
-        {isPlaying ? <RiPauseCircleFill size={48} /> : <RiPlayCircleFill size={48} />}
+      <IconButton
+        isDisabled={isEmptyPlayList}
+        radius="full"
+        onPress={togglePlay}
+        className={twMerge("size-12 min-w-12", primaryButtonClassName)}
+      >
+        {isPlaying ? <RiPauseCircleFill size={primaryIconSize} /> : <RiPlayCircleFill size={primaryIconSize} />}
       </IconButton>
-      <IconButton radius="md" onPress={next} isDisabled={isEmptyPlayList || isSingle}>
-        <RiSkipForwardFill size={22} />
+      <IconButton radius="md" onPress={next} isDisabled={isEmptyPlayList || isSingle} className={secondaryButtonClassName}>
+        <RiSkipForwardFill size={secondaryIconSize} />
       </IconButton>
     </div>
   );
 };
 
-export default MusicPlayControl;
+export default memo(MusicPlayControl);
