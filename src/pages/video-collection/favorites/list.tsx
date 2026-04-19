@@ -1,10 +1,12 @@
 import React from "react";
 
+import useIsMobile from "@/common/hooks/use-is-mobile";
 import type { FavMedia } from "@/service/fav-resource";
 
 import { formatSecondsToDate } from "@/common/utils/time";
 import MusicListItem from "@/components/music-list-item";
 import MusicListHeader from "@/components/music-list-item/header";
+import { getMusicListItemRowHeight } from "@/components/music-list-item/styles";
 import VirtualPageList from "@/components/virtual-page-list";
 import { useSettings } from "@/store/settings";
 
@@ -33,6 +35,7 @@ const FavoriteList: React.FC<FavoriteListProps> = ({
   onMenuAction,
   onItemPress,
 }) => {
+  const isMobile = useIsMobile();
   const displayMode = useSettings(state => state.displayMode);
   const isCompact = displayMode === "compact";
 
@@ -45,7 +48,7 @@ const FavoriteList: React.FC<FavoriteListProps> = ({
         loading={loading}
         onLoadMore={onLoadMore}
         getScrollElement={getScrollElement}
-        rowHeight={isCompact ? 36 : 64}
+        rowHeight={getMusicListItemRowHeight(isMobile, isCompact)}
         renderItem={(item, index) => {
           const canPlay = [2, 12].includes(item.type);
 

@@ -3,7 +3,6 @@ import { useLocation, useNavigate } from "react-router";
 
 import { Button, Drawer, DrawerBody, DrawerContent, DrawerHeader, useDisclosure } from "@heroui/react";
 import {
-  RiArrowLeftSLine,
   RiCompass3Line,
   RiDiscLine,
   RiFileDownloadLine,
@@ -28,7 +27,7 @@ import { DefaultMenuList } from "@/common/constants/menus";
 import { formatUrlProtocol } from "@/common/utils/url";
 import IconButton from "@/components/icon-button";
 import MusicPlayProgress from "@/components/music-play-progress";
-import OpenPlaylistDrawerButton from "@/components/open-playlist-drawer-button";
+import { useTheme } from "@/components/theme/use-theme";
 import UserCard from "@/layout/navbar/user";
 import { useFavoritesStore } from "@/store/favorite";
 import { useModalStore } from "@/store/modal";
@@ -149,7 +148,7 @@ const isPathActive = (pathname: string, href: string) => {
   return pathname === href || pathname.startsWith(`${href}/`);
 };
 
-const MobileMiniPlayer = memo(() => {
+const MobileMiniPlayer = memo(({ isDark }: { isDark: boolean }) => {
   const { playItem, next, togglePlay, isPlaying } = usePlayList(
     useShallow(state => ({
       playItem: state.list.find(item => item.id === state.playId),
@@ -168,70 +167,51 @@ const MobileMiniPlayer = memo(() => {
 
   const displayTitle = playItem.pageTitle || playItem.title;
   const displaySubtitle = playItem.source === "local" ? "本地音乐" : playItem.ownerName || "未知作者";
-  const miniPlayerBadge = playItem.source === "local" ? "本地" : playItem.type === "audio" ? "音频" : "视频音频";
+  const btnClass = clsx(
+    "size-8 min-w-8 rounded-full transition-transform duration-150 active:scale-90",
+    isDark
+      ? "bg-white/10 text-white hover:bg-white/16"
+      : "bg-slate-900/6 text-slate-700 hover:bg-slate-900/10",
+  );
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 14 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.28, ease: "easeOut" }}
-      className="relative overflow-hidden rounded-[26px] border border-white/10 bg-white/8 px-3.5 py-3 shadow-[0_18px_50px_rgb(2_6_23_/_0.28)] backdrop-blur-2xl"
-    >
-      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-white/8 to-transparent" />
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={openFullScreenPlayer}
-          className="flex min-w-0 flex-1 items-center gap-3.5 text-left"
-        >
-          <div className="flex h-14 w-14 flex-none items-center justify-center overflow-hidden rounded-[18px] border border-white/12 bg-white/8 shadow-lg shadow-black/10">
-            {cover ? (
-              <img src={cover} alt={displayTitle} className="h-full w-full object-cover" />
-            ) : (
-              <RiMusic2Line />
-            )}
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="mb-1 flex items-center gap-2">
-              <div className="truncate text-[10px] font-medium tracking-[0.22em] text-white/58 uppercase">Now Playing</div>
-              <span className="rounded-full border border-white/10 bg-white/10 px-2 py-0.5 text-[10px] font-medium text-white/72">
-                {miniPlayerBadge}
-              </span>
-            </div>
-            <div className="truncate text-sm font-semibold text-white">{displayTitle}</div>
-            <div className="mt-0.5 truncate text-xs text-white/62">{displaySubtitle}</div>
-          </div>
-        </button>
-        <div className="flex items-center gap-2">
-          <IconButton
-            onPress={togglePlay}
-            className="size-11 min-w-11 rounded-full bg-white/10 text-white hover:bg-white/16 hover:text-white"
-          >
-            {isPlaying ? <RiPauseCircleFill size={30} /> : <RiPlayCircleFill size={30} />}
-          </IconButton>
-          <IconButton onPress={next} className="size-11 min-w-11 rounded-full bg-white/10 text-white hover:bg-white/16 hover:text-white">
-            <RiSkipForwardFill size={20} />
-          </IconButton>
-          <OpenPlaylistDrawerButton
-            className="size-11 min-w-11 rounded-full bg-white/10 text-white hover:bg-white/16 hover:text-white"
-            iconSize={20}
-            tooltip="播放列表"
-          />
+    <div className="flex items-center gap-1.5 px-3 py-1.5">
+      <button
+        type="button"
+        onClick={openFullScreenPlayer}
+        className="flex min-w-0 flex-1 items-center gap-2.5 text-left transition-transform duration-150 active:scale-[0.97]"
+      >
+        <div className={clsx(
+          "flex h-8 w-8 flex-none items-center justify-center overflow-hidden rounded-lg",
+          isDark ? "bg-white/10" : "bg-slate-900/6",
+        )}>
+          {cover ? (
+            <img src={cover} alt={displayTitle} className="h-full w-full object-cover" />
+          ) : (
+            <RiMusic2Line size={14} className={isDark ? "text-white/60" : "text-slate-500"} />
+          )}
         </div>
+        <div className="min-w-0 flex-1">
+          <div className={clsx("truncate text-[12px] font-semibold leading-tight", isDark ? "text-white" : "text-slate-900")}>{displayTitle}</div>
+          <div className={clsx("truncate text-[10px] leading-tight", isDark ? "text-white/55" : "text-slate-600/70")}>{displaySubtitle}</div>
+        </div>
+      </button>
+      <div className="flex items-center gap-1">
+        <IconButton onPress={togglePlay} className={btnClass}>
+          {isPlaying ? <RiPauseCircleFill size={22} /> : <RiPlayCircleFill size={22} />}
+        </IconButton>
+        <IconButton onPress={next} className={btnClass}>
+          <RiSkipForwardFill size={15} />
+        </IconButton>
       </div>
-      <MusicPlayProgress
-        className="mt-3 w-full"
-        trackClassName="h-[3.5px] bg-white/12"
-        timeClassName="text-[10px] text-white/50"
-        thumbClassName="h-3 w-3"
-      />
-    </motion.div>
+    </div>
   );
 });
 
 const MobileShell = ({ children }: Props) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { theme } = useTheme();
   const user = useUser(s => s.user);
   const createdFavorites = useFavoritesStore(s => s.createdFavorites);
   const collectedFavorites = useFavoritesStore(s => s.collectedFavorites);
@@ -241,11 +221,23 @@ const MobileShell = ({ children }: Props) => {
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
   const currentPlayItem = usePlayList(state => state.list.find(item => item.id === state.playId));
 
-  const canGoBack = (window.history?.state?.idx ?? 0) > 0;
   const title = getPageTitle(location.pathname);
   const isHome = location.pathname === "/";
   const currentCover = formatUrlProtocol(currentPlayItem?.pageCover || currentPlayItem?.cover);
   const subtitle = getPageSubtitle(location.pathname, Boolean(currentPlayItem));
+  const isDarkTheme = theme === "dark";
+  const shellCardClassName = isDarkTheme
+    ? "border-white/10 bg-white/8 text-white shadow-[0_18px_60px_rgb(2_6_23_/_0.24)]"
+    : "border-slate-900/8 bg-white/82 text-slate-900 shadow-[0_18px_54px_rgb(148_163_184_/_0.16)]";
+  const shellMutedTextClassName = isDarkTheme ? "text-white/62" : "text-slate-700/72";
+  const shellSubtleLabelClassName = isDarkTheme ? "text-white/58" : "text-slate-700/56";
+  const shellChromeButtonClassName = isDarkTheme
+    ? "bg-white/8 text-white hover:bg-white/14"
+    : "bg-slate-900/6 text-slate-700 hover:bg-slate-900/10 hover:text-slate-950";
+  const shellChipClassName = isDarkTheme
+    ? "border-white/10 bg-white/8 text-white/72"
+    : "border-slate-900/8 bg-slate-900/4 text-slate-700/72";
+  const shellSeparatorClassName = isDarkTheme ? "bg-white/8" : "bg-slate-900/6";
 
   useEffect(() => {
     if (!user?.mid) {
@@ -296,36 +288,24 @@ const MobileShell = ({ children }: Props) => {
             initial={{ opacity: 0, y: -12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.32, ease: "easeOut" }}
-            className="rounded-[28px] border border-white/10 bg-white/8 px-3 py-3 shadow-[0_18px_60px_rgb(2_6_23_/_0.24)] backdrop-blur-2xl"
+            className={clsx("rounded-[28px] border px-3 py-3 backdrop-blur-2xl", shellCardClassName)}
           >
             <div className="flex items-start gap-3">
               <div className="flex flex-none items-center justify-start">
-                {canGoBack ? (
-                  <Button
-                    isIconOnly
-                    variant="light"
-                    radius="full"
-                    onPress={() => navigate(-1)}
-                    className="bg-white/8 text-white hover:bg-white/14"
-                  >
-                    <RiArrowLeftSLine size={20} />
-                  </Button>
-                ) : (
-                  <Button
-                    isIconOnly
-                    variant="light"
-                    radius="full"
-                    onPress={onOpen}
-                    className="bg-white/8 text-white hover:bg-white/14"
-                  >
-                    <RiMenuLine size={20} />
-                  </Button>
-                )}
+                <Button
+                  isIconOnly
+                  variant="light"
+                  radius="full"
+                  onPress={onOpen}
+                  className={shellChromeButtonClassName}
+                >
+                  <RiMenuLine size={20} />
+                </Button>
               </div>
               <div className="min-w-0 flex-1">
                 {isHome ? (
                   <>
-                    <div className="mb-1 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/8 px-2.5 py-1 text-[10px] font-medium tracking-[0.24em] text-white/72 uppercase">
+                    <div className={clsx("mb-1 inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[10px] font-medium tracking-[0.24em] uppercase", shellChipClassName)}>
                       <LogoIcon className="text-primary h-4 w-4" />
                       <span>Biu Mobile</span>
                     </div>
@@ -333,13 +313,13 @@ const MobileShell = ({ children }: Props) => {
                   </>
                 ) : (
                   <>
-                    <div className="text-[10px] font-medium tracking-[0.26em] text-white/58 uppercase">Workspace</div>
+                    <div className={clsx("text-[10px] font-medium tracking-[0.26em] uppercase", shellSubtleLabelClassName)}>Workspace</div>
                     <div className="truncate text-xl font-semibold tracking-tight">{title}</div>
                   </>
                 )}
-                <div className="mt-1 truncate text-sm text-white/62">{subtitle}</div>
+                <div className={clsx("mt-1 truncate text-sm", shellMutedTextClassName)}>{subtitle}</div>
               </div>
-              <div className="flex flex-none items-center justify-end rounded-full border border-white/10 bg-white/8 p-1 shadow-lg shadow-black/10">
+              <div className={clsx("flex flex-none items-center justify-end rounded-full border p-1", shellChipClassName)}>
                 <UserCard />
               </div>
             </div>
@@ -354,7 +334,11 @@ const MobileShell = ({ children }: Props) => {
                       key={item.href}
                       type="button"
                       onClick={() => navigate(item.href)}
-                      className="flex shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/6 px-3 py-2 text-sm text-white/72 transition-all duration-200 hover:bg-white/10 hover:text-white"
+                      className={clsx(
+                        "flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-sm transition-all duration-200 active:scale-95",
+                        shellChipClassName,
+                        isDarkTheme ? "hover:bg-white/10 hover:text-white" : "hover:bg-slate-900/8 hover:text-slate-950",
+                      )}
                     >
                       <Icon size={16} />
                       <span>{item.title}</span>
@@ -366,25 +350,34 @@ const MobileShell = ({ children }: Props) => {
           </motion.div>
         </header>
 
-        <div className="min-h-0 flex-1 px-2">
-          <div className="bg-background/78 relative flex h-full min-h-0 flex-col overflow-hidden rounded-t-[30px] border border-white/10 shadow-[0_26px_70px_rgb(2_6_23_/_0.24)] backdrop-blur-2xl">
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-linear-to-b from-white/8 to-transparent" />
-            <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
-          </div>
-        </div>
-
         <div
-          className="relative z-20 flex-none px-2 pt-2"
+          className="flex min-h-0 flex-1 flex-col px-2"
           style={{ paddingBottom: "calc(0.5rem + var(--safe-area-bottom))" }}
         >
           <motion.div
-            initial={{ opacity: 0, y: 18 }}
+            initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.34, ease: "easeOut", delay: 0.08 }}
-            className="rounded-[30px] border border-white/10 bg-[var(--mobile-shell-panel)] px-2 py-2 shadow-[0_24px_70px_rgb(2_6_23_/_0.34)] backdrop-blur-3xl"
+            transition={{ duration: 0.3, ease: "easeOut", delay: 0.06 }}
+            className={clsx(
+              "flex min-h-0 flex-1 flex-col overflow-hidden rounded-[26px] border backdrop-blur-2xl",
+              isDarkTheme
+                ? "bg-background/78 border-white/10 shadow-[0_26px_70px_rgb(2_6_23_/_0.24)]"
+                : "bg-white/76 border-[color:var(--mobile-shell-border)] shadow-[0_22px_54px_rgb(148_163_184_/_0.16)]",
+            )}
           >
-            <MobileMiniPlayer />
-            <nav className="mt-2 grid grid-cols-5 gap-1 px-1 pb-1">
+            <div className={clsx("pointer-events-none absolute inset-x-0 top-0 z-10 h-16 rounded-t-[26px] bg-linear-to-b", isDarkTheme ? "from-white/8 to-transparent" : "from-white/55 to-transparent")} />
+            <div className="relative min-h-0 flex-1 overflow-hidden">{children}</div>
+
+            <div className={clsx("mx-3 h-px flex-none", shellSeparatorClassName)} />
+            <MobileMiniPlayer isDark={isDarkTheme} />
+            <MusicPlayProgress
+              className="w-full flex-none"
+              trackClassName={isDarkTheme ? "h-[2px] bg-white/8" : "h-[2px] bg-slate-900/6"}
+              thumbClassName="h-0 w-0"
+              timeClassName="hidden"
+            />
+
+            <nav className="grid flex-none grid-cols-5 gap-1 px-2 py-1.5">
               {bottomNavItems.map(item => {
                 const active = isPathActive(location.pathname, item.href);
                 const Icon = item.icon;
@@ -395,13 +388,17 @@ const MobileShell = ({ children }: Props) => {
                     type="button"
                     onClick={() => navigate(item.href)}
                     className={clsx(
-                      "flex min-w-0 flex-col items-center justify-center gap-1 rounded-[18px] px-1 py-2 text-[11px] transition-all duration-200",
+                      "flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-[14px] px-1 py-1.5 text-[10px] transition-all duration-200 active:scale-90",
                       active
-                        ? "bg-white text-slate-950 shadow-[0_10px_24px_rgb(255_255_255_/_0.18)]"
-                        : "text-white/62 hover:bg-white/6 hover:text-white",
+                        ? isDarkTheme
+                          ? "bg-white text-slate-950 shadow-[0_8px_20px_rgb(255_255_255_/_0.16)]"
+                          : "bg-slate-950 text-white shadow-[0_8px_20px_rgb(15_23_42_/_0.16)]"
+                        : isDarkTheme
+                          ? "text-white/55 hover:bg-white/6 hover:text-white"
+                          : "text-slate-500 hover:bg-slate-900/4 hover:text-slate-950",
                     )}
                   >
-                    <Icon size={20} />
+                    <Icon size={17} />
                     <span className="truncate font-medium">{item.title}</span>
                   </button>
                 );

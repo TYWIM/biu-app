@@ -1,7 +1,9 @@
 import React, { useCallback } from "react";
 
+import useIsMobile from "@/common/hooks/use-is-mobile";
 import MusicListItem from "@/components/music-list-item";
 import MusicListHeader from "@/components/music-list-item/header";
+import { getMusicListItemRowHeight } from "@/components/music-list-item/styles";
 import VirtualPageList from "@/components/virtual-page-list";
 import { usePlayList } from "@/store/play-list";
 import { useSettings } from "@/store/settings";
@@ -31,6 +33,7 @@ const MusicRecommendList: React.FC<MusicRecommendListProps> = ({
   onMenuAction,
 }) => {
   const user = useUser(state => state.user);
+  const isMobile = useIsMobile();
   const displayMode = useSettings(state => state.displayMode);
   const isCompact = displayMode === "compact";
 
@@ -55,7 +58,7 @@ const MusicRecommendList: React.FC<MusicRecommendListProps> = ({
         loading={loading}
         onLoadMore={onLoadMore}
         getScrollElement={getScrollElement}
-        rowHeight={isCompact ? 36 : 64}
+        rowHeight={getMusicListItemRowHeight(isMobile, isCompact)}
         renderItem={(item, index) => {
           return (
             <MusicListItem

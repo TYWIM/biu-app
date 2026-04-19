@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { addToast, useDisclosure } from "@heroui/react";
 import { RiTBoxLine } from "@remixicon/react";
@@ -25,6 +25,17 @@ type LyricLine = {
 
 type PlayItem = ReturnType<ReturnType<typeof usePlayList.getState>["getPlayItem"]>;
 
+interface LyricRowProps {
+  line: LyricLine;
+  index: number;
+  isActive: boolean;
+  translation?: string;
+  centered?: boolean;
+  fontSize: number;
+  color?: string;
+  setLineRef: (index: number, node: HTMLDivElement | null) => void;
+}
+
 const activeTextBase = "text-white drop-shadow-[0_4px_24px_rgba(0,0,0,0.35)]";
 
 const timeTagPattern = /\[(\d{1,2}):(\d{1,2})(?:\.(\d{1,3}))?\]/g;
@@ -32,9 +43,51 @@ const timeTagPattern = /\[(\d{1,2}):(\d{1,2})(?:\.(\d{1,3}))?\]/g;
 const DEFAULT_FONT_SIZE = 20;
 const DEFAULT_OFFSET = 0;
 
+const LyricRow = memo(
+  ({ line, index, isActive, translation, centered, fontSize, color, setLineRef }: LyricRowProps) => {
+    const activeWeight = isActive ? "font-extrabold" : "font-normal";
+    const activeShadow = isActive ? activeTextBase : "";
+
+    return (
+      <div
+        ref={node => {
+          setLineRef(index, node);
+        }}
+        className={clsx(
+          "w-full transform-none py-2 transition-opacity duration-250 ease-out",
+          centered ? "text-center" : "text-left",
+          isActive ? "opacity-100" : "opacity-60",
+        )}
+        style={{ fontSize: isActive ? fontSize * 1.5 : fontSize, transform: "none" }}
+      >
+        <div
+          className={clsx("leading-snug break-words whitespace-pre-wrap", activeWeight, activeShadow)}
+          style={{ color: color || undefined }}
+        >
+          {line.text}
+        </div>
+        {translation ? (
+          <div className="mt-1 text-sm break-words whitespace-pre-wrap" style={{ color: color || undefined, opacity: 0.75 }}>
+            {translation}
+          </div>
+        ) : null}
+      </div>
+    );
+  },
+  (prev, next) =>
+    prev.line.time === next.line.time &&
+    prev.line.text === next.line.text &&
+    prev.isActive === next.isActive &&
+    prev.translation === next.translation &&
+    prev.centered === next.centered &&
+    prev.fontSize === next.fontSize &&
+    prev.color === next.color,
+);
+
 const Lyrics = ({ color, centered, showControls }: { color?: string; centered?: boolean; showControls?: boolean }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const rafIdRef = useRef<number | null>(null);
+  const previousActiveIndexRef = useRef(-1);
   const lineRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const canPersistLyrics = canUseRuntimeStore();
   const [centerPadding, setCenterPadding] = useState(0);
@@ -44,8 +97,8 @@ const Lyrics = ({ color, centered, showControls }: { color?: string; centered?: 
   const [offset, setOffset] = useState<number>(DEFAULT_OFFSET);
   const [fontSize, setFontSize] = useState<number>(DEFAULT_FONT_SIZE);
   const [isLoading, setIsLoading] = useState(false);
-  const { currentTime } = usePlayProgress();
-  const currentMs = currentTime * 1000 + offset;
+  const currentTime = usePlayProgress(s => s.currentTime);
+  const currentMs = (typeof currentTime === "number" && Number.isFinite(currentTime) ? currentTime : 0) * 1000 + offset;
 
   const {
     isOpen: isSearchOpen,
@@ -240,6 +293,10 @@ const Lyrics = ({ color, centered, showControls }: { color?: string; centered?: 
     [offset, persistLyricsCache, playId],
   );
 
+  const setLineRef = useCallback((index: number, node: HTMLDivElement | null) => {
+    lineRefs.current[index] = node;
+  }, []);
+
   const updateCenterPadding = useCallback(() => {
     if (activeIndex < 0) {
       setCenterPadding(0);
@@ -313,41 +370,11 @@ const Lyrics = ({ color, centered, showControls }: { color?: string; centered?: 
     const el = lineRefs.current[activeIndex];
     if (el && wrapper) {
       const top = el.offsetTop - wrapper.clientHeight / 2 + el.clientHeight / 2;
-      wrapper.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+      const behavior = previousActiveIndexRef.current === activeIndex ? "auto" : "smooth";
+      wrapper.scrollTo({ top: Math.max(0, top), behavior });
+      previousActiveIndexRef.current = activeIndex;
     }
   }, [activeIndex, centerPadding]);
-
-  const renderLine = (line: LyricLine, index: number) => {
-    const isActive = index === activeIndex;
-    const translation = translationMap.get(line.time);
-    const activeWeight = isActive ? "font-extrabold" : "font-normal";
-    const activeShadow = isActive ? activeTextBase : "";
-
-    return (
-      <div
-        key={`${line.time}-${index}`}
-        ref={node => {
-          lineRefs.current[index] = node;
-        }}
-        className={clsx(
-          "w-full transform-none py-2 transition-all duration-300 ease-out",
-          centered ? "text-center" : "text-left",
-          isActive ? "opacity-100" : "opacity-60",
-        )}
-        style={{ fontSize: isActive ? fontSize * 1.5 : fontSize, transform: "none" }}
-      >
-        <div
-          className={clsx("leading-snug break-words whitespace-pre-wrap", activeWeight, activeShadow)}
-          style={{ color: color || undefined }}
-        >
-          {line.text}
-        </div>
-        {translation ? (
-          <div className="mt-1 text-sm break-words whitespace-pre-wrap text-white/80">{translation}</div>
-        ) : null}
-      </div>
-    );
-  };
 
   return (
     <>
@@ -370,7 +397,19 @@ const Lyrics = ({ color, centered, showControls }: { color?: string; centered?: 
                 paddingBottom: centerPadding,
               }}
             >
-              {lyrics.map((line, index) => renderLine(line, index))}
+              {lyrics.map((line, index) => (
+                <LyricRow
+                  key={`${line.time}-${index}`}
+                  line={line}
+                  index={index}
+                  isActive={index === activeIndex}
+                  translation={translationMap.get(line.time)}
+                  centered={centered}
+                  fontSize={fontSize}
+                  color={color}
+                  setLineRef={setLineRef}
+                />
+              ))}
             </div>
           ) : (
             <div className="text-foreground/70 flex h-full items-center justify-center">

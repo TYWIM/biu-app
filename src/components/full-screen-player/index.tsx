@@ -18,7 +18,6 @@ import useIsMobile from "@/common/hooks/use-is-mobile";
 import { Themes } from "@/common/constants/theme";
 import { hexToHsl, resolveTheme, isHex } from "@/common/utils/color";
 import { shouldUseNativePlayer } from "@/common/utils/native-player";
-import AudioWaveform from "@/components/audio-waveform";
 import Lyrics from "@/components/lyrics";
 import { useFullScreenPlayerSettings } from "@/store/full-screen-player-settings";
 import { useModalStore } from "@/store/modal";
@@ -36,9 +35,15 @@ import { useGlassmorphism } from "./glassmorphism";
 import PageList from "./page-list";
 import FullScreenPlayerSettingsPanel from "./settings-panel";
 
-const MobileVolumeControl = memo(() => {
-  const followSystemVolume = useSettings(s => s.followSystemVolume);
-  const useSystemVolume = shouldUseNativePlayer() && followSystemVolume;
+const MobileVolumeControl = memo(({ isDark }: { isDark: boolean }) => {
+  const { followSystemVolume, update: updateSettings } = useSettings(
+    useShallow(state => ({
+      followSystemVolume: state.followSystemVolume,
+      update: state.update,
+    })),
+  );
+  const canFollowSystemVolume = shouldUseNativePlayer();
+  const useSystemVolume = canFollowSystemVolume && followSystemVolume;
 
   const { volume, isMuted, toggleMute, setVolume } = usePlayList(
     useShallow(state => ({
@@ -57,64 +62,52 @@ const MobileVolumeControl = memo(() => {
   }, [isMuted, volume]);
 
   const effectiveVolume = isMuted ? 0 : volume;
+  const surfaceClassName = isDark
+    ? "rounded-2xl border border-white/10 bg-white/6 px-3 py-2"
+    : "rounded-2xl border border-slate-900/6 bg-white/70 px-3 py-2";
+  const iconClassName = isDark
+    ? "text-white/70 active:text-white"
+    : "text-slate-600 active:text-slate-900";
+  const helperTextClassName = isDark ? "text-white/46" : "text-slate-500/70";
+  const switchPillClassName = isDark
+    ? "rounded-full border border-white/10 bg-white/8 px-2.5 py-0.5 text-[10px] font-medium text-white/60 active:bg-white/14"
+    : "rounded-full border border-slate-900/6 bg-slate-900/4 px-2.5 py-0.5 text-[10px] font-medium text-slate-600 active:bg-slate-900/8";
 
   if (useSystemVolume) {
     return (
-      <div className="flex w-full items-center gap-3 rounded-[20px] border border-white/10 bg-white/8 px-3 py-2.5 text-left">
-        <div className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-white/8 text-white/82">
-          <RiVolumeUpLine size={18} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="text-xs font-medium text-white/90">跟随系统音量</div>
-          <div className="text-[11px] text-white/56">使用侧边音量键调节</div>
-        </div>
-        <div className="rounded-full border border-white/10 bg-white/10 px-2.5 py-1 text-[10px] text-white/78">系统</div>
+      <div className={clsx("flex w-full items-center gap-2.5", surfaceClassName)}>
+        <RiVolumeUpLine size={16} className={iconClassName} />
+        <span className={clsx("flex-1 text-xs", helperTextClassName)}>跟随系统音量</span>
+        <button type="button" onClick={() => updateSettings({ followSystemVolume: false })} className={switchPillClassName}>
+          切换应用音量
+        </button>
       </div>
     );
   }
 
   const handleVolumeChange = (value: number | number[]) => {
     const nextVolume = Array.isArray(value) ? value[0] : value;
-
-    if (nextVolume <= 0) {
-      setVolume(0);
-      if (!isMuted) {
-        toggleMute();
-      }
-      return;
+    if (nextVolume > 0) {
+      previousVolumeRef.current = nextVolume;
     }
-
-    previousVolumeRef.current = nextVolume;
     setVolume(nextVolume);
-    if (isMuted) {
-      toggleMute();
-    }
   };
 
   const handleToggleMute = () => {
-    if (effectiveVolume > 0 && !isMuted) {
-      previousVolumeRef.current = effectiveVolume;
-      setVolume(0);
-      toggleMute();
-      return;
+    if (!isMuted && volume > 0) {
+      previousVolumeRef.current = volume;
     }
-
-    const restoredVolume = previousVolumeRef.current > 0 ? previousVolumeRef.current : 0.5;
-    setVolume(restoredVolume);
-    if (isMuted) {
-      toggleMute();
-    }
+    toggleMute();
   };
 
   const VolumeIcon = isMuted || effectiveVolume === 0 ? RiVolumeMuteLine : effectiveVolume > 0.5 ? RiVolumeUpLine : RiVolumeDownLine;
 
   return (
-    <div className="w-full rounded-[20px] border border-white/10 bg-white/8 px-3 py-2.5">
-      <div className="flex w-full items-center gap-3">
-        <div className="rounded-full border border-white/10 bg-white/10 px-2.5 py-1 text-[10px] text-white/78">应用音量</div>
-        <IconButton onPress={handleToggleMute} className="size-9 min-w-9 rounded-full bg-white/8 text-white hover:bg-white/14 hover:text-white">
-          <VolumeIcon size={20} />
-        </IconButton>
+    <div className={clsx("w-full space-y-1.5", surfaceClassName)}>
+      <div className="flex w-full items-center gap-2">
+        <button type="button" onClick={handleToggleMute} className={clsx("flex-none p-0.5", iconClassName)}>
+          <VolumeIcon size={16} />
+        </button>
         <Slider
           aria-label="音量"
           minValue={0}
@@ -122,16 +115,24 @@ const MobileVolumeControl = memo(() => {
           step={0.01}
           value={effectiveVolume}
           onChange={v => handleVolumeChange(v as number)}
+          disableAnimation
           size="sm"
           color="primary"
           className="flex-1"
           classNames={{
-            track: "h-[5px] bg-white/10",
-            thumb: "h-3.5 w-3.5 bg-primary after:hidden",
+            track: isDark ? "h-1 bg-white/10" : "h-1 bg-slate-900/8",
+            thumb: "h-3 w-3 bg-primary after:hidden",
           }}
         />
-        <span className="w-9 text-right text-[11px] tabular-nums text-white/72">{Math.round(effectiveVolume * 100)}%</span>
+        <span className={clsx("w-8 text-right text-[10px] tabular-nums", helperTextClassName)}>{Math.round(effectiveVolume * 100)}%</span>
       </div>
+      {canFollowSystemVolume && (
+        <div className="flex items-center justify-end">
+          <button type="button" onClick={() => updateSettings({ followSystemVolume: true })} className={switchPillClassName}>
+            切换系统音量
+          </button>
+        </div>
+      )}
     </div>
   );
 });
@@ -145,15 +146,13 @@ const FullScreenPlayer = () => {
   const playItem = usePlayList(state => state.list.find(item => item.id === state.playId));
   const primaryColor = useSettings(s => s.primaryColor);
   const themeMode = useSettings(s => s.themeMode);
-  const { showLyrics, showSpectrum, showCover, showBlurredBackground, backgroundColor, spectrumColor, lyricsColor } =
+  const { showLyrics, showCover, showBlurredBackground, backgroundColor, lyricsColor } =
     useFullScreenPlayerSettings(
       useShallow(s => ({
         showLyrics: s.showLyrics,
-        showSpectrum: s.showSpectrum,
         showCover: s.showCover,
         showBlurredBackground: s.showBlurredBackground,
         backgroundColor: s.backgroundColor,
-        spectrumColor: s.spectrumColor,
         lyricsColor: s.lyricsColor,
       })),
     );
@@ -303,10 +302,26 @@ const FullScreenPlayer = () => {
     playItem.isDolby ? "杜比" : undefined,
     playItem.hasMultiPart && playItem.pageIndex ? `P${playItem.pageIndex}/${playItem.totalPage || "?"}` : undefined,
   ].filter(Boolean) as string[];
-  const mobileSecondaryControlClassName =
-    "size-10 min-w-10 rounded-full border border-white/10 bg-white/10 text-white hover:bg-white/16 hover:text-white";
-  const mobilePrimaryControlClassName =
-    "size-14 min-w-14 rounded-full bg-white text-black shadow-[0_14px_32px_-20px_rgba(255,255,255,0.88)] hover:bg-white/90 hover:text-black";
+  const isPlayerDark = showBlurredBackground || appTheme === "dark";
+  const mobileSecondaryControlClassName = isPlayerDark
+    ? "size-10 min-w-10 rounded-full border border-white/10 bg-white/10 text-white hover:bg-white/16 hover:text-white transition-transform duration-150 active:scale-90"
+    : "size-10 min-w-10 rounded-full border border-slate-900/8 bg-white/82 text-slate-900 hover:bg-white hover:text-slate-950 transition-transform duration-150 active:scale-90";
+  const mobilePrimaryControlClassName = isPlayerDark
+    ? "size-14 min-w-14 rounded-full bg-white text-black shadow-[0_14px_32px_-20px_rgba(255,255,255,0.88)] hover:bg-white/90 hover:text-black transition-transform duration-150 active:scale-[0.88]"
+    : "size-14 min-w-14 rounded-full bg-slate-950 text-white shadow-[0_14px_32px_-20px_rgba(15,23,42,0.38)] hover:bg-slate-900 hover:text-white transition-transform duration-150 active:scale-[0.88]";
+  const mobileHeaderButtonClassName = isPlayerDark
+    ? "size-11 min-w-11 rounded-full border border-white/10 bg-black/20 text-white hover:bg-black/28 hover:text-white transition-transform duration-150 active:scale-90"
+    : "size-11 min-w-11 rounded-full border border-slate-900/8 bg-white/80 text-slate-900 hover:bg-white hover:text-slate-950 transition-transform duration-150 active:scale-90";
+  const mobileMetaBadgeClassName = isPlayerDark
+    ? "rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[11px] font-medium text-white/85 backdrop-blur-md"
+    : "rounded-full border border-slate-900/8 bg-white/78 px-3 py-1 text-[11px] font-medium text-slate-800 shadow-[0_6px_16px_rgb(148_163_184_/_0.12)]";
+  const mobileOverlayTintClassName = isPlayerDark ? "bg-black/12" : "bg-white/18";
+  const mobileModalBackdropClassName = isPlayerDark ? "bg-black/36" : "bg-slate-900/12 backdrop-blur-[2px]";
+  const mobileControlsSurfaceClassName = isPlayerDark
+    ? "rounded-t-[24px] border-t border-white/10 bg-[rgba(8,10,18,0.78)] px-4 pt-2.5 pb-[calc(var(--safe-area-bottom)+10px)] shadow-[0_-16px_36px_-28px_rgba(0,0,0,0.72)]"
+    : "rounded-t-[24px] border-t border-slate-900/8 bg-[rgba(255,255,255,0.88)] px-4 pt-2.5 pb-[calc(var(--safe-area-bottom)+10px)] shadow-[0_-16px_36px_-28px_rgba(148,163,184,0.36)]";
+  const mobileProgressTrackClassName = isPlayerDark ? "h-[5px] bg-white/10" : "h-[5px] bg-slate-900/10";
+  const mobileProgressTimeClassName = isPlayerDark ? "text-[10px] text-white/56" : "text-[10px] text-slate-700/62";
   const isMobilePageListVisible = isMobile && isPageListOpen;
   const mobileHeaderStateClassName = isMobilePageListVisible
     ? "pointer-events-none translate-y-1 opacity-55"
@@ -317,15 +332,12 @@ const FullScreenPlayer = () => {
   const mobileControlsStateClassName = isMobilePageListVisible
     ? "pointer-events-auto translate-y-1 scale-[0.99] opacity-72"
     : "pointer-events-auto translate-y-0 scale-100 opacity-100";
-  const shouldRenderSpectrum = showSpectrum && !(isMobile && isPageListOpen);
   const mobileBackgroundLayer = activeBgLayer === "a" ? bgLayerA : bgLayerB;
 
   const coverWidth = isMobile
     ? Math.max(220, Math.min(windowWidth - 48, windowHeight * 0.34, 360))
     : Math.max(260, Math.min(windowWidth * 0.7, windowHeight * 0.48, 520));
   const coverHeight = isMobile ? coverWidth : coverWidth * 0.75;
-  const waveformWidth = isMobile ? Math.min(windowWidth - 32, 360) : Math.min(640, Math.max(400, Math.round(windowWidth * 0.5)));
-  const waveformBarCount = Math.max(48, Math.min(128, Math.round(waveformWidth / 7.5)));
 
   return (
     <Drawer
@@ -336,6 +348,8 @@ const FullScreenPlayer = () => {
       radius="none"
       isDismissable={false}
       hideCloseButton
+      disableAnimation
+      shouldBlockScroll={false}
     >
       <DrawerContent
         className={clsx("bg-background text-foreground relative h-full overflow-hidden", {
@@ -369,7 +383,15 @@ const FullScreenPlayer = () => {
               }}
             >
               {!showBlurredBackground && (
-                <div aria-hidden className="absolute inset-0 -z-10" style={{ backgroundColor: backgroundColor }} />
+                <div
+                  aria-hidden
+                  className="absolute inset-0 -z-10"
+                  style={{
+                    backgroundColor: backgroundColor && isHex(backgroundColor)
+                      ? backgroundColor
+                      : appTheme === "dark" ? "#0b1220" : "#f8fafc",
+                  }}
+                />
               )}
               {showBlurredBackground && (
                 isMobile ? (
@@ -385,7 +407,7 @@ const FullScreenPlayer = () => {
                       />
                     )}
                     <div className="absolute inset-0" style={{ background: mobileBackgroundLayer.gradientBackground }} />
-                    <div className="absolute inset-0 bg-black/12" />
+                    <div className={clsx("absolute inset-0", mobileOverlayTintClassName)} />
                   </div>
                 ) : (
                   <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
@@ -459,7 +481,7 @@ const FullScreenPlayer = () => {
                   <IconButton
                     title="关闭弹窗"
                     onPress={onClose}
-                    className={isMobile ? "size-11 min-w-11 rounded-full border border-white/10 bg-black/20 text-white hover:bg-black/28 hover:text-white" : ""}
+                    className={isMobile ? mobileHeaderButtonClassName : ""}
                   >
                     <RiArrowDownSLine size={28} />
                   </IconButton>
@@ -468,6 +490,9 @@ const FullScreenPlayer = () => {
                   </h2>
                   <Popover
                     isOpen={isSettingsOpen && (isUiVisible || isMobile)}
+                    disableAnimation
+                    shouldBlockScroll={false}
+                    backdrop="transparent"
                     onOpenChange={open => {
                       setIsSettingsOpen(open);
                       if (open) {
@@ -484,7 +509,7 @@ const FullScreenPlayer = () => {
                       <IconButton
                         title="设置"
                         tooltip="设置"
-                        className={isMobile ? "size-11 min-w-11 rounded-full border border-white/10 bg-black/20 text-white hover:bg-black/28 hover:text-white" : ""}
+                        className={isMobile ? mobileHeaderButtonClassName : ""}
                       >
                         <RiSettings3Line size={22} />
                       </IconButton>
@@ -535,7 +560,7 @@ const FullScreenPlayer = () => {
                     <div className="mt-2 max-w-full truncate text-sm text-foreground-500">{displaySubtitle}</div>
                     <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
                       {mobileMetaBadges.map(label => (
-                        <span key={label} className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[11px] font-medium text-white/85 backdrop-blur-md">
+                        <span key={label} className={mobileMetaBadgeClassName}>
                           {label}
                         </span>
                       ))}
@@ -589,32 +614,14 @@ const FullScreenPlayer = () => {
                 </div>
               )}
 
-              {shouldRenderSpectrum && (
-                <div
-                  className="pointer-events-none absolute inset-x-0 z-30 flex w-full justify-center"
-                  style={{
-                    bottom: isUiVisible || isMobile ? controlsHeight + 12 : 24,
-                    transition: "bottom 300ms ease",
-                  }}
-                >
-                  <div className={clsx("mx-auto flex w-full justify-center", isMobile ? "px-4" : "max-w-6xl px-12")}>
-                    <AudioWaveform
-                      width={waveformWidth}
-                      height={40}
-                      barCount={waveformBarCount}
-                      barColor={spectrumColor || "currentColor"}
-                    />
-                  </div>
-                </div>
-              )}
-
               {isMobile && (
                 <button
                   type="button"
                   aria-label="关闭分集列表"
                   onClick={() => setIsPageListOpen(false)}
                   className={clsx(
-                    "absolute inset-0 z-[45] bg-black/36 transition-opacity duration-300 ease-out",
+                    "absolute inset-0 z-[45] transition-opacity duration-300 ease-out",
+                    mobileModalBackdropClassName,
                     isPageListOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0",
                   )}
                 />
@@ -634,18 +641,16 @@ const FullScreenPlayer = () => {
                 <div
                   className={clsx(
                     "mx-auto flex w-full flex-col items-center gap-2.5",
-                    isMobile
-                      ? "rounded-t-[24px] border-t border-white/10 bg-[rgba(8,10,18,0.78)] px-4 pt-2.5 pb-[calc(var(--safe-area-bottom)+10px)] shadow-[0_-16px_36px_-28px_rgba(0,0,0,0.72)]"
-                      : "mb-4 max-w-6xl px-12",
+                    isMobile ? mobileControlsSurfaceClassName : "mb-4 max-w-6xl px-12",
                   )}
                 >
                   {isMobile ? (
                     <>
-                      <MobileVolumeControl />
+                      <MobileVolumeControl isDark={isPlayerDark} />
                       <MusicPlayProgress
                         className="w-full"
-                        trackClassName="h-[5px] bg-white/10"
-                        timeClassName="text-[10px] text-white/56"
+                        trackClassName={mobileProgressTrackClassName}
+                        timeClassName={mobileProgressTimeClassName}
                         thumbClassName="h-3 w-3"
                       />
                       <div className="flex w-full items-center justify-between gap-3">
@@ -660,8 +665,12 @@ const FullScreenPlayer = () => {
                               className={clsx(
                                 "h-10 min-w-[58px] px-3 text-[11px] font-medium shadow-none",
                                 isPageListOpen
-                                  ? "border border-white/25 bg-white text-black hover:bg-white/92"
-                                  : "border border-white/10 bg-white/10 text-white hover:bg-white/16",
+                                  ? isPlayerDark
+                                    ? "border border-white/25 bg-white text-black hover:bg-white/92"
+                                    : "border border-slate-900/10 bg-slate-950 text-white hover:bg-slate-900"
+                                  : isPlayerDark
+                                    ? "border border-white/10 bg-white/10 text-white hover:bg-white/16"
+                                    : "border border-slate-900/8 bg-white/82 text-slate-900 hover:bg-white",
                               )}
                             >
                               分集

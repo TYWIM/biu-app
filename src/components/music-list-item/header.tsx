@@ -1,5 +1,6 @@
 import clx from "classnames";
 
+import useIsMobile from "@/common/hooks/use-is-mobile";
 import { useSettings } from "@/store/settings";
 
 import { getMusicListItemGrid } from "./styles";
@@ -11,8 +12,13 @@ interface Props {
 }
 
 const MusicListHeader = ({ className, hidePubTime, timeTitle }: Props) => {
+  const isMobile = useIsMobile();
   const displayMode = useSettings(state => state.displayMode);
   const isCompact = displayMode === "compact";
+
+  if (isMobile) {
+    return null;
+  }
 
   const gridCols = getMusicListItemGrid(isCompact, hidePubTime);
 

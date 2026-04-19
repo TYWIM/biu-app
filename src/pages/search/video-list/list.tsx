@@ -1,9 +1,11 @@
 import React, { useCallback } from "react";
 
+import useIsMobile from "@/common/hooks/use-is-mobile";
 import { formatSecondsToDate } from "@/common/utils/time";
 import { formatUrlProtocol } from "@/common/utils/url";
 import MusicListItem from "@/components/music-list-item";
 import MusicListHeader from "@/components/music-list-item/header";
+import { getMusicListItemRowHeight } from "@/components/music-list-item/styles";
 import VirtualPageList from "@/components/virtual-page-list";
 import { type SearchVideoItem } from "@/service/web-interface-search-type";
 import { usePlayList } from "@/store/play-list";
@@ -22,6 +24,7 @@ interface ListProps {
 }
 
 const List: React.FC<ListProps> = ({ items, getScrollElement, canDownload, onMenuAction, loading, hasMore, onLoadMore }) => {
+  const isMobile = useIsMobile();
   const displayMode = useSettings(state => state.displayMode);
   const isCompact = displayMode === "compact";
 
@@ -45,7 +48,7 @@ const List: React.FC<ListProps> = ({ items, getScrollElement, canDownload, onMen
         loading={loading}
         onLoadMore={onLoadMore}
         getScrollElement={getScrollElement}
-        rowHeight={isCompact ? 36 : 64}
+        rowHeight={getMusicListItemRowHeight(isMobile, isCompact)}
         renderItem={(item, index) => {
           return (
             <MusicListItem
