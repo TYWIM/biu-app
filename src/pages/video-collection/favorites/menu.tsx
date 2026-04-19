@@ -12,11 +12,13 @@ interface Props {
   /** 2:视频稿件 12:音频 21:视频合集 24:电影 */
   type: number;
   isCreatedBySelf: boolean;
+  canDownload?: boolean;
 }
 
-export const getContextMenus = ({ type, isCreatedBySelf }: Props) => {
+export const getContextMenus = ({ type, isCreatedBySelf, canDownload }: Props) => {
   const isAudio = type === 12;
   const canNotPlay = ![2, 12].includes(type);
+  const resolvedCanDownload = canDownload ?? (typeof window !== "undefined" && Boolean(window.electron?.addMediaDownloadTask));
 
   return [
     {
@@ -46,13 +48,13 @@ export const getContextMenus = ({ type, isCreatedBySelf }: Props) => {
       icon: <RiFileMusicLine size={18} />,
       key: "download-audio",
       label: "下载音频",
-      hidden: canNotPlay,
+      hidden: canNotPlay || !resolvedCanDownload,
     },
     {
       icon: <RiFileVideoLine size={18} />,
       key: "download-video",
       label: "下载视频",
-      hidden: canNotPlay || isAudio,
+      hidden: canNotPlay || isAudio || !resolvedCanDownload,
     },
     {
       icon: <RiExternalLinkLine size={18} />,

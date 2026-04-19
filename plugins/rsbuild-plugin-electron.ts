@@ -1,9 +1,22 @@
 import { logger, type RsbuildPlugin } from "@rsbuild/core";
 import { rimrafSync } from "rimraf";
 
-import { buildElectron } from "./electron-build";
 import { buildElectronConfig } from "./electron-config-build";
-import { startElectronDev } from "./electron-dev";
+
+let electronRuntimeAvailablePromise: Promise<boolean> | null = null;
+
+const isElectronRuntimeAvailable = async () => {
+  if (!electronRuntimeAvailablePromise) {
+    electronRuntimeAvailablePromise = import("electron")
+      .then(() => true)
+      .catch(err => {
+        logger.warn(`Electron runtime unavailable, skipping Electron integration: ${String((err && (err as any).message) || err)}`);
+        return false;
+      });
+  }
+
+  return electronRuntimeAvailablePromise;
+};
 
 export const pluginElectron = (): RsbuildPlugin => ({
   name: "plugin-electron",
@@ -13,7 +26,10 @@ export const pluginElectron = (): RsbuildPlugin => ({
         logger.info("[electron] Bundle the typescript configuration for electron...");
         await buildElectronConfig("development");
 
-        startElectronDev();
+        if (await isElectronRuntimeAvailable()) {
+          const { startElectronDev } = await import("./electron-dev");
+          startElectronDev();
+        }
       }
     });
 
@@ -30,7 +46,10 @@ export const pluginElectron = (): RsbuildPlugin => ({
     });
 
     api.onAfterBuild(async () => {
-      await buildElectron();
+      if (await isElectronRuntimeAvailable()) {
+        const { buildElectron } = await import("./electron-build");
+        await buildElectron();
+      }
     });
   },
 });

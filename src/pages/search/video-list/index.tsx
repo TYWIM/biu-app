@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useState } from "react";
 
 import { addToast, Spinner } from "@heroui/react";
 
+import useIsMobile from "@/common/hooks/use-is-mobile";
+import { openBiliVideoLink } from "@/common/utils/url";
 import { formatUrlProtocol } from "@/common/utils/url";
 import Empty from "@/components/empty";
 import { getWebInterfaceWbiSearchType, type SearchVideoItem } from "@/service/web-interface-search-type";
@@ -20,6 +22,9 @@ export type SearchVideoProps = {
 
 export default function SearchVideo({ keyword, getScrollElement }: SearchVideoProps) {
   const displayMode = useSettings(state => state.displayMode);
+  const isMobile = useIsMobile();
+  const addMediaDownloadTask = typeof window !== "undefined" ? window.electron?.addMediaDownloadTask : undefined;
+  const canDownload = Boolean(addMediaDownloadTask);
 
   const [musicOnly, setMusicOnly] = useState(true);
   const [order, setOrder] = useState<SortOrder>("totalrank");
@@ -132,19 +137,33 @@ export default function SearchVideo({ keyword, getScrollElement }: SearchVideoPr
         });
         break;
       case "download-audio":
-        await window.electron.addMediaDownloadTask({
-          outputFileType: "audio",
-          title: item.title,
-          cover: formatUrlProtocol(item.pic),
-          bvid: item.bvid,
-        });
-        addToast({
-          title: "已添加下载任务",
-          color: "success",
-        });
+        {
+          const downloadTask = addMediaDownloadTask;
+          if (!downloadTask) {
+            addToast({ title: "浏览器预览模式不支持下载", color: "default" });
+            return;
+          }
+
+          await downloadTask({
+            outputFileType: "audio",
+            title: item.title,
+            cover: formatUrlProtocol(item.pic),
+            bvid: item.bvid,
+          });
+          addToast({
+            title: "已添加下载任务",
+            color: "success",
+          });
+        }
         break;
-      case "download-video":
-        await window.electron.addMediaDownloadTask({
+      case "download-video": {
+        const downloadTask = addMediaDownloadTask;
+        if (!downloadTask) {
+          addToast({ title: "浏览器预览模式不支持下载", color: "default" });
+          return;
+        }
+
+        await downloadTask({
           outputFileType: "video",
           title: item.title,
           cover: formatUrlProtocol(item.pic),
@@ -155,13 +174,16 @@ export default function SearchVideo({ keyword, getScrollElement }: SearchVideoPr
           color: "success",
         });
         break;
+      }
       case "bililink":
-        window.electron.openExternal(`https://www.bilibili.com/video/${item.bvid}`);
+        openBiliVideoLink({ type: "mv", bvid: item.bvid });
         break;
       default:
         break;
     }
-  }, []);
+  }, [addMediaDownloadTask]);
+
+  const shouldUseGrid = isMobile || displayMode === "card";
 
   return (
     <>
@@ -181,10 +203,11 @@ export default function SearchVideo({ keyword, getScrollElement }: SearchVideoPr
       {!initialLoading && !list?.length && <Empty className="min-h-[280px]" />}
       {!initialLoading && list?.length > 0 && (
         <>
-          {displayMode === "card" ? (
+          {shouldUseGrid ? (
             <GridList
               items={list}
               getScrollElement={getScrollElement}
+              canDownload={canDownload}
               onMenuAction={handleMenuAction}
               loading={loadingMore}
               hasMore={hasMore}
@@ -194,6 +217,7 @@ export default function SearchVideo({ keyword, getScrollElement }: SearchVideoPr
             <List
               items={list}
               getScrollElement={getScrollElement}
+              canDownload={canDownload}
               onMenuAction={handleMenuAction}
               loading={loadingMore}
               hasMore={hasMore}

@@ -1,231 +1,145 @@
 import { useEffect, useState } from "react";
-import { Controller, useForm, useWatch } from "react-hook-form";
 
 import { Switch } from "@heroui/react";
 import { useShallow } from "zustand/shallow";
 
 import { isHex } from "@/common/utils/color";
+import { shouldUseNativePlayer } from "@/common/utils/native-player";
 import ColorPicker from "@/components/color-picker";
+import { useTheme } from "@/components/theme/use-theme";
 import { useFullScreenPlayerSettings } from "@/store/full-screen-player-settings";
 import { usePlayList } from "@/store/play-list";
+import { useSettings } from "@/store/settings";
 
 const FullScreenPlayerSettingsPanel = ({ isUiVisible = true }: { isUiVisible?: boolean }) => {
-  const { playId, list } = usePlayList(
-    useShallow(state => ({
-      playId: state.playId,
-      list: state.list,
-    })),
-  );
-  const playItem = list.find(item => item.id === playId);
+  const { theme } = useTheme();
+  const playItem = usePlayList(state => state.list.find(item => item.id === state.playId));
   const isLocal = playItem?.source === "local";
+  const canFollowSystemVolume = shouldUseNativePlayer();
   const {
     showLyrics,
-    showSpectrum,
     showCover,
     showBlurredBackground,
     backgroundColor,
-    spectrumColor,
     lyricsColor,
     update,
   } = useFullScreenPlayerSettings(
     useShallow(s => ({
       showLyrics: s.showLyrics,
-      showSpectrum: s.showSpectrum,
       showCover: s.showCover,
       showBlurredBackground: s.showBlurredBackground,
       backgroundColor: s.backgroundColor,
-      spectrumColor: s.spectrumColor,
       lyricsColor: s.lyricsColor,
       update: s.update,
     })),
   );
-
-  const { control, setValue } = useForm({
-    defaultValues: {
-      showLyrics,
-      showSpectrum,
-      showCover,
-      showBlurredBackground,
-      backgroundColor,
-      spectrumColor,
-      lyricsColor,
-    },
-    mode: "onChange",
-  });
+  const { followSystemVolume, update: updateSettings } = useSettings(
+    useShallow(state => ({
+      followSystemVolume: state.followSystemVolume,
+      update: state.update,
+    })),
+  );
 
   const [lyricsPickerOpen, setLyricsPickerOpen] = useState(false);
-  const [spectrumPickerOpen, setSpectrumPickerOpen] = useState(false);
   const [backgroundPickerOpen, setBackgroundPickerOpen] = useState(false);
+  const resolvedLyricsColor = isHex(lyricsColor) ? lyricsColor : theme === "dark" ? "#ffffff" : "#0f172a";
+  const resolvedBackgroundColor = isHex(backgroundColor) ? backgroundColor : theme === "dark" ? "#0b1220" : "#f8fafc";
 
   useEffect(() => {
     if (!isUiVisible) {
       setLyricsPickerOpen(false);
-      setSpectrumPickerOpen(false);
       setBackgroundPickerOpen(false);
     }
   }, [isUiVisible]);
 
-  useEffect(() => {
-    setValue("showLyrics", showLyrics);
-    setValue("showSpectrum", showSpectrum);
-    setValue("showCover", showCover);
-    setValue("showBlurredBackground", showBlurredBackground);
-    setValue("backgroundColor", backgroundColor);
-    setValue("spectrumColor", spectrumColor);
-    setValue("lyricsColor", lyricsColor);
-  }, [
-    setValue,
-    showLyrics,
-    showSpectrum,
-    showCover,
-    showBlurredBackground,
-    backgroundColor,
-    spectrumColor,
-    lyricsColor,
-  ]);
-
-  const values = useWatch({ control });
-
-  useEffect(() => {
-    if (!values || typeof values !== "object") return;
-    update({
-      showLyrics: values.showLyrics,
-      showSpectrum: values.showSpectrum,
-      showCover: values.showCover,
-      showBlurredBackground: values.showBlurredBackground,
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [values?.showLyrics, values?.showSpectrum, values?.showCover, values?.showBlurredBackground, update]);
-
-  useEffect(() => {
-    if (!values || typeof values !== "object") return;
-    const sanitizeLyricsColor = (v?: string) => (isHex(v) ? v! : "#ffffff");
-    const sanitizeSpectrumColor = (v?: string) => (v === "currentColor" || isHex(v) ? v! : "currentColor");
-    const sanitizeBackgroundColor = (v?: string) => (isHex(v) ? v! : "#ffffff");
-    const id = window.setTimeout(() => {
-      update({
-        spectrumColor: sanitizeSpectrumColor(values.spectrumColor),
-        lyricsColor: sanitizeLyricsColor(values.lyricsColor),
-        backgroundColor: sanitizeBackgroundColor(values.backgroundColor),
-      });
-    }, 200);
-    return () => window.clearTimeout(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [values?.spectrumColor, values?.lyricsColor, values?.backgroundColor, update]);
-
   return (
     <div className="min-w-[320px] space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="text-medium mr-6">显示歌词</div>
-        <Controller
-          control={control}
-          name="showLyrics"
-          render={({ field }) => <Switch isSelected={field.value} onValueChange={field.onChange} />}
-        />
-      </div>
-      {values?.showLyrics && (
-        <div className="flex items-center justify-between">
-          <div className="text-medium mr-6">歌词字体颜色</div>
-          <Controller
-            control={control}
-            name="lyricsColor"
-            render={({ field }) => {
-              const v = field.value;
-              const pickerValue = isHex(v) ? v : "#ffffff";
-              return (
-                <ColorPicker
-                  value={pickerValue}
-                  onChange={hex => field.onChange(hex)}
-                  isOpen={lyricsPickerOpen && isUiVisible}
-                  onOpenChange={setLyricsPickerOpen}
-                >
-                  <div
-                    className="border-default h-8 w-12 rounded-full border"
-                    style={{ backgroundColor: field.value || undefined }}
-                  />
-                </ColorPicker>
-              );
-            }}
+      <div className="rounded-2xl border border-default-200/60 bg-content2/60 px-4 py-3">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <div className="text-medium">跟随系统音量</div>
+            <div className="mt-1 text-xs text-default-500">
+              {canFollowSystemVolume
+                ? followSystemVolume
+                  ? "当前使用系统音量键控制播放音量"
+                  : "当前使用应用内音量滑杆控制播放音量"
+                : "当前环境仅支持应用内音量调节"}
+            </div>
+          </div>
+          <Switch
+            disableAnimation
+            isSelected={followSystemVolume}
+            isDisabled={!canFollowSystemVolume}
+            onValueChange={value => updateSettings({ followSystemVolume: value })}
           />
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-default-200/60 bg-content2/60 px-4 py-3">
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <div className="text-medium">显示歌词</div>
+            <div className="mt-1 text-xs text-default-500">关闭后将优先显示封面和背景氛围</div>
+          </div>
+          <Switch disableAnimation isSelected={showLyrics} onValueChange={value => update({ showLyrics: value })} />
+        </div>
+      </div>
+
+      {showLyrics && (
+        <div className="rounded-2xl border border-default-200/60 bg-content2/60 px-4 py-3">
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <div className="text-medium">歌词字体颜色</div>
+              <div className="mt-1 text-xs text-default-500">调亮或调暗歌词文本以适应当前背景</div>
+            </div>
+            <ColorPicker
+              value={resolvedLyricsColor}
+              onChange={hex => update({ lyricsColor: hex })}
+              isOpen={lyricsPickerOpen && isUiVisible}
+              onOpenChange={setLyricsPickerOpen}
+            >
+              <div className="border-default h-8 w-12 rounded-full border" style={{ backgroundColor: resolvedLyricsColor }} />
+            </ColorPicker>
+          </div>
         </div>
       )}
 
-      <div className="flex items-center justify-between">
-        <div className="text-medium mr-6">显示频谱图</div>
-        <Controller
-          control={control}
-          name="showSpectrum"
-          render={({ field }) => <Switch isSelected={field.value} onValueChange={field.onChange} />}
-        />
-      </div>
-      {values?.showSpectrum && (
-        <div className="flex items-center justify-between">
-          <div className="text-medium mr-6">频谱图颜色</div>
-          <Controller
-            control={control}
-            name="spectrumColor"
-            render={({ field }) => {
-              const v = field.value;
-              const pickerValue = isHex(v) ? v : "#ffffff";
-              return (
-                <ColorPicker
-                  value={pickerValue}
-                  onChange={hex => field.onChange(hex)}
-                  isOpen={spectrumPickerOpen && isUiVisible}
-                  onOpenChange={setSpectrumPickerOpen}
-                >
-                  <div
-                    className="border-default h-8 w-12 rounded-full border"
-                    style={{ backgroundColor: isHex(v) ? v : undefined }}
-                  />
-                </ColorPicker>
-              );
-            }}
-          />
+      <div className="rounded-2xl border border-default-200/60 bg-content2/60 px-4 py-3">
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <div className="text-medium">显示封面</div>
+            <div className="mt-1 text-xs text-default-500">保留专辑/视频封面作为歌词页的视觉锚点</div>
+          </div>
+          <Switch disableAnimation isSelected={showCover} onValueChange={value => update({ showCover: value })} isDisabled={isLocal} />
         </div>
-      )}
-
-      <div className="flex items-center justify-between">
-        <div className="text-medium mr-6">显示封面</div>
-        <Controller
-          control={control}
-          name="showCover"
-          render={({ field }) => (
-            <Switch isSelected={field.value} onValueChange={field.onChange} isDisabled={isLocal} />
-          )}
-        />
       </div>
 
-      <div className="flex items-center justify-between">
-        <div className="text-medium mr-6">显示虚化背景</div>
-        <Controller
-          control={control}
-          name="showBlurredBackground"
-          render={({ field }) => <Switch isSelected={field.value} onValueChange={field.onChange} />}
-        />
+      <div className="rounded-2xl border border-default-200/60 bg-content2/60 px-4 py-3">
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <div className="text-medium">显示虚化背景</div>
+            <div className="mt-1 text-xs text-default-500">关闭后会使用更稳定、更明确的浅色或深色背景</div>
+          </div>
+          <Switch disableAnimation isSelected={showBlurredBackground} onValueChange={value => update({ showBlurredBackground: value })} />
+        </div>
       </div>
-      {!values?.showBlurredBackground && (
-        <div className="flex items-center justify-between">
-          <div className="text-medium mr-6">背景颜色</div>
-          <Controller
-            control={control}
-            name="backgroundColor"
-            render={({ field }) => {
-              return (
-                <ColorPicker
-                  value={field.value}
-                  onChange={hex => field.onChange(hex)}
-                  isOpen={backgroundPickerOpen && isUiVisible}
-                  onOpenChange={setBackgroundPickerOpen}
-                >
-                  <div
-                    className="border-default h-8 w-12 rounded-full border"
-                    style={{ backgroundColor: field.value }}
-                  />
-                </ColorPicker>
-              );
-            }}
-          />
+
+      {!showBlurredBackground && (
+        <div className="rounded-2xl border border-default-200/60 bg-content2/60 px-4 py-3">
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <div className="text-medium">背景颜色</div>
+              <div className="mt-1 text-xs text-default-500">为当前主题指定更纯净的播放器底色</div>
+            </div>
+            <ColorPicker
+              value={resolvedBackgroundColor}
+              onChange={hex => update({ backgroundColor: hex })}
+              isOpen={backgroundPickerOpen && isUiVisible}
+              onOpenChange={setBackgroundPickerOpen}
+            >
+              <div className="border-default h-8 w-12 rounded-full border" style={{ backgroundColor: resolvedBackgroundColor }} />
+            </ColorPicker>
+          </div>
         </div>
       )}
     </div>

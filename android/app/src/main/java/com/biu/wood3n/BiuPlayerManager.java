@@ -1,0 +1,413 @@
+package com.biu.wood3n;
+
+import android.content.Context;
+import android.content.Intent;
+import android.net.Uri;
+import android.os.Handler;
+import android.os.Looper;
+
+import androidx.core.content.ContextCompat;
+import androidx.media3.common.AudioAttributes;
+import androidx.media3.common.C;
+import androidx.media3.common.MediaItem;
+import androidx.media3.common.MediaMetadata;
+import androidx.media3.common.PlaybackException;
+import androidx.media3.common.PlaybackParameters;
+import androidx.media3.common.Player;
+import androidx.media3.datasource.DataSource;
+import androidx.media3.datasource.DefaultHttpDataSource;
+import androidx.media3.exoplayer.ExoPlayer;
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
+import androidx.media3.exoplayer.source.MediaSource;
+import androidx.media3.session.MediaSession;
+import androidx.media3.session.MediaSessionService;
+
+import com.getcapacitor.JSObject;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CopyOnWriteArraySet;
+
+public class BiuPlayerManager {
+    public interface StateListener {
+        void onStateChanged(JSObject state);
+    }
+
+    private static final String DESKTOP_USER_AGENT =
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
+
+    private static volatile BiuPlayerManager instance;
+
+    private final Context appContext;
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private final Set<StateListener> listeners = new CopyOnWriteArraySet<>();
+
+    private ExoPlayer player;
+    private MediaSession mediaSession;
+    private String sourceUrl = "";
+    private String title = "";
+    private String artist = "";
+    private String cover = "";
+    private float volume = 1.0f;
+    private boolean muted = false;
+    private float playbackRate = 1.0f;
+    private boolean loop = false;
+    private boolean ready = false;
+    private boolean ended = false;
+    private boolean progressRunning = false;
+
+    private final Runnable progressRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (!progressRunning || player == null) {
+                return;
+            }
+
+            notifyState("progress", null);
+
+            if (player.isPlaying() || player.getPlayWhenReady()) {
+                mainHandler.postDelayed(this, 500);
+            } else {
+                progressRunning = false;
+            }
+        }
+    };
+
+    private final Player.Listener playerListener = new Player.Listener() {
+        @Override
+        public void onPlaybackStateChanged(int playbackState) {
+            ready = playbackState == Player.STATE_READY;
+            ended = playbackState == Player.STATE_ENDED;
+            notifyState(resolvePlaybackReason(playbackState), null);
+            updateProgressLoop();
+        }
+
+        @Override
+        public void onIsPlayingChanged(boolean isPlaying) {
+            notifyState(isPlaying ? "playing" : "pause", null);
+            updateProgressLoop();
+        }
+
+        @Override
+        public void onPlayerError(PlaybackException error) {
+            notifyState("error", error.getMessage());
+            updateProgressLoop();
+        }
+    };
+
+    private BiuPlayerManager(Context context) {
+        appContext = context.getApplicationContext();
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            ensurePlayer();
+        } else {
+            mainHandler.post(this::ensurePlayer);
+        }
+    }
+
+    public static BiuPlayerManager getInstance(Context context) {
+        if (instance == null) {
+            synchronized (BiuPlayerManager.class) {
+                if (instance == null) {
+                    instance = new BiuPlayerManager(context);
+                }
+            }
+        }
+
+        return instance;
+    }
+
+    public MediaSession attachService(MediaSessionService service) {
+        ensurePlayer();
+        if (mediaSession == null) {
+            mediaSession = new MediaSession.Builder(appContext, player)
+                    .setId("biu-player")
+                    .build();
+        }
+
+        if (!service.isSessionAdded(mediaSession)) {
+            service.addSession(mediaSession);
+        }
+
+        return mediaSession;
+    }
+
+    public void detachService(MediaSessionService service) {
+        if (mediaSession == null) {
+            return;
+        }
+
+        if (service.isSessionAdded(mediaSession)) {
+            service.removeSession(mediaSession);
+        }
+    }
+
+    public MediaSession getMediaSession() {
+        return mediaSession;
+    }
+
+    public ExoPlayer getPlayer() {
+        ensurePlayer();
+        return player;
+    }
+
+    public void addListener(StateListener listener) {
+        listeners.add(listener);
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            listener.onStateChanged(buildState("sync", null));
+        } else {
+            mainHandler.post(() -> listener.onStateChanged(buildState("sync", null)));
+        }
+    }
+
+    public void removeListener(StateListener listener) {
+        listeners.remove(listener);
+    }
+
+    public JSObject configure(double nextVolume, boolean nextMuted, double nextPlaybackRate, boolean nextLoop) {
+        ensurePlayer();
+        volume = (float) Math.max(0d, Math.min(1d, nextVolume));
+        muted = nextMuted;
+        playbackRate = (float) Math.max(0.25, Math.min(4, nextPlaybackRate));
+        loop = nextLoop;
+        applyConfig();
+        notifyState("config", null);
+        return buildState("config", null);
+    }
+
+    public JSObject setSource(String url) {
+        ensurePlayer();
+        sourceUrl = url == null ? "" : url;
+        ready = false;
+        ended = false;
+
+        if (sourceUrl.isEmpty()) {
+            player.pause();
+            player.stop();
+            player.clearMediaItems();
+            notifyState("cleared", null);
+            return buildState("cleared", null);
+        }
+
+        MediaItem mediaItem = buildMediaItem();
+        MediaSource mediaSource = new DefaultMediaSourceFactory(buildDataSourceFactory(sourceUrl)).createMediaSource(mediaItem);
+        player.setMediaSource(mediaSource);
+        player.prepare();
+        notifyState("source", null);
+        return buildState("source", null);
+    }
+
+    public void updateMetadata(String nextTitle, String nextArtist, String nextCover) {
+        title = nextTitle == null ? "" : nextTitle;
+        artist = nextArtist == null ? "" : nextArtist;
+        cover = nextCover == null ? "" : nextCover;
+
+        if (player == null || sourceUrl.isEmpty() || player.getMediaItemCount() == 0) {
+            notifyState("metadata", null);
+            return;
+        }
+
+        player.replaceMediaItem(0, buildMediaItem());
+        notifyState("metadata", null);
+    }
+
+    public JSObject play() {
+        ensurePlayer();
+        player.play();
+        ensureService();
+        notifyState("play", null);
+        updateProgressLoop();
+        return buildState("play", null);
+    }
+
+    public JSObject pause() {
+        ensurePlayer();
+        player.pause();
+        notifyState("pause", null);
+        updateProgressLoop();
+        return buildState("pause", null);
+    }
+
+    public JSObject seekTo(double position) {
+        ensurePlayer();
+        ended = false;
+        player.seekTo((long) (Math.max(0, position) * 1000L));
+        notifyState("seek", null);
+        return buildState("seek", null);
+    }
+
+    public JSObject clear() {
+        ensurePlayer();
+        sourceUrl = "";
+        ready = false;
+        ended = false;
+        player.pause();
+        player.stop();
+        player.clearMediaItems();
+        notifyState("cleared", null);
+        updateProgressLoop();
+        return buildState("cleared", null);
+    }
+
+    public JSObject getState() {
+        ensurePlayer();
+        return buildState("sync", null);
+    }
+
+    private void ensurePlayer() {
+        if (player != null) {
+            return;
+        }
+
+        AudioAttributes audioAttributes = new AudioAttributes.Builder()
+                .setUsage(C.USAGE_MEDIA)
+                .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+                .build();
+
+        player = new ExoPlayer.Builder(appContext)
+                .setAudioAttributes(audioAttributes, true)
+                .setWakeMode(C.WAKE_MODE_NETWORK)
+                .setHandleAudioBecomingNoisy(true)
+                .build();
+        player.addListener(playerListener);
+        applyConfig();
+    }
+
+    private void ensureService() {
+        Intent intent = new Intent(appContext, BiuPlayerService.class);
+        intent.setAction(BiuPlayerService.ACTION_START);
+        ContextCompat.startForegroundService(appContext, intent);
+    }
+
+    private void applyConfig() {
+        if (player == null) {
+            return;
+        }
+
+        player.setVolume(muted ? 0f : volume);
+        player.setRepeatMode(loop ? Player.REPEAT_MODE_ONE : Player.REPEAT_MODE_OFF);
+        player.setPlaybackParameters(new PlaybackParameters(playbackRate));
+    }
+
+    private void updateProgressLoop() {
+        if (player == null) {
+            progressRunning = false;
+            mainHandler.removeCallbacks(progressRunnable);
+            return;
+        }
+
+        boolean shouldRun = player.isPlaying() || player.getPlayWhenReady();
+        if (shouldRun && !progressRunning) {
+            progressRunning = true;
+            mainHandler.post(progressRunnable);
+            return;
+        }
+
+        if (!shouldRun && progressRunning) {
+            progressRunning = false;
+            mainHandler.removeCallbacks(progressRunnable);
+        }
+    }
+
+    private DataSource.Factory buildDataSourceFactory(String url) {
+        DefaultHttpDataSource.Factory factory = new DefaultHttpDataSource.Factory()
+                .setAllowCrossProtocolRedirects(true)
+                .setUserAgent(DESKTOP_USER_AGENT);
+
+        Map<String, String> headers = resolveHeaders(url);
+        if (!headers.isEmpty()) {
+            factory.setDefaultRequestProperties(headers);
+        }
+
+        return factory;
+    }
+
+    private Map<String, String> resolveHeaders(String url) {
+        Map<String, String> headers = new HashMap<>();
+        if (needsRefererInjection(url)) {
+            headers.put("Referer", "https://www.bilibili.com");
+            headers.put("User-Agent", DESKTOP_USER_AGENT);
+        }
+        return headers;
+    }
+
+    private boolean needsRefererInjection(String url) {
+        if (url == null) {
+            return false;
+        }
+
+        return url.contains(".bilivideo.com")
+                || url.contains(".hdslb.com")
+                || url.contains("upos-sz-")
+                || (url.contains("cn-") && url.contains("bilivideo"));
+    }
+
+    private MediaItem buildMediaItem() {
+        MediaMetadata.Builder metadataBuilder = new MediaMetadata.Builder()
+                .setTitle(title)
+                .setArtist(artist);
+
+        if (!cover.isEmpty()) {
+            metadataBuilder.setArtworkUri(Uri.parse(cover));
+        }
+
+        return new MediaItem.Builder()
+                .setUri(Uri.parse(sourceUrl))
+                .setMediaMetadata(metadataBuilder.build())
+                .build();
+    }
+
+    private JSObject buildState(String reason, String error) {
+        JSObject state = new JSObject();
+        if (reason != null) {
+            state.put("reason", reason);
+        }
+
+        state.put("src", sourceUrl);
+        state.put("currentTime", player == null ? 0 : Math.max(0, player.getCurrentPosition()) / 1000.0);
+
+        double duration = 0;
+        if (player != null && player.getDuration() != C.TIME_UNSET && player.getDuration() > 0) {
+            duration = player.getDuration() / 1000.0;
+        }
+        state.put("duration", duration);
+        state.put("paused", player == null || !player.getPlayWhenReady());
+        state.put("playing", player != null && player.isPlaying());
+        state.put("buffering", player != null && player.getPlaybackState() == Player.STATE_BUFFERING);
+        state.put("muted", muted);
+        state.put("volume", volume);
+        state.put("playbackRate", playbackRate);
+        state.put("loop", loop);
+        state.put("ready", ready);
+        state.put("ended", ended);
+
+        if (error != null && !error.isEmpty()) {
+            state.put("error", error);
+        }
+
+        return state;
+    }
+
+    private void notifyState(String reason, String error) {
+        JSObject state = buildState(reason, error);
+        for (StateListener listener : listeners) {
+            listener.onStateChanged(state);
+        }
+    }
+
+    private String resolvePlaybackReason(int playbackState) {
+        if (playbackState == Player.STATE_BUFFERING) {
+            return "buffering";
+        }
+        if (playbackState == Player.STATE_READY) {
+            return "ready";
+        }
+        if (playbackState == Player.STATE_ENDED) {
+            return "ended";
+        }
+        if (playbackState == Player.STATE_IDLE && sourceUrl.isEmpty()) {
+            return "cleared";
+        }
+        return "state";
+    }
+}

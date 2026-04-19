@@ -4,6 +4,8 @@ import { useForm } from "react-hook-form";
 import { Tab, Tabs } from "@heroui/react";
 import { useShallow } from "zustand/react/shallow";
 
+import useIsMobile from "@/common/hooks/use-is-mobile";
+import { isCapacitorNative } from "@/common/utils/runtime-platform";
 import ScrollContainer from "@/components/scroll-container";
 import { useAppUpdateStore } from "@/store/app-update";
 import { useSettings } from "@/store/settings";
@@ -24,6 +26,7 @@ const useSystemSettingsForm = () => {
     closeWindowOption,
     autoStart,
     audioQuality,
+    followSystemVolume,
     hiddenMenuKeys,
     displayMode,
     ffmpegPath,
@@ -42,6 +45,7 @@ const useSystemSettingsForm = () => {
       closeWindowOption: s.closeWindowOption,
       autoStart: s.autoStart,
       audioQuality: s.audioQuality,
+      followSystemVolume: s.followSystemVolume,
       hiddenMenuKeys: s.hiddenMenuKeys,
       displayMode: s.displayMode,
       ffmpegPath: s.ffmpegPath,
@@ -70,6 +74,7 @@ const useSystemSettingsForm = () => {
       closeWindowOption,
       autoStart,
       audioQuality,
+      followSystemVolume,
       hiddenMenuKeys,
       displayMode,
       ffmpegPath,
@@ -100,7 +105,8 @@ const useSystemSettingsForm = () => {
   }, [watch, updateSettings]);
 
   useEffect(() => {
-    window.electron.getAppVersion().then(v => setAppVersion(v));
+    const versionPromise = window.electron?.getAppVersion?.();
+    versionPromise?.then(v => setAppVersion(v));
   }, []);
 
   return {
@@ -115,25 +121,40 @@ const useSystemSettingsForm = () => {
 
 const SettingsPage = () => {
   const system = useSystemSettingsForm();
+  const isMobile = useIsMobile();
+  const showDesktopOnlySettings = !isCapacitorNative();
 
   return (
     <ScrollContainer enableBackToTop className="h-full w-full">
-      <div className="m-auto mb-6 max-w-[900px] px-8 py-4">
+      <div className={isMobile ? "m-auto mb-6 max-w-[900px] px-4 py-3" : "m-auto mb-6 max-w-[900px] px-8 py-4"}>
         <div className="space-y-6">
           <h1>设置</h1>
-          <Tabs aria-label="设置选项" classNames={{ panel: "px-1 py-0", cursor: "rounded-medium" }}>
+          <Tabs
+            aria-label="设置选项"
+            size={isMobile ? "sm" : "md"}
+            className="w-full"
+            classNames={{
+              panel: isMobile ? "px-0 py-0" : "px-1 py-0",
+              cursor: "rounded-medium",
+              tabList: "max-w-full overflow-x-auto no-scrollbar",
+            }}
+          >
             <Tab key="system" title="常规设置">
               <SystemSettingsTab {...system} />
             </Tab>
             <Tab key="menu" title="菜单设置">
               <MenuSettings control={system.control} />
             </Tab>
-            <Tab key="shortcut" title="快捷键设置">
-              <ShortcutSettingsPage />
-            </Tab>
-            <Tab key="proxy" title="代理设置">
-              <ProxySettings control={system.control} />
-            </Tab>
+            {showDesktopOnlySettings && (
+              <Tab key="shortcut" title="快捷键设置">
+                <ShortcutSettingsPage />
+              </Tab>
+            )}
+            {showDesktopOnlySettings && (
+              <Tab key="proxy" title="代理设置">
+                <ProxySettings control={system.control} />
+              </Tab>
+            )}
           </Tabs>
         </div>
       </div>

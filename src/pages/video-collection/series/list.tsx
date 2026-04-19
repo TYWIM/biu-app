@@ -2,12 +2,14 @@ import React, { useCallback } from "react";
 
 import { Spinner } from "@heroui/react";
 
+import useIsMobile from "@/common/hooks/use-is-mobile";
 import type { Media } from "@/service/user-video-archives-list";
 
 import { formatSecondsToDate } from "@/common/utils/time";
 import Empty from "@/components/empty";
 import MusicListItem from "@/components/music-list-item";
 import MusicListHeader from "@/components/music-list-item/header";
+import { getMusicListItemRowHeight } from "@/components/music-list-item/styles";
 import VirtualPageList from "@/components/virtual-page-list";
 import { usePlayList } from "@/store/play-list";
 import { useSettings } from "@/store/settings";
@@ -19,6 +21,7 @@ export interface SeriesListProps {
   loading: boolean;
   className?: string;
   getScrollElement: () => HTMLElement | null;
+  canDownload?: boolean;
   onMenuAction: (key: string, item: Media) => void;
   onLoadMore?: () => void;
   hasMore?: boolean;
@@ -29,10 +32,12 @@ const SeriesList = ({
   loading,
   className,
   getScrollElement,
+  canDownload,
   onMenuAction,
   onLoadMore,
   hasMore,
 }: SeriesListProps) => {
+  const isMobile = useIsMobile();
   const displayMode = useSettings(state => state.displayMode);
   const isCompact = displayMode === "compact";
 
@@ -64,7 +69,7 @@ const SeriesList = ({
       <MusicListHeader />
       <VirtualPageList
         items={data}
-        rowHeight={isCompact ? 36 : 64}
+        rowHeight={getMusicListItemRowHeight(isMobile, isCompact)}
         getScrollElement={getScrollElement}
         hasMore={hasMore}
         onLoadMore={onLoadMore}
@@ -83,7 +88,7 @@ const SeriesList = ({
               duration={item.duration}
               pubTime={formatSecondsToDate(item.pubtime)}
               onPress={() => handlePress(item)}
-              menus={getContextMenus()}
+              menus={getContextMenus({ canDownload })}
               onMenuAction={key => onMenuAction(key, item)}
             />
           );

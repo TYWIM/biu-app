@@ -2,6 +2,16 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button, Input, Modal, ModalBody, ModalContent, ModalHeader, Tab, Tabs, addToast } from "@heroui/react";
 
+import {
+  canGetNeteaseLyrics,
+  canSearchLrclibLyrics,
+  canSearchNeteaseLyrics,
+  getNeteaseLyricsRuntime,
+  searchLrclibLyricsRuntime,
+  searchNeteaseSongsRuntime,
+} from "@/common/utils/runtime-lyrics";
+import { getUnsupportedFeatureMessage } from "@/common/utils/runtime-platform";
+import { canUseRuntimeStore, getRuntimeStore, setRuntimeStore } from "@/common/utils/runtime-store";
 import { usePlayList } from "@/store/play-list";
 import { StoreNameMap } from "@shared/store";
 
@@ -22,6 +32,10 @@ interface Props {
 const LyricsSearchModal = ({ isOpen, onOpenChange, onLyricsAdopted }: Props) => {
   const playId = usePlayList(state => state.playId);
   const getPlayItem = usePlayList(state => state.getPlayItem);
+  const canSearchNetease = canSearchNeteaseLyrics();
+  const canSearchLrclib = canSearchLrclibLyrics();
+  const canPreviewNetease = canGetNeteaseLyrics();
+  const canPersistLyrics = canUseRuntimeStore();
   const [keyword, setKeyword] = useState("");
   const [activeTab, setActiveTab] = useState<"netease" | "lrclib">("netease");
   const [neteaseSongs, setNeteaseSongs] = useState<NeteaseSong[]>([]);
@@ -59,10 +73,16 @@ const LyricsSearchModal = ({ isOpen, onOpenChange, onLyricsAdopted }: Props) => 
       if (query === "") return;
 
       if (tab === "netease") {
+        if (!canSearchNetease) {
+          setNeteaseSongs([]);
+          setNeteaseLoading(false);
+          return;
+        }
+
         setLrclibLoading(false);
         try {
           setNeteaseLoading(true);
-          const res = await window.electron.searchNeteaseSongs({
+          const res = await searchNeteaseSongsRuntime({
             s: query,
             type: NETEASE_TYPE_SONG,
             limit: DEFAULT_LIMIT,
@@ -77,10 +97,16 @@ const LyricsSearchModal = ({ isOpen, onOpenChange, onLyricsAdopted }: Props) => 
           setNeteaseLoading(false);
         }
       } else {
+        if (!canSearchLrclib) {
+          setLrclibSongs([]);
+          setLrclibLoading(false);
+          return;
+        }
+
         setNeteaseLoading(false);
         try {
           setLrclibLoading(true);
-          const res = await window.electron.searchLrclibLyrics({ q: query });
+          const res = await searchLrclibLyricsRuntime({ q: query });
           setLrclibSongs(res ?? []);
         } catch {
           setLrclibSongs([]);
@@ -90,7 +116,7 @@ const LyricsSearchModal = ({ isOpen, onOpenChange, onLyricsAdopted }: Props) => 
         }
       }
     },
-    [activeTab],
+    [activeTab, canSearchLrclib, canSearchNetease],
   );
 
   useEffect(() => {
@@ -116,12 +142,17 @@ const LyricsSearchModal = ({ isOpen, onOpenChange, onLyricsAdopted }: Props) => 
         tLyrics: tLyricsText,
       };
 
+      if (!canPersistLyrics) {
+        onLyricsAdopted?.(lyricsText, tLyricsText);
+        return true;
+      }
+
       try {
-        const store = await window.electron.getStore(StoreNameMap.LyricsCache);
+        const store = await getRuntimeStore(StoreNameMap.LyricsCache);
         const key = `${current.bvid}-${current.cid}`;
         const prev = store?.[key] || {};
         const nextStore = { ...(store ?? {}), [key]: { ...prev, ...nextLyrics } };
-        await window.electron.setStore(StoreNameMap.LyricsCache, nextStore);
+        await setRuntimeStore(StoreNameMap.LyricsCache, nextStore);
         onLyricsAdopted?.(lyricsText, tLyricsText);
         return true;
       } catch {
@@ -129,7 +160,7 @@ const LyricsSearchModal = ({ isOpen, onOpenChange, onLyricsAdopted }: Props) => 
         return false;
       }
     },
-    [getPlayItem, onLyricsAdopted],
+    [canPersistLyrics, getPlayItem, onLyricsAdopted],
   );
 
   const handleOpenChange = useCallback(
@@ -147,6 +178,9 @@ const LyricsSearchModal = ({ isOpen, onOpenChange, onLyricsAdopted }: Props) => 
       <ModalContent>
         <ModalHeader className="flex flex-col gap-1">搜索歌词</ModalHeader>
         <ModalBody className="pb-6">
+          {!canSearchNetease && !canSearchLrclib && (
+            <div className="text-default-500 text-sm">{getUnsupportedFeatureMessage("在线歌词搜索")}</div>
+          )}
           <div className="flex gap-2">
             <Input
               value={keyword}
@@ -156,7 +190,7 @@ const LyricsSearchModal = ({ isOpen, onOpenChange, onLyricsAdopted }: Props) => 
                 if (e.key === "Enter") handleSubmit(activeTab);
               }}
             />
-            <Button color="primary" onPress={() => handleSubmit(activeTab)}>
+            <Button color="primary" onPress={() => handleSubmit(activeTab)} isDisabled={!canSearchNetease && !canSearchLrclib}>
               搜索
             </Button>
           </div>
@@ -178,7 +212,13 @@ const LyricsSearchModal = ({ isOpen, onOpenChange, onLyricsAdopted }: Props) => 
             <Tab key="lrclib" title="LrcLib" />
           </Tabs>
           {activeTab === "netease" ? (
-            <NeteaseTab songs={neteaseSongs} loading={neteaseLoading} onAdoptLyrics={handleAdoptLyrics} />
+            <NeteaseTab
+              songs={neteaseSongs}
+              loading={neteaseLoading}
+              onAdoptLyrics={handleAdoptLyrics}
+              canPreviewLyrics={canPreviewNetease}
+              getLyrics={getNeteaseLyricsRuntime}
+            />
           ) : (
             <LrclibTab songs={lrclibSongs} loading={lrclibLoading} onAdoptLyrics={handleAdoptLyrics} />
           )}

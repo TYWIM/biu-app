@@ -4,25 +4,25 @@ import { twMerge } from "tailwind-merge";
 
 import { ReactComponent as LogoIcon } from "@/assets/icons/logo.svg";
 
-const isMac = window.electron?.getPlatform() === "macos";
-
 interface LogoProps {
   isCollapsed: boolean;
 }
 
 const Logo = ({ isCollapsed }: LogoProps) => {
+  const electron = typeof window !== "undefined" ? window.electron : undefined;
+  const isMac = electron?.getPlatform?.() === "macos";
   const [isFullScreen, setIsFullScreen] = useState(false);
 
   useEffect(() => {
-    if (!isMac) return;
+    if (!isMac || !electron?.isFullScreen || !electron?.onWindowFullScreenChange) return;
 
-    window.electron?.isFullScreen().then(setIsFullScreen);
-    const unlisten = window.electron?.onWindowFullScreenChange(setIsFullScreen);
+    electron.isFullScreen().then(setIsFullScreen);
+    const unlisten = electron.onWindowFullScreenChange(setIsFullScreen);
 
     return () => {
       unlisten?.();
     };
-  }, []);
+  }, [electron, isMac]);
 
   return (
     <>

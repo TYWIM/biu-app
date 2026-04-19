@@ -7,6 +7,8 @@ import { useRequest } from "ahooks";
 import type { Media } from "@/service/user-video-archives-list";
 
 import { CollectionType } from "@/common/constants/collection";
+import useIsMobile from "@/common/hooks/use-is-mobile";
+import { openBiliVideoLink } from "@/common/utils/url";
 import ScrollContainer, { type ScrollRefObject } from "@/components/scroll-container";
 import { getSeriesArchives } from "@/service/series-archives";
 import { getSeriesInfo } from "@/service/series-info";
@@ -22,8 +24,12 @@ import SeriesList from "./list";
 
 const Series = () => {
   const { id } = useParams();
+  const isMobile = useIsMobile();
   const user = useUser(state => state.user);
   const displayMode = useSettings(state => state.displayMode);
+  const addMediaDownloadTask = typeof window !== "undefined" ? window.electron?.addMediaDownloadTask : undefined;
+  const canDownload = Boolean(addMediaDownloadTask);
+  const shouldUseGrid = isMobile || displayMode === "card";
   const playList = usePlayList(state => state.playList);
   const addList = usePlayList(state => state.addList);
 
@@ -182,19 +188,33 @@ const Series = () => {
         });
         break;
       case "download-audio":
-        await window.electron.addMediaDownloadTask({
-          outputFileType: "audio",
-          title: item.title,
-          cover: item.cover,
-          bvid: item.bvid,
-        });
-        addToast({
-          title: "已添加下载任务",
-          color: "success",
-        });
+        {
+          const downloadTask = addMediaDownloadTask;
+          if (!downloadTask) {
+            addToast({ title: "浏览器预览模式不支持下载", color: "default" });
+            return;
+          }
+
+          await downloadTask({
+            outputFileType: "audio",
+            title: item.title,
+            cover: item.cover,
+            bvid: item.bvid,
+          });
+          addToast({
+            title: "已添加下载任务",
+            color: "success",
+          });
+        }
         break;
-      case "download-video":
-        await window.electron.addMediaDownloadTask({
+      case "download-video": {
+        const downloadTask = addMediaDownloadTask;
+        if (!downloadTask) {
+          addToast({ title: "浏览器预览模式不支持下载", color: "default" });
+          return;
+        }
+
+        await downloadTask({
           outputFileType: "video",
           title: item.title,
           cover: item.cover,
@@ -205,8 +225,9 @@ const Series = () => {
           color: "success",
         });
         break;
+      }
       case "bililink":
-        window.electron.openExternal(`https://www.bilibili.com/video/${item.bvid}`);
+        openBiliVideoLink({ type: "mv", bvid: item.bvid });
         break;
       default:
         break;
@@ -225,7 +246,7 @@ const Series = () => {
   const initialLoading = infoLoading || (medias.length === 0 && loadingMore);
 
   return (
-    <ScrollContainer enableBackToTop ref={scrollRef} resetOnChange={id} className="h-full w-full px-4 pb-6">
+    <ScrollContainer enableBackToTop ref={scrollRef} resetOnChange={id} className={isMobile ? "h-full w-full px-4 py-3 pb-6" : "h-full w-full px-4 pb-6"}>
       <Header
         type={CollectionType.VideoSeries}
         cover={medias?.[0]?.cover}
@@ -251,12 +272,13 @@ const Series = () => {
         onAddToPlayList={addToPlayList}
       />
 
-      {displayMode === "card" ? (
+      {shouldUseGrid ? (
         <SeriesGridList
           className="min-h-0 flex-1"
           data={filteredMedias}
           loading={loadingMore}
           getScrollElement={getScrollElement}
+          canDownload={canDownload}
           onMenuAction={handleMenuAction}
           hasMore={hasMore}
           onLoadMore={fetchArchives}
@@ -267,6 +289,7 @@ const Series = () => {
           data={filteredMedias}
           loading={loadingMore}
           getScrollElement={getScrollElement}
+          canDownload={canDownload}
           onMenuAction={handleMenuAction}
           hasMore={hasMore}
           onLoadMore={fetchArchives}

@@ -15,6 +15,7 @@ interface MusicRecommendGridListProps {
   loading: boolean;
   onLoadMore: () => void;
   getScrollElement: () => HTMLElement | null;
+  canDownload?: boolean;
   onMenuAction: (key: string, item: RecommendItem) => void;
 }
 
@@ -24,6 +25,7 @@ const MusicRecommendGridList: React.FC<MusicRecommendGridListProps> = ({
   loading,
   onLoadMore,
   getScrollElement,
+  canDownload,
   onMenuAction,
 }) => {
   const user = useUser(state => state.user);
@@ -41,6 +43,7 @@ const MusicRecommendGridList: React.FC<MusicRecommendGridListProps> = ({
           ownerMid={item.authorMid}
           menus={getContextMenus({
             isLogin: user?.isLogin,
+            canDownload,
           })}
           onMenuAction={key => {
             onMenuAction(key, item);
@@ -59,7 +62,7 @@ const MusicRecommendGridList: React.FC<MusicRecommendGridListProps> = ({
         />
       );
     },
-    [onMenuAction, user?.isLogin],
+    [canDownload, onMenuAction, user?.isLogin],
   );
 
   return (

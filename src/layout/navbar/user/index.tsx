@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router";
 
+import { Capacitor } from "@capacitor/core";
 import {
   Dropdown,
   DropdownTrigger,
@@ -21,6 +22,7 @@ import {
 } from "@remixicon/react";
 import { twMerge } from "tailwind-merge";
 
+import { canUseRuntimeCookieApi, clearRuntimeLoginCookies, getRuntimeCookie } from "@/common/utils/runtime-cookie";
 import { postPassportLoginExit } from "@/service/passport-login-exit";
 import { useFavoritesStore } from "@/store/favorite";
 import { useModalStore } from "@/store/modal";
@@ -42,47 +44,71 @@ const UserCard = ({ onDropdownOpenChange }: UserCardProps) => {
   const clearToken = useToken(s => s.clear);
   const navigate = useNavigate();
   const updateSettings = useSettings(s => s.update);
+  const electron = typeof window !== "undefined" ? window.electron : undefined;
 
   const { isOpen: isLoginModalOpen, onOpen: openLoginModal, onOpenChange: onLoginModalOpenChange } = useDisclosure();
 
   const onOpenConfirmModal = useModalStore(s => s.onOpenConfirmModal);
 
+  const finishLogout = () => {
+    clearToken();
+    clearUser();
+    updateSettings({
+      hiddenMenuKeys: [],
+    });
+    usePlayList.getState().clear();
+    useFavoritesStore.setState({
+      createdFavorites: [],
+      collectedFavorites: [],
+    });
+    usePlayProgress.setState({
+      currentTime: 0,
+    });
+    navigate("/");
+  };
+
   const logout = async () => {
-    const csrfToken = await window.electron.getCookie("bili_jct");
-    if (!csrfToken) {
-      addToast({
-        title: "CSRF Token 不存在",
-        color: "danger",
-      });
+    if (!canUseRuntimeCookieApi()) {
+      addToast({ title: "当前运行环境不支持退出登录操作", color: "default" });
       return false;
     }
 
-    const res = await postPassportLoginExit({
-      biliCSRF: csrfToken,
-    });
-    if (res?.code === 0) {
-      clearToken();
-      clearUser();
-      updateSettings({
-        hiddenMenuKeys: [],
-      });
-      usePlayList.getState().clear();
-      useFavoritesStore.setState({
-        createdFavorites: [],
-        collectedFavorites: [],
-      });
-      usePlayProgress.setState({
-        currentTime: 0,
-      });
-      navigate("/");
-      return true;
-    } else {
-      addToast({
-        title: res?.message || "退出登录失败",
-        color: "danger",
-      });
-      return false;
+    const csrfToken = await getRuntimeCookie("bili_jct");
+
+    if (csrfToken) {
+      try {
+        const res = await postPassportLoginExit({
+          biliCSRF: csrfToken,
+        });
+
+        if (res?.code === 0) {
+          await clearRuntimeLoginCookies();
+          finishLogout();
+          addToast({
+            title: "已退出登录",
+            color: "success",
+          });
+          return true;
+        }
+      } catch {
+      }
     }
+
+    if (Capacitor.isNativePlatform()) {
+      await clearRuntimeLoginCookies();
+      finishLogout();
+      addToast({
+        title: "已退出登录",
+        color: "success",
+      });
+      return true;
+    }
+
+    addToast({
+      title: csrfToken ? "退出登录失败" : "CSRF Token 不存在",
+      color: "danger",
+    });
+    return false;
   };
 
   const dropdownItems: (DropdownItemProps & { label: string; hidden?: boolean })[] = [
@@ -135,7 +161,14 @@ const UserCard = ({ onDropdownOpenChange }: UserCardProps) => {
       label: "问题反馈",
       startContent: <RiFeedbackLine size={18} />,
       endContent: <RiExternalLinkLine size={18} />,
-      onPress: () => window.electron.openExternal("https://github.com/wood3n/biu/issues"),
+      onPress: () => {
+        const url = "https://github.com/TYWIM/biu-app/issues";
+        if (electron?.openExternal) {
+          electron.openExternal(url);
+          return;
+        }
+        window.open(url, "_blank", "noopener,noreferrer");
+      },
     },
     {
       key: "logout",
@@ -148,10 +181,7 @@ const UserCard = ({ onDropdownOpenChange }: UserCardProps) => {
         onOpenConfirmModal({
           title: "确认退出登录？",
           type: "danger",
-          onConfirm: async () => {
-            await logout();
-            return true;
-          },
+          onConfirm: logout,
         });
       },
     },
@@ -175,7 +205,7 @@ const UserCard = ({ onDropdownOpenChange }: UserCardProps) => {
             size="sm"
             as="button"
             type="button"
-            className="mr-4 cursor-pointer transition-transform hover:scale-105"
+            className="cursor-pointer transition-transform hover:scale-105"
             src={user?.face}
           />
         </DropdownTrigger>

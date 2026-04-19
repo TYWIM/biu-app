@@ -3,6 +3,7 @@ import React, { useCallback } from "react";
 import { Divider, Modal, ModalBody, ModalContent, Tab, Tabs, addToast } from "@heroui/react";
 import moment from "moment";
 
+import useIsMobile from "@/common/hooks/use-is-mobile";
 import { useFavoritesStore } from "@/store/favorite";
 import { useToken } from "@/store/token";
 import { useUser } from "@/store/user";
@@ -48,18 +49,27 @@ const Login = ({ isOpen, onOpenChange }: Props) => {
     [updateCollectedFavorites, updateCreatedFavorites, updateToken, updateUser],
   );
 
+  const isMobile = useIsMobile();
+
   return (
-    <Modal size="2xl" radius="md" isOpen={isOpen} isDismissable={false} onOpenChange={onOpenChange}>
+    <Modal
+      size={isMobile ? "full" : "2xl"}
+      radius="md"
+      isOpen={isOpen}
+      isDismissable={false}
+      onOpenChange={onOpenChange}
+      scrollBehavior={isMobile ? "inside" : "normal"}
+    >
       <ModalContent>
-        <ModalBody className="flex-row items-center justify-center gap-8 py-8">
+        <ModalBody className={isMobile ? "flex-col items-center gap-4 py-6 px-4" : "flex-row items-center justify-center gap-8 py-8"}>
           <QrcodeLogin onClose={onClose} updateUserData={updateUserData} />
-          <Divider className="h-42" orientation="vertical" />
-          <div className="w-[320px]">
+          {!isMobile && <Divider className="h-42" orientation="vertical" />}
+          <div className={isMobile ? "w-full" : "w-[320px]"}>
             <Tabs
               aria-label="登录方式"
-              classNames={{ cursor: "rounded-medium", tabContent: "text-lg font-medium mb-4" }}
+              classNames={{ cursor: "rounded-medium", tabContent: isMobile ? "text-base font-medium mb-2" : "text-lg font-medium mb-4" }}
               fullWidth
-              size="lg"
+              size={isMobile ? "md" : "lg"}
               variant="underlined"
             >
               <Tab key="code" title="短信登录">

@@ -14,30 +14,39 @@ import IconButton from "@/components/icon-button";
 const WindowAction = () => {
   const [isMaximized, setIsMaximized] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
+  const electron = window.electron;
 
   useEffect(() => {
-    window.electron.isMaximized().then(setIsMaximized);
-    window.electron.isFullScreen().then(setIsFullScreen);
-    const unlistenMaximize = window.electron.onWindowMaximizeChange(setIsMaximized);
-    const unlistenFullScreen = window.electron.onWindowFullScreenChange(setIsFullScreen);
+    if (!electron?.isMaximized || !electron?.isFullScreen || !electron?.onWindowMaximizeChange || !electron?.onWindowFullScreenChange) {
+      return;
+    }
+
+    electron.isMaximized().then(setIsMaximized);
+    electron.isFullScreen().then(setIsFullScreen);
+    const unlistenMaximize = electron.onWindowMaximizeChange(setIsMaximized);
+    const unlistenFullScreen = electron.onWindowFullScreenChange(setIsFullScreen);
 
     return () => {
       unlistenMaximize();
       unlistenFullScreen();
     };
-  }, []);
+  }, [electron]);
 
   const handleMinimize = () => {
-    window.electron.minimizeWindow();
+    electron?.minimizeWindow?.();
   };
 
   const handleMaximize = () => {
-    window.electron.toggleMaximizeWindow();
+    electron?.toggleMaximizeWindow?.();
   };
 
   const handleClose = () => {
-    window.electron.closeWindow();
+    electron?.closeWindow?.();
   };
+
+  if (!electron) {
+    return null;
+  }
 
   return (
     <div className="window-no-drag flex items-center justify-center">

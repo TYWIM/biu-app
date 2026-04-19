@@ -1,10 +1,12 @@
 import React, { useCallback } from "react";
 
+import useIsMobile from "@/common/hooks/use-is-mobile";
 import type { SpaceArcVListItem } from "@/service/space-wbi-arc-search";
 
 import { formatSecondsToDate } from "@/common/utils/time";
 import MusicListItem from "@/components/music-list-item";
 import MusicListHeader from "@/components/music-list-item/header";
+import { getMusicListItemRowHeight } from "@/components/music-list-item/styles";
 import VirtualPageList from "@/components/virtual-page-list";
 import { usePlayList } from "@/store/play-list";
 import { useSettings } from "@/store/settings";
@@ -17,10 +19,12 @@ interface PostListProps {
   loading: boolean;
   onLoadMore: () => void;
   getScrollElement: () => HTMLElement | null;
+  canDownload?: boolean;
   onMenuAction: (key: string, item: SpaceArcVListItem) => void;
 }
 
-const PostList: React.FC<PostListProps> = ({ items, hasMore, loading, onLoadMore, getScrollElement, onMenuAction }) => {
+const PostList: React.FC<PostListProps> = ({ items, hasMore, loading, onLoadMore, getScrollElement, canDownload, onMenuAction }) => {
+  const isMobile = useIsMobile();
   const displayMode = useSettings(state => state.displayMode);
   const isCompact = displayMode === "compact";
 
@@ -44,7 +48,7 @@ const PostList: React.FC<PostListProps> = ({ items, hasMore, loading, onLoadMore
         loading={loading}
         onLoadMore={onLoadMore}
         getScrollElement={getScrollElement}
-        rowHeight={isCompact ? 36 : 64}
+        rowHeight={getMusicListItemRowHeight(isMobile, isCompact)}
         renderItem={(item, index) => {
           return (
             <MusicListItem
@@ -61,7 +65,7 @@ const PostList: React.FC<PostListProps> = ({ items, hasMore, loading, onLoadMore
               duration={item.length}
               pubTime={formatSecondsToDate(item.created)}
               onPress={() => handlePress(item)}
-              menus={getContextMenus()}
+              menus={getContextMenus({ canDownload })}
               onMenuAction={key => onMenuAction(key, item)}
             />
           );

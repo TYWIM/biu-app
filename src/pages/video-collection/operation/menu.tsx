@@ -25,6 +25,7 @@ const Menu = ({ type, isCreatedBySelf, mediaCount, attr, onClearInvalid }: MenuP
   const { id } = useParams();
   const navigate = useNavigate();
   const [outputFileType, setOutputFileType] = useState<MediaDownloadOutputFileType>("audio");
+  const canDownloadAll = typeof window !== "undefined" && Boolean(window.electron?.addMediaDownloadTaskList);
 
   const onOpenConfirmModal = useModalStore(s => s.onOpenConfirmModal);
 
@@ -37,7 +38,7 @@ const Menu = ({ type, isCreatedBySelf, mediaCount, attr, onClearInvalid }: MenuP
   const menus = [
     {
       key: "download-audio",
-      show: Boolean(mediaCount),
+      show: Boolean(mediaCount) && canDownloadAll,
       startContent: <RiFileMusicLine size={18} />,
       label: "下载全部音频",
       onPress: () => {
@@ -47,7 +48,7 @@ const Menu = ({ type, isCreatedBySelf, mediaCount, attr, onClearInvalid }: MenuP
     },
     {
       key: "download-video",
-      show: Boolean(mediaCount),
+      show: Boolean(mediaCount) && canDownloadAll,
       startContent: <RiFileVideoLine size={18} />,
       label: "下载全部视频",
       onPress: () => {

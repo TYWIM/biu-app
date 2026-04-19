@@ -16,6 +16,7 @@ export interface SeriesGridListProps {
   loading?: boolean;
   className?: string;
   getScrollElement: () => HTMLElement | null;
+  canDownload?: boolean;
   onMenuAction: (key: string, item: Media) => void;
   onLoadMore?: () => void;
   hasMore?: boolean;
@@ -26,6 +27,7 @@ const SeriesGridList = ({
   loading = false,
   className,
   getScrollElement,
+  canDownload,
   onMenuAction,
   onLoadMore,
   hasMore,
@@ -42,7 +44,7 @@ const SeriesGridList = ({
           ownerName={item.upper?.name}
           ownerMid={item.upper?.mid}
           time={item.pubtime}
-          menus={getContextMenus()}
+          menus={getContextMenus({ canDownload })}
           onMenuAction={key => {
             onMenuAction(key, item);
           }}
@@ -59,7 +61,7 @@ const SeriesGridList = ({
         />
       );
     },
-    [onMenuAction],
+    [canDownload, onMenuAction],
   );
 
   if (loading && data.length === 0) {

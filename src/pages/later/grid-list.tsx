@@ -13,10 +13,11 @@ interface GridListProps {
   loading: boolean;
   onLoadMore: () => void;
   getScrollElement: () => HTMLElement | null;
+  canDownload?: boolean;
   onMenuAction: (key: string, item: ToViewVideoItem) => void;
 }
 
-const GridList: React.FC<GridListProps> = ({ items, hasMore, loading, onLoadMore, getScrollElement, onMenuAction }) => {
+const GridList: React.FC<GridListProps> = ({ items, hasMore, loading, onLoadMore, getScrollElement, canDownload, onMenuAction }) => {
   const renderGridItem = useCallback(
     (item: ToViewVideoItem) => {
       return (
@@ -31,6 +32,7 @@ const GridList: React.FC<GridListProps> = ({ items, hasMore, loading, onLoadMore
           time={item.pubdate}
           menus={getContextMenus({
             is_pgc: item.is_pgc,
+            canDownload,
           })}
           onMenuAction={key => {
             onMenuAction(key, item);
@@ -52,7 +54,7 @@ const GridList: React.FC<GridListProps> = ({ items, hasMore, loading, onLoadMore
         />
       );
     },
-    [onMenuAction],
+    [canDownload, onMenuAction],
   );
 
   return (

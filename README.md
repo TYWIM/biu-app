@@ -3,14 +3,17 @@
   <img src="./screenshots/logo.svg" alt="Biu logo" width="120" />
 </p>
 <p align="center">
-  基于哔哩哔哩（B 站）公开接口的跨平台桌面音乐播放器 🎧🎶
+  基于哔哩哔哩（B 站）公开接口的 Android 手机版音乐播放器（早期阶段） 🎧📱
 </p>
 <p align="center">
   非官方项目，与哔哩哔哩无任何官方关联或背书
 </p>
 <p align="center">
-  <a href="https://github.com/wood3n/biu/releases">
-    <img src="https://badgen.net/github/tag/wood3n/biu?label=最新版本&color=blueviolet" alt="Latest Version" />
+  当前仓库以 Capacitor Android 版本为主线，仍处于早期迭代阶段，功能与文档会持续调整。
+</p>
+<p align="center">
+  <a href="https://github.com/TYWIM/biu-app/releases">
+    <img src="https://badgen.net/github/tag/TYWIM/biu-app?label=最新版本&color=blueviolet" alt="Latest Version" />
   </a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-PolyForm%20Noncommercial%201.0.0-orange.svg" alt="License" /></a>
 </p>
@@ -45,17 +48,23 @@
 
 ---
 
+## 📱 当前阶段
+- 当前仓库以 Android / Capacitor 手机版为主线。
+- 项目仍处于早期阶段，功能完整性、后台稳定性与文档都在持续完善中。
+- 现阶段优先推进原生播放、后台播放、移动端体验，以及 Android 原生能力替换。
+
 ## ✨ 特色功能
 - 🎼 支持登录 Bilibili 并获取收藏夹、稍后再看、历史记录等信息
 - 🎧 高品质音频播放，优先拉取更高码率音频流（如无损 Flac，192K/Hi-Res）
-- 🔥 支持视频文件以及提取视频中的音频下载；支持收藏夹视频批量下载
-- 🧩 轻量界面，内置浅色和深色主题，同时可自定义部分主题样式，细腻的滚动与动效体验
-- 💿 系统托盘与最小化隐藏，便捷控制播放
-- 🍃 支持 mini 播放器模式，占用系统资源少，同时保留主窗口功能
-- ♻️ 安装包支持自动检测更新，始终保持最新体验
+- 🎵 Android 原生播放桥接入，优先面向移动端播放、进度同步与后台播放体验持续迭代
+- 🧩 轻量界面，内置浅色和深色主题，同时可自定义部分主题样式，持续优化手机端操作体验
+- � 歌词搜索、歌词预览与移动端常用播放能力正在逐步补齐
+- ♻️ 发布版本通过 GitHub Releases 分发，仓库与更新源已迁移到 `TYWIM/biu-app`
 
 ## 下载和使用
-- 下载页面：[GitHub Releases](https://github.com/wood3n/biu/releases/latest)
+- 下载页面：[GitHub Releases](https://github.com/TYWIM/biu-app/releases/latest)
+- 当前主线为 Android 手机版；如 Releases 中提供 APK，请优先下载 Android 安装包体验。
+- 说明：当前仍处于早期阶段，部分能力还在迁移或补齐中，桌面端相关说明与截图会逐步整理更新。
 - 快速选择：
   - <img alt="Windows" src="https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white" /> 优先选安装包 `win-setup`；需要免安装/无管理员权限选 `win-portable`
   - <img alt="macOS" src="https://img.shields.io/badge/macOS-000000?logo=apple&logoColor=white" /> 优先选 `dmg`；需要脚本/自动化分发可选 `zip`
@@ -285,10 +294,10 @@
 
 ## ♥️ Contributors
 
-<a href="https://github.com/wood3n/biu/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=wood3n/biu" />
+<a href="https://github.com/TYWIM/biu-app/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=TYWIM/biu-app" />
 </a>
 
 ## 🌟 Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=wood3n/biu&type=date&legend=top-left)](https://www.star-history.com/#wood3n/biu&type=date&legend=top-left)
+[![Star History Chart](https://api.star-history.com/svg?repos=TYWIM/biu-app&type=date&legend=top-left)](https://www.star-history.com/#TYWIM/biu-app&type=date&legend=top-left)

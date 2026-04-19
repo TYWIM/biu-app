@@ -1,6 +1,8 @@
 import { RiFileMusicLine, RiFileVideoLine, RiPlayCircleLine, RiPlayListAddLine, RiStarLine } from "@remixicon/react";
 
-export const getContextMenus = () => {
+export const getContextMenus = ({ canDownload }: { canDownload?: boolean } = {}) => {
+  const resolvedCanDownload = canDownload ?? (typeof window !== "undefined" && Boolean(window.electron?.addMediaDownloadTask));
+
   return [
     {
       icon: <RiStarLine size={18} />,
@@ -21,11 +23,13 @@ export const getContextMenus = () => {
       icon: <RiFileMusicLine size={18} />,
       key: "download-audio",
       label: "下载音频",
+      hidden: !resolvedCanDownload,
     },
     {
       icon: <RiFileVideoLine size={18} />,
       key: "download-video",
       label: "下载视频",
+      hidden: !resolvedCanDownload,
     },
   ];
 };

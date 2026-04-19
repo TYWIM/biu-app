@@ -88,7 +88,7 @@ const Theme = ({ children }: Props) => {
   const contextValue = useMemo(() => ({ theme: resolveTheme(themeMode, systemTheme) }), [themeMode, systemTheme]);
 
   return (
-    <main className="h-screen w-screen overflow-hidden">
+    <main className="h-[100dvh] w-screen overflow-hidden">
       <ThemeNameContext value={contextValue}>{children}</ThemeNameContext>
     </main>
   );

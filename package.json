@@ -6,19 +6,22 @@
     "node": "22.17.1"
   },
   "type": "module",
-  "description": "music application based on bilibili api",
+  "description": "early-stage mobile bilibili music application built with Capacitor and React",
   "author": "wood3n",
   "license": "PolyForm-Noncommercial-1.0.0",
-  "homepage": "https://github.com/wood3n/biu#readme",
+  "homepage": "https://github.com/TYWIM/biu-app#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/wood3n/biu.git"
+    "url": "git+https://github.com/TYWIM/biu-app.git"
   },
   "bugs": {
-    "url": "https://github.com/wood3n/biu/issues"
+    "url": "https://github.com/TYWIM/biu-app/issues"
   },
   "keywords": [
     "music",
+    "android",
+    "capacitor",
+    "mobile application",
     "music desktop application",
     "bilibili music application",
     "frontend",
@@ -32,6 +35,9 @@
     "prepare": "husky install",
     "dev": "rsbuild dev",
     "build": "rsbuild build",
+    "android:sync": "pnpm build && cap sync android",
+    "android:open": "cap open android",
+    "android:run": "pnpm build && cap run android",
     "test": "vitest",
     "knip": "knip --no-exit-code --max-show-issues 5 --reporter github-actions",
     "release": "git fetch --tags --force && changelogen --release --push --hideAuthorEmail",
@@ -39,6 +45,8 @@
     "release:alpha": "git fetch --tags --force && changelogen --release --push --hideAuthorEmail --prerelease alpha"
   },
   "dependencies": {
+    "@capacitor/android": "^6.0.0",
+    "@capacitor/core": "^6.0.0",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
@@ -84,6 +92,7 @@
     "zustand": "^5.0.8"
   },
   "devDependencies": {
+    "@capacitor/cli": "^6.0.0",
     "@commitlint/cli": "^20.1.0",
     "@commitlint/config-conventional": "^20.0.0",
     "@eslint-react/eslint-plugin": "^1.53.1",

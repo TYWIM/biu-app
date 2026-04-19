@@ -3,6 +3,7 @@ import { useState } from "react";
 import { DateRangePicker as HeroDateRangePicker, Tab, Tabs, type DateValue, type RangeValue } from "@heroui/react";
 import { getLocalTimeZone } from "@internationalized/date";
 import moment from "moment";
+import useIsMobile from "@/common/hooks/use-is-mobile";
 
 interface Props {
   onDateRangeChange?: (range: { start?: number; end?: number } | null) => void;
@@ -11,6 +12,7 @@ interface Props {
 const DateRangePicker = ({ onDateRangeChange }: Props) => {
   const [selectedKey, setSelectedKey] = useState<string>("all");
   const [dateRange, setDateRange] = useState<RangeValue<DateValue> | null>(null);
+  const isMobile = useIsMobile();
 
   const handlePresetChange = (key: string) => {
     setSelectedKey(key);
@@ -55,14 +57,16 @@ const DateRangePicker = ({ onDateRangeChange }: Props) => {
   };
 
   return (
-    <div className="-ml-1 flex items-center space-x-4">
+    <div className={isMobile ? "flex w-full flex-col gap-3" : "-ml-1 flex items-center space-x-4"}>
       <Tabs
         aria-label="时间范围"
         variant="light"
         selectedKey={selectedKey}
         onSelectionChange={key => handlePresetChange(key as string)}
+        className={isMobile ? "w-full" : undefined}
         classNames={{
           cursor: "rounded-medium",
+          tabList: "max-w-full overflow-x-auto no-scrollbar",
         }}
       >
         <Tab key="all" title="全部时间" />
@@ -71,13 +75,13 @@ const DateRangePicker = ({ onDateRangeChange }: Props) => {
         <Tab key="week" title="近一周" />
       </Tabs>
 
-      <div className="w-64">
+      <div className={isMobile ? "w-full" : "w-64"}>
         <HeroDateRangePicker
           aria-label="选择日期范围"
           // @ts-ignore 忽略类型检查，因为 HeroDateRangePicker 的类型定义有问题
           value={dateRange}
           onChange={handleDateRangeChange}
-          visibleMonths={2}
+          visibleMonths={isMobile ? 1 : 2}
         />
       </div>
     </div>

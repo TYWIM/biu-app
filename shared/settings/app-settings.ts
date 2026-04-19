@@ -7,6 +7,7 @@ export const defaultAppSettings: AppSettings = {
   primaryColor: "#1ed760",
   backgroundColor: "",
   audioQuality: "auto",
+  followSystemVolume: true,
   hiddenMenuKeys: [],
   displayMode: "list",
   ffmpegPath: "",

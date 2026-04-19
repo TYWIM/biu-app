@@ -22,6 +22,7 @@ interface AppSettings {
   closeWindowOption: "hide" | "exit";
   autoStart: boolean;
   audioQuality: AudioQuality;
+  followSystemVolume: boolean;
   hiddenMenuKeys: string[];
   displayMode: "card" | "list" | "compact";
   ffmpegPath?: string;

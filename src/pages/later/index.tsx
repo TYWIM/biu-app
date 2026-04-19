@@ -3,6 +3,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { addToast, Button, Spinner } from "@heroui/react";
 import { RiDeleteBinLine } from "@remixicon/react";
 
+import useIsMobile from "@/common/hooks/use-is-mobile";
+import { openBiliVideoLink } from "@/common/utils/url";
+import Empty from "@/components/empty";
 import ScrollContainer, { type ScrollRefObject } from "@/components/scroll-container";
 import { postHistoryToViewDel } from "@/service/history-toview-del";
 import {
@@ -22,6 +25,9 @@ const PAGE_SIZE = 20;
 
 const Later = () => {
   const scrollerRef = useRef<ScrollRefObject>(null);
+  const isMobile = useIsMobile();
+  const addMediaDownloadTask = typeof window !== "undefined" ? window.electron?.addMediaDownloadTask : undefined;
+  const canDownload = Boolean(addMediaDownloadTask);
 
   const [list, setList] = useState<ToViewVideoItem[]>([]);
   const [hasMore, setHasMore] = useState(true);
@@ -33,6 +39,7 @@ const Later = () => {
   const dateRangeRef = useRef<{ start?: number; end?: number } | null>(null);
 
   const displayMode = useSettings(state => state.displayMode);
+  const shouldUseGrid = isMobile || displayMode === "card";
 
   const fetchPage = useCallback(async (pn: number = 1) => {
     const params: HistoryToViewListParams = {
@@ -162,20 +169,34 @@ const Later = () => {
         ]);
         break;
       case "download-audio":
-        await window.electron.addMediaDownloadTask({
-          outputFileType: "audio",
-          title: item.title,
-          cover: item.pic,
-          bvid: item.bvid,
-          cid: item.cid,
-        });
-        addToast({
-          title: "已添加下载任务",
-          color: "success",
-        });
+        {
+          const downloadTask = addMediaDownloadTask;
+          if (!downloadTask) {
+            addToast({ title: "浏览器预览模式不支持下载", color: "default" });
+            return;
+          }
+
+          await downloadTask({
+            outputFileType: "audio",
+            title: item.title,
+            cover: item.pic,
+            bvid: item.bvid,
+            cid: item.cid,
+          });
+          addToast({
+            title: "已添加下载任务",
+            color: "success",
+          });
+        }
         break;
-      case "download-video":
-        await window.electron.addMediaDownloadTask({
+      case "download-video": {
+        const downloadTask = addMediaDownloadTask;
+        if (!downloadTask) {
+          addToast({ title: "浏览器预览模式不支持下载", color: "default" });
+          return;
+        }
+
+        await downloadTask({
           outputFileType: "video",
           title: item.title,
           cover: item.pic,
@@ -187,13 +208,14 @@ const Later = () => {
           color: "success",
         });
         break;
+      }
       case "bililink":
-        window.electron.openExternal(`https://www.bilibili.com/video/${item.bvid}`);
+        openBiliVideoLink({ type: "mv", bvid: item.bvid });
         break;
       default:
         break;
     }
-  }, []);
+  }, [addMediaDownloadTask]);
 
   const handleClear = useCallback(() => {
     useModalStore.getState().onOpenConfirmModal({
@@ -214,11 +236,11 @@ const Later = () => {
   const isEmpty = useMemo(() => !initialLoading && list.length === 0, [initialLoading, list]);
 
   return (
-    <ScrollContainer enableBackToTop ref={scrollerRef} className="h-full w-full px-4">
+    <ScrollContainer enableBackToTop ref={scrollerRef} className={isMobile ? "h-full w-full px-4 py-3" : "h-full w-full px-4"}>
       <div className="mb-2">
-        <div className="flex items-center justify-between">
+        <div className={isMobile ? "flex flex-col gap-3" : "flex items-center justify-between"}>
           <h1>稍后再看</h1>
-          <Button variant="flat" size="sm" startContent={<RiDeleteBinLine size={18} />} onPress={handleClear}>
+          <Button variant="flat" size="sm" startContent={<RiDeleteBinLine size={18} />} onPress={handleClear} className={isMobile ? "w-full" : undefined}>
             清除已看完
           </Button>
         </div>
@@ -233,18 +255,19 @@ const Later = () => {
         )}
 
         {/* 空状态 */}
-        {isEmpty && <div className="flex h-[40vh] items-center justify-center text-gray-500">暂无稍后再看内容</div>}
+        {isEmpty && <Empty className="h-[40vh] py-0" title="暂无稍后再看内容" />}
 
         {/* 列表内容 */}
         {list.length > 0 && (
           <>
-            {displayMode === "card" ? (
+            {shouldUseGrid ? (
               <GridList
                 items={list}
                 hasMore={hasMore}
                 loading={loadingMore}
                 onLoadMore={loadMore}
                 getScrollElement={() => scrollerRef.current?.osInstance()?.elements().viewport || null}
+                canDownload={canDownload}
                 onMenuAction={handleMenuAction}
               />
             ) : (
@@ -254,6 +277,7 @@ const Later = () => {
                 loading={loadingMore}
                 onLoadMore={loadMore}
                 getScrollElement={() => scrollerRef.current?.osInstance()?.elements().viewport || null}
+                canDownload={canDownload}
                 onMenuAction={handleMenuAction}
               />
             )}

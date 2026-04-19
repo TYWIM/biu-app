@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 
 import { Spinner, Table, TableBody, TableCell, TableColumn, TableHeader, TableRow, addToast } from "@heroui/react";
 
+import { getUnsupportedFeatureMessage } from "@/common/utils/runtime-platform";
 import { formatDuration } from "@/common/utils/time";
 
 import LyricsPreviewModal from "./lyrics-preview-modal";
@@ -12,9 +13,11 @@ interface NeteaseTabProps {
   songs: NeteaseSong[];
   loading: boolean;
   onAdoptLyrics: AdoptLyricsHandler;
+  canPreviewLyrics: boolean;
+  getLyrics: (params: GetLyricsByNeteaseParams) => Promise<GetLyricsByNeteaseResponse>;
 }
 
-const NeteaseTab = ({ songs, loading, onAdoptLyrics }: NeteaseTabProps) => {
+const NeteaseTab = ({ songs, loading, onAdoptLyrics, canPreviewLyrics, getLyrics }: NeteaseTabProps) => {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [lyricsTitle, setLyricsTitle] = useState<string>("");
   const [lyrics, setLyrics] = useState<string>("");
@@ -27,15 +30,12 @@ const NeteaseTab = ({ songs, loading, onAdoptLyrics }: NeteaseTabProps) => {
     return formatDuration(seconds);
   };
 
-  const renderArtists = (artists?: NeteaseArtist[]) => {
-    if (!artists?.length) return "--";
-    return artists
-      .map(a => a.name)
-      .filter(Boolean)
-      .join(" / ");
-  };
-
   const handleSelect = useCallback(async (song: NeteaseSong) => {
+    if (!canPreviewLyrics) {
+      addToast({ title: getUnsupportedFeatureMessage("歌词预览"), color: "default" });
+      return;
+    }
+
     const id = song.id;
     if (!id) {
       addToast({ title: "缺少歌曲 ID，无法预览", color: "warning" });
@@ -48,7 +48,7 @@ const NeteaseTab = ({ songs, loading, onAdoptLyrics }: NeteaseTabProps) => {
     setPreviewLoading(true);
 
     try {
-      const res = await window.electron.getNeteaseLyrics({ id });
+      const res = await getLyrics({ id });
       const text = res?.lrc?.lyric?.trim() || res?.klyric?.lyric?.trim() || "";
       const translation = res?.tlyric?.lyric?.trim() || "";
 
@@ -58,7 +58,8 @@ const NeteaseTab = ({ songs, loading, onAdoptLyrics }: NeteaseTabProps) => {
         return;
       }
 
-      setLyricsTitle(`${song.name || "未知歌曲"}-${renderArtists(song.artists)}`);
+      const artistsText = song.artists?.length ? song.artists.map(a => a.name).filter(Boolean).join(" / ") : "--";
+      setLyricsTitle(`${song.name || "未知歌曲"}-${artistsText}`);
       setLyrics(text);
       setTlyrics(translation);
     } catch {
@@ -67,7 +68,7 @@ const NeteaseTab = ({ songs, loading, onAdoptLyrics }: NeteaseTabProps) => {
     } finally {
       setPreviewLoading(false);
     }
-  }, []);
+  }, [canPreviewLyrics, getLyrics]);
 
   const handleAdopt = useCallback(
     async (lyricsText: string, tLyricsText?: string) => {
@@ -99,7 +100,7 @@ const NeteaseTab = ({ songs, loading, onAdoptLyrics }: NeteaseTabProps) => {
               <TableRow key={song.id} onClick={() => handleSelect(song)} className="cursor-pointer">
                 <TableCell>{song.name || "--"}</TableCell>
                 <TableCell>{song.album?.name || "--"}</TableCell>
-                <TableCell>{renderArtists(song.artists)}</TableCell>
+                <TableCell>{song.artists?.length ? song.artists.map(a => a.name).filter(Boolean).join(" / ") : "--"}</TableCell>
                 <TableCell>{renderDuration(song.duration)}</TableCell>
               </TableRow>
             )}

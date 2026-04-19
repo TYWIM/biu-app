@@ -3,6 +3,7 @@ import { Controller } from "react-hook-form";
 import type { Control, UseFormSetValue } from "react-hook-form";
 
 import {
+  addToast,
   Button,
   Divider,
   Form,
@@ -26,6 +27,9 @@ import {
   RiSunLine,
 } from "@remixicon/react";
 
+import { getUnsupportedFeatureMessage, isCapacitorNative } from "@/common/utils/runtime-platform";
+import useIsMobile from "@/common/hooks/use-is-mobile";
+import { shouldUseNativePlayer } from "@/common/utils/native-player";
 import FontSelect from "@/components/font-select";
 import UpdateCheckButton from "@/components/update-check-button";
 
@@ -49,12 +53,23 @@ export const SystemSettingsTab = ({
   latestVersion,
   setValue,
 }: SystemSettingsTabProps) => {
+  const isMobile = useIsMobile();
+  const showDesktopOnlyPaths = !isCapacitorNative();
+  const supportsSystemVolumeFollow = shouldUseNativePlayer();
+  const selectDirectory = typeof window !== "undefined" ? window.electron?.selectDirectory : undefined;
+  const selectFile = typeof window !== "undefined" ? window.electron?.selectFile : undefined;
+  const settingRowClass = isMobile ? "flex w-full flex-col gap-3 items-start" : "flex w-full items-center justify-between";
+  const labelClass = isMobile ? "w-full space-y-1" : "mr-6 space-y-1";
+  const compactControlClass = isMobile ? "w-full" : "w-[180px]";
+  const wideControlClass = isMobile ? "w-full" : "w-[360px]";
+  const trailingWideControlClass = isMobile ? "flex w-full" : "flex w-[360px] justify-end";
+
   return (
     <Form className="space-y-6">
       <h2>外观</h2>
       {/* 显示模式 */}
-      <div className="flex w-full items-center justify-between">
-        <div className="mr-6 space-y-1">
+      <div className={settingRowClass}>
+        <div className={labelClass}>
           <div className="text-medium font-medium">数据显示样式</div>
           <div className="text-sm text-zinc-500">选择媒体内容的显示样式</div>
         </div>
@@ -64,8 +79,11 @@ export const SystemSettingsTab = ({
           render={({ field }) => (
             <Tabs
               aria-label="数据展示"
+              size={isMobile ? "sm" : "md"}
+              className={isMobile ? "w-full" : undefined}
               classNames={{
                 cursor: "rounded-medium",
+                tabList: "max-w-full overflow-x-auto no-scrollbar",
               }}
               selectedKey={field.value}
               onSelectionChange={key => field.onChange(key)}
@@ -102,20 +120,22 @@ export const SystemSettingsTab = ({
         />
       </div>
       {/* 主题模式 */}
-      <div className="flex w-full items-center justify-between">
-        <div className="mr-6 space-y-1">
+      <div className={settingRowClass}>
+        <div className={labelClass}>
           <div className="text-medium font-medium">主题</div>
           <div className="text-sm text-zinc-500">选择浅色或深色主题</div>
         </div>
-
         <Controller
           control={control}
           name="themeMode"
           render={({ field }) => (
             <Tabs
               aria-label="主题切换"
+              size={isMobile ? "sm" : "md"}
+              className={isMobile ? "w-full" : undefined}
               classNames={{
                 cursor: "rounded-medium",
+                tabList: "max-w-full overflow-x-auto no-scrollbar",
               }}
               selectedKey={field.value}
               onSelectionChange={key => field.onChange(key)}
@@ -156,12 +176,12 @@ export const SystemSettingsTab = ({
         <ColorSettings control={control} />
       </div>
       {/* 字体选择 */}
-      <div className="flex w-full items-center justify-between">
-        <div className="mr-6 space-y-1">
+      <div className={settingRowClass}>
+        <div className={labelClass}>
           <div className="text-medium font-medium">字体</div>
           <div className="text-sm text-zinc-500">选择界面显示的字体</div>
         </div>
-        <div className="w-[180px]">
+        <div className={compactControlClass}>
           <Controller
             control={control}
             name="fontFamily"
@@ -199,13 +219,14 @@ export const SystemSettingsTab = ({
           />
         </div>
       </div> */}
+
       {/* 全局圆角设置 */}
-      <div className="flex w-full items-center justify-between">
-        <div className="mr-6 space-y-1">
+      <div className={settingRowClass}>
+        <div className={labelClass}>
           <div className="text-medium font-medium">圆角</div>
           <div className="text-sm text-zinc-500">调整界面控件的圆角大小</div>
         </div>
-        <div className="w-[360px]">
+        <div className={wideControlClass}>
           <Controller
             control={control}
             name="borderRadius"
@@ -231,8 +252,8 @@ export const SystemSettingsTab = ({
       <Divider />
       <h2>播放</h2>
       {/* 音质选择 */}
-      <div className="flex w-full items-center justify-between">
-        <div className="mr-6 space-y-1">
+      <div className={settingRowClass}>
+        <div className={labelClass}>
           <div className="text-medium font-medium">音质偏好</div>
           <div className="text-sm text-zinc-500">
             {audioQuality === "auto" && "自动选择最高音质"}
@@ -242,7 +263,7 @@ export const SystemSettingsTab = ({
             {audioQuality === "low" && "60-80 kbps"}
           </div>
         </div>
-        <div className="w-[180px]">
+        <div className={compactControlClass}>
           <Controller
             control={control}
             name="audioQuality"
@@ -266,9 +287,24 @@ export const SystemSettingsTab = ({
           />
         </div>
       </div>
+      <div className={settingRowClass}>
+        <div className={labelClass}>
+          <div className="text-medium font-medium">跟随系统音量</div>
+          <div className="text-sm text-zinc-500">
+            {supportsSystemVolumeFollow
+              ? "开启后使用系统音量键调节播放音量；关闭后使用应用内独立音量并保留上次设置"
+              : "当前运行环境仍使用应用内音量控制；该选项主要对 Android 原生播放器生效"}
+          </div>
+        </div>
+        <Controller
+          control={control}
+          name="followSystemVolume"
+          render={({ field }) => <Switch disableAnimation isSelected={field.value} onValueChange={field.onChange} />}
+        />
+      </div>
       {/* 播放记录上报 */}
-      <div className="flex w-full items-center justify-between">
-        <div className="mr-6 space-y-1">
+      <div className={settingRowClass}>
+        <div className={labelClass}>
           <div className="text-medium font-medium">上报本机播放记录</div>
           <div className="text-sm text-zinc-500">将播放进度同步到Bilibili服务器</div>
         </div>
@@ -280,66 +316,81 @@ export const SystemSettingsTab = ({
       </div>
 
       <Divider />
-      <h2>下载</h2>
-      <div className="flex w-full items-center justify-between">
-        <div className="mr-6 space-y-1">
-          <div className="text-medium font-medium">下载目录</div>
-          <div className="text-sm text-zinc-500">选择音视频保存的位置</div>
-        </div>
-        <div className="w-[360px]">
-          <Controller
-            control={control}
-            name="downloadPath"
-            render={({ field }) => (
-              <div className="flex items-center space-x-1">
-                <Input isDisabled placeholder="选择文件夹" value={field.value} onValueChange={field.onChange} />
-                <Button
-                  variant="flat"
-                  onPress={async () => {
-                    const path = await window.electron.selectDirectory();
-                    if (path) setValue("downloadPath", path, { shouldDirty: true, shouldTouch: true });
-                  }}
-                >
-                  选择
-                </Button>
-              </div>
-            )}
-          />
-        </div>
-      </div>
+      {showDesktopOnlyPaths && (
+        <>
+          <h2>下载</h2>
+          <div className={settingRowClass}>
+            <div className={labelClass}>
+              <div className="text-medium font-medium">下载目录</div>
+              <div className="text-sm text-zinc-500">选择音视频保存的位置</div>
+            </div>
+            <div className={wideControlClass}>
+              <Controller
+                control={control}
+                name="downloadPath"
+                render={({ field }) => (
+                  <div className={isMobile ? "flex flex-col gap-2" : "flex items-center space-x-1"}>
+                    <Input isDisabled placeholder="选择文件夹" value={field.value} onValueChange={field.onChange} />
+                    <Button
+                      variant="flat"
+                      isDisabled={!selectDirectory}
+                      onPress={async () => {
+                        if (!selectDirectory) {
+                          addToast({ title: getUnsupportedFeatureMessage("选择目录"), color: "default" });
+                          return;
+                        }
 
-      {/* FFmpeg 路径配置 */}
-      <div className="flex w-full items-center justify-between">
-        <div className="mr-6 space-y-1">
-          <div className="text-medium font-medium">FFmpeg 路径</div>
-          <div className="text-sm text-zinc-500">手动指定 FFmpeg 可执行文件路径</div>
-        </div>
-        <div className="w-[360px]">
-          <Controller
-            control={control}
-            name="ffmpegPath"
-            render={({ field }) => (
-              <div className="flex items-center space-x-1">
-                <Input isDisabled placeholder="自动检测" value={field.value} onValueChange={field.onChange} />
-                <Button
-                  variant="flat"
-                  onPress={async () => {
-                    const path = await window.electron.selectFile();
-                    if (path) setValue("ffmpegPath", path, { shouldDirty: true, shouldTouch: true });
-                  }}
-                >
-                  选择
-                </Button>
-              </div>
-            )}
-          />
-        </div>
-      </div>
-      <Divider />
+                        const path = await selectDirectory();
+                        if (path) setValue("downloadPath", path, { shouldDirty: true, shouldTouch: true });
+                      }}
+                    >
+                      选择
+                    </Button>
+                  </div>
+                )}
+              />
+            </div>
+          </div>
+
+          <div className={settingRowClass}>
+            <div className={labelClass}>
+              <div className="text-medium font-medium">FFmpeg 路径</div>
+              <div className="text-sm text-zinc-500">手动指定 FFmpeg 可执行文件路径</div>
+            </div>
+            <div className={wideControlClass}>
+              <Controller
+                control={control}
+                name="ffmpegPath"
+                render={({ field }) => (
+                  <div className={isMobile ? "flex flex-col gap-2" : "flex items-center space-x-1"}>
+                    <Input isDisabled placeholder="自动检测" value={field.value} onValueChange={field.onChange} />
+                    <Button
+                      variant="flat"
+                      isDisabled={!selectFile}
+                      onPress={async () => {
+                        if (!selectFile) {
+                          addToast({ title: getUnsupportedFeatureMessage("选择文件"), color: "default" });
+                          return;
+                        }
+
+                        const path = await selectFile();
+                        if (path) setValue("ffmpegPath", path, { shouldDirty: true, shouldTouch: true });
+                      }}
+                    >
+                      选择
+                    </Button>
+                  </div>
+                )}
+              />
+            </div>
+          </div>
+          <Divider />
+        </>
+      )}
       <h2>搜索</h2>
       {/* 显示搜索历史 */}
-      <div className="flex w-full items-center justify-between">
-        <div className="mr-6 space-y-1">
+      <div className={settingRowClass}>
+        <div className={labelClass}>
           <div className="text-medium font-medium">显示搜索历史</div>
           <div className="text-sm text-zinc-500">在搜索框中显示搜索历史记录</div>
         </div>
@@ -353,8 +404,8 @@ export const SystemSettingsTab = ({
       <Divider />
       <h2>系统</h2>
       {/* 窗口关闭选项 */}
-      <div className="flex w-full items-center justify-between">
-        <div className="mr-6 space-y-1">
+      <div className={settingRowClass}>
+        <div className={labelClass}>
           <div className="text-medium font-medium">窗口关闭</div>
           <div className="text-sm text-zinc-500">选择窗口关闭时的行为</div>
         </div>
@@ -362,7 +413,7 @@ export const SystemSettingsTab = ({
           control={control}
           name="closeWindowOption"
           render={({ field }) => (
-            <RadioGroup orientation="horizontal" value={field.value} onValueChange={field.onChange}>
+            <RadioGroup orientation={isMobile ? "vertical" : "horizontal"} value={field.value} onValueChange={field.onChange}>
               <Radio value="hide">隐藏到托盘</Radio>
               <Radio value="exit">直接退出</Radio>
             </RadioGroup>
@@ -371,12 +422,12 @@ export const SystemSettingsTab = ({
       </div>
 
       {/* 开机自启动开关 */}
-      <div className="flex w-full items-center justify-between">
-        <div className="mr-6 space-y-1">
+      <div className={settingRowClass}>
+        <div className={labelClass}>
           <div className="text-medium font-medium">开机自启动</div>
           <div className="text-sm text-zinc-500">系统登录后自动启动应用</div>
         </div>
-        <div className="flex w-[360px] justify-end">
+        <div className={trailingWideControlClass}>
           <Controller
             control={control}
             name="autoStart"
@@ -387,8 +438,8 @@ export const SystemSettingsTab = ({
 
       <Divider />
       <h2>关于应用</h2>
-      <div className="flex w-full items-center justify-between">
-        <div className="mr-6 flex items-center space-x-1">
+      <div className={settingRowClass}>
+        <div className={isMobile ? "flex flex-wrap items-center gap-1" : "mr-6 flex items-center space-x-1"}>
           <span>当前版本 {appVersion}</span>
           {isUpdateAvailable && Boolean(latestVersion) && (
             <>

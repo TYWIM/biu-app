@@ -21,6 +21,10 @@ const VideoPagesDownloadSelectModal = () => {
     );
 
   const { outputFileType, title, cover, bvid } = videoPageDownloadModalData || {};
+  const addMediaDownloadTask = typeof window !== "undefined" ? window.electron?.addMediaDownloadTask : undefined;
+  const addMediaDownloadTaskList = typeof window !== "undefined" ? window.electron?.addMediaDownloadTaskList : undefined;
+  const canDownload = Boolean(addMediaDownloadTask);
+  const canBatchDownload = Boolean(addMediaDownloadTaskList);
 
   const [selectedCids, setSelectedCids] = useState<string[]>([]);
 
@@ -34,8 +38,15 @@ const VideoPagesDownloadSelectModal = () => {
       if (res?.data?.length > 1) {
         setSelectedCids(res?.data?.map(item => String(item.cid)) || []);
       } else if (res?.data?.[0]?.cid) {
+        const downloadTask = addMediaDownloadTask;
+        if (!downloadTask) {
+          addToast({ title: "浏览器预览模式不支持下载分集", color: "default" });
+          onVideoPageDownloadModalOpenChange(false);
+          return res?.data || [];
+        }
+
         const cid = String(res.data[0].cid);
-        await window.electron.addMediaDownloadTask({
+        await downloadTask({
           outputFileType: outputFileType!,
           cover,
           title: title!,
@@ -58,7 +69,14 @@ const VideoPagesDownloadSelectModal = () => {
   );
 
   const downloadSelected = async () => {
-    await window.electron.addMediaDownloadTaskList(
+    const downloadTaskList = addMediaDownloadTaskList;
+    if (!downloadTaskList) {
+      addToast({ title: "浏览器预览模式不支持批量下载分集", color: "default" });
+      onVideoPageDownloadModalOpenChange(false);
+      return;
+    }
+
+    await downloadTaskList(
       data!
         .filter(item => selectedCids.includes(String(item.cid)))
         .map(item => ({

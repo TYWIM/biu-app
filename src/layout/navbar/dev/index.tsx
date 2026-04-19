@@ -6,17 +6,23 @@ import IconButton from "@/components/icon-button";
 
 const Dev = () => {
   const [isDev, setIsDev] = useState(false);
+  const electron = window.electron;
 
   useEffect(() => {
-    window.electron.isDev().then(setIsDev);
-  }, []);
+    if (!electron?.isDev) {
+      setIsDev(false);
+      return;
+    }
+
+    electron.isDev().then(setIsDev);
+  }, [electron]);
 
   if (!isDev) {
     return null;
   }
 
   return (
-    <IconButton onPress={window.electron.toggleDevTools}>
+    <IconButton onPress={() => electron?.toggleDevTools?.()}>
       <RiCodeLine size={18} />
     </IconButton>
   );

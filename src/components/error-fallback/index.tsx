@@ -8,11 +8,22 @@ import { ReactComponent as ErrorIllustration } from "@/assets/images/error.svg";
 const Fallback = ({ resetErrorBoundary }: FallbackProps) => {
   const navigate = useNavigate();
 
+  const openIssuePage = () => {
+    const url = "https://github.com/TYWIM/biu-app/issues";
+
+    if (window.electron?.openExternal) {
+      window.electron.openExternal(url);
+      return;
+    }
+
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
   return (
     <div className="window-drag bg-content1 flex h-screen w-screen flex-col items-center justify-center space-y-4">
       <ErrorIllustration style={{ width: 480 }} />
       <div className="window-no-drag flex items-center space-x-2">
-        <Button onPress={() => window.electron.openExternal("https://github.com/wood3n/biu/issues")}>反馈</Button>
+        <Button onPress={openIssuePage}>反馈</Button>
         <Button
           color="primary"
           onPress={() => {

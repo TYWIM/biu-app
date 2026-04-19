@@ -11,10 +11,18 @@ const MusicDownloadButton = () => {
   const list = usePlayList(s => s.list);
   const playId = usePlayList(s => s.playId);
   const playItem = list.find(item => item.id === playId);
+  const addMediaDownloadTask = typeof window !== "undefined" ? window.electron?.addMediaDownloadTask : undefined;
+  const canDownloadMedia = Boolean(addMediaDownloadTask);
   const [isTooltipOpen, setIsTooltipOpen] = useState(false);
 
   const downloadAudio = async () => {
-    await window.electron.addMediaDownloadTask({
+    const downloadTask = addMediaDownloadTask;
+    if (!downloadTask) {
+      addToast({ title: "浏览器预览模式不支持下载音频", color: "default" });
+      return;
+    }
+
+    await downloadTask({
       outputFileType: "audio",
       title: playItem?.pageTitle || playItem?.title || `audio-${Date.now()}`,
       cover: playItem?.pageCover || playItem?.cover,
@@ -30,7 +38,13 @@ const MusicDownloadButton = () => {
   };
 
   const downloadVideo = async () => {
-    await window.electron.addMediaDownloadTask({
+    const downloadTask = addMediaDownloadTask;
+    if (!downloadTask) {
+      addToast({ title: "浏览器预览模式不支持下载视频", color: "default" });
+      return;
+    }
+
+    await downloadTask({
       outputFileType: "video",
       title: playItem?.pageTitle || playItem?.title || `video-${Date.now()}`,
       cover: playItem?.pageCover || playItem?.cover,
@@ -84,7 +98,15 @@ const MusicDownloadButton = () => {
     }
   };
 
-  if (playItem?.sid) {
+  if (!playItem) {
+    return null;
+  }
+
+  if (playItem.sid) {
+    if (!canDownloadMedia) {
+      return null;
+    }
+
     return (
       <AsyncButton isIconOnly size="sm" variant="light" className="hover:text-primary" onPress={downloadAudio}>
         <RiDownload2Fill size={18} />
@@ -120,22 +142,26 @@ const MusicDownloadButton = () => {
             setIsTooltipOpen(false);
           }}
         >
-          <ListboxItem
-            className="rounded-medium"
-            key="audio"
-            textValue="下载音频"
-            startContent={<RiFileMusicLine size={16} />}
-          >
-            下载音频
-          </ListboxItem>
-          <ListboxItem
-            className="rounded-medium"
-            key="video"
-            textValue="下载视频"
-            startContent={<RiFileVideoLine size={16} />}
-          >
-            下载视频
-          </ListboxItem>
+          {canDownloadMedia ? (
+            <ListboxItem
+              className="rounded-medium"
+              key="audio"
+              textValue="下载音频"
+              startContent={<RiFileMusicLine size={16} />}
+            >
+              下载音频
+            </ListboxItem>
+          ) : null}
+          {canDownloadMedia ? (
+            <ListboxItem
+              className="rounded-medium"
+              key="video"
+              textValue="下载视频"
+              startContent={<RiFileVideoLine size={16} />}
+            >
+              下载视频
+            </ListboxItem>
+          ) : null}
           <ListboxItem
             className="rounded-medium"
             key="cover"

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 
+import { shouldUseNativePlayer } from "@/common/utils/native-player";
 import { audio as audioElement } from "@/store/play-list";
 
 interface AudioWaveformProps {
@@ -23,6 +24,10 @@ const AudioWaveform = ({ width = 56, height = 56, barCount = 40, barColor = "cur
   const animationIdRef = useRef<number>(0);
 
   useEffect(() => {
+    if (shouldUseNativePlayer()) {
+      return;
+    }
+
     const canvas = canvasRef.current;
     if (!canvas || !audioElement) return;
 
@@ -38,7 +43,7 @@ const AudioWaveform = ({ width = 56, height = 56, barCount = 40, barColor = "cur
 
         try {
           // Connect the global audio element to the analyser
-          source = audioContext.createMediaElementSource(audioElement);
+          source = audioContext.createMediaElementSource(audioElement as HTMLMediaElement);
           source.connect(analyser);
           analyser.connect(audioContext.destination);
         } catch (error) {

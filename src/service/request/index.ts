@@ -1,11 +1,24 @@
 import axios, { type CreateAxiosDefaults } from "axios";
 
+import { nativeHttpAdapter, shouldUseNativeHttp } from "@/common/utils/native-http-adapter";
+
 import { requestInterceptors } from "./request-interceptors";
 import { geetestInterceptors } from "./response-interceptors";
+
+const BILIBILI_REFERER = "https://www.bilibili.com";
+const BROWSER_UA =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
+
+const useNative = shouldUseNativeHttp();
 
 const axiosConfig: CreateAxiosDefaults = {
   timeout: 10000,
   withCredentials: true,
+  headers: {
+    Referer: BILIBILI_REFERER,
+    "User-Agent": BROWSER_UA,
+  },
+  ...(useNative ? { adapter: nativeHttpAdapter as any } : {}),
 };
 
 export const axiosInstance = axios.create(axiosConfig);

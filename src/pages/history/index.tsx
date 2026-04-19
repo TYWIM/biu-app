@@ -4,6 +4,8 @@ import { addToast, Spinner, Switch } from "@heroui/react";
 import { RiDeleteBinLine } from "@remixicon/react";
 import { useShallow } from "zustand/react/shallow";
 
+import useIsMobile from "@/common/hooks/use-is-mobile";
+import { openBiliVideoLink } from "@/common/utils/url";
 import IconButton from "@/components/icon-button";
 import ScrollContainer, { type ScrollRefObject } from "@/components/scroll-container";
 import { postHistoryClear } from "@/service/history-clear";
@@ -23,6 +25,9 @@ import HistorySearch from "./search";
 
 const History = () => {
   const scrollerRef = useRef<ScrollRefObject>(null);
+  const isMobile = useIsMobile();
+  const addMediaDownloadTask = typeof window !== "undefined" ? window.electron?.addMediaDownloadTask : undefined;
+  const canDownload = Boolean(addMediaDownloadTask);
 
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -161,86 +166,104 @@ const History = () => {
     };
   }, [fetchHistory]);
 
-  const handleMenuAction = useCallback(async (key: string, item: HistoryListItem) => {
-    switch (key) {
-      case "play-next":
-        usePlayList.getState().addToNext({
-          type: "mv",
-          title: item.title,
-          cover: item.cover,
-          bvid: item.history.bvid,
-          ownerName: item.author_name,
-          ownerMid: item.author_mid,
-        });
-        break;
-      case "add-to-playlist":
-        usePlayList.getState().addList([
-          {
+  const onDelete = useCallback((kid: number | string, title: string) => {
+    useModalStore.getState().onOpenConfirmModal({
+      title: `确认删除“${title}”？`,
+      confirmText: "删除",
+      type: "danger",
+      onConfirm: async () => {
+        const res = await postHistoryDelete({ kid });
+        if (res.code === 0) {
+          setList(prev => prev.filter(item => (item.kid ?? item.history.oid) !== kid));
+        }
+        return res.code === 0;
+      },
+    });
+  }, []);
+
+  const handleMenuAction = useCallback(
+    async (key: string, item: HistoryListItem) => {
+      switch (key) {
+        case "play-next":
+          usePlayList.getState().addToNext({
             type: "mv",
             title: item.title,
             cover: item.cover,
             bvid: item.history.bvid,
             ownerName: item.author_name,
             ownerMid: item.author_mid,
-          },
-        ]);
-        break;
-      case "download-audio":
-        await window.electron.addMediaDownloadTask({
-          outputFileType: "audio",
-          title: item.title,
-          cover: item.cover,
-          bvid: item.history.bvid,
-          cid: item.history.cid,
-        });
-        addToast({
-          title: "已添加下载任务",
-          color: "success",
-        });
-        break;
-      case "download-video":
-        await window.electron.addMediaDownloadTask({
-          outputFileType: "video",
-          title: item.title,
-          cover: item.cover,
-          bvid: item.history.bvid,
-          cid: item.history.cid,
-        });
-        addToast({
-          title: "已添加下载任务",
-          color: "success",
-        });
-        break;
-      case "bililink":
-        window.electron.openExternal(`https://www.bilibili.com/video/${item.history.bvid}`);
-        break;
-      case "delete":
-        useModalStore.getState().onOpenConfirmModal({
-          title: `删除记录${item.title}`,
-          confirmText: "删除",
-          onConfirm: async () => {
-            const res = await postHistoryDelete({
-              kid: `${item.history.business}_${item.kid}`,
-            });
+          });
+          break;
+        case "add-to-playlist":
+          usePlayList.getState().addList([
+            {
+              type: "mv",
+              title: item.title,
+              cover: item.cover,
+              bvid: item.history.bvid,
+              ownerName: item.author_name,
+              ownerMid: item.author_mid,
+            },
+          ]);
+          break;
+        case "download-audio": {
+          const downloadTask = addMediaDownloadTask;
+          if (!downloadTask) {
+            addToast({ title: "浏览器预览模式不支持下载", color: "default" });
+            return;
+          }
 
-            if (res.code === 0) {
-              setList(prev => prev.filter(record => record.kid !== item.kid));
-              addToast({
-                title: "已删除记录",
-                color: "success",
-              });
-            }
-            return res.code === 0;
-          },
-        });
-        break;
-    }
-  }, []);
+          await downloadTask({
+            outputFileType: "audio",
+            title: item.title,
+            cover: item.cover,
+            bvid: item.history.bvid,
+            cid: item.history.cid,
+          });
+          addToast({
+            title: "已添加下载任务",
+            color: "success",
+          });
+          break;
+        }
+        case "download-video": {
+          const downloadTask = addMediaDownloadTask;
+          if (!downloadTask) {
+            addToast({ title: "浏览器预览模式不支持下载", color: "default" });
+            return;
+          }
+
+          await downloadTask({
+            outputFileType: "video",
+            title: item.title,
+            cover: item.cover,
+            bvid: item.history.bvid,
+            cid: item.history.cid,
+          });
+          addToast({
+            title: "已添加下载任务",
+            color: "success",
+          });
+          break;
+        }
+        case "bililink":
+          openBiliVideoLink({ type: "mv", bvid: item.history.bvid });
+          break;
+        case "delete":
+          onDelete(item.kid ?? item.history.oid, item.title);
+          break;
+        default:
+          break;
+      }
+    },
+    [addMediaDownloadTask, onDelete],
+  );
 
   const handleClear = useCallback(() => {
     useModalStore.getState().onOpenConfirmModal({
       title: "确认删除所有历史记录？",
       confirmText: "删除",
+      type: "danger",
       onConfirm: async () => {
         const res = await postHistoryClear();
         if (res.code === 0) {
@@ -252,13 +275,14 @@ const History = () => {
   }, [refreshList]);
 
   const isEmpty = !loading && list.length === 0;
+  const shouldUseGrid = isMobile || displayMode === "card";
 
   return (
-    <ScrollContainer enableBackToTop ref={scrollerRef} className="h-full w-full px-4">
+    <ScrollContainer enableBackToTop ref={scrollerRef} className={isMobile ? "h-full w-full px-4 py-3" : "h-full w-full px-4"}>
       <div className="mb-2">
-        <div className="flex items-center justify-between">
+        <div className={isMobile ? "flex flex-col items-start gap-3" : "flex items-center justify-between"}>
           <h1>历史记录</h1>
-          <div className="flex items-center justify-end space-x-2">
+          <div className={isMobile ? "flex w-full flex-wrap items-center gap-2" : "flex items-center justify-end space-x-2"}>
             <Switch
               size="sm"
               isSelected={reportPlayHistory}
@@ -282,13 +306,14 @@ const History = () => {
         </div>
       ) : isEmpty ? (
         <div className="flex h-[40vh] items-center justify-center text-gray-500">暂无历史记录</div>
-      ) : displayMode === "card" ? (
+      ) : shouldUseGrid ? (
         <GridList
           items={list}
           hasMore={hasMore}
           loading={loadingMore}
           onLoadMore={handleLoadMore}
           getScrollElement={() => scrollerRef.current?.osInstance()?.elements().viewport || null}
+          canDownload={canDownload}
           onMenuAction={handleMenuAction}
         />
       ) : (
@@ -298,6 +323,7 @@ const History = () => {
           loading={loadingMore}
           onLoadMore={handleLoadMore}
           getScrollElement={() => scrollerRef.current?.osInstance()?.elements().viewport || null}
+          canDownload={canDownload}
           onMenuAction={handleMenuAction}
         />
       )}

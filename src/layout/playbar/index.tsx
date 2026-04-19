@@ -1,5 +1,3 @@
-import { useEffect } from "react";
-
 import { Card } from "@heroui/react";
 
 import { usePlayList } from "@/store/play-list";
@@ -13,11 +11,6 @@ import Right from "./right";
  */
 function PlayBar() {
   const playId = usePlayList(s => s.playId);
-  const init = usePlayList(s => s.init);
-
-  useEffect(() => {
-    init();
-  }, [init]);
 
   return (
     <Card

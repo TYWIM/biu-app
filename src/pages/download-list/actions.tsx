@@ -21,6 +21,12 @@ type ActionKey = "open" | "pause" | "resume" | "retry" | "delete";
 
 const DownloadActions = ({ data }: Props) => {
   const onOpenConfirmModal = useModalStore(s => s.onOpenConfirmModal);
+  const electron = typeof window !== "undefined" ? window.electron : undefined;
+  const showFileInFolder = electron?.showFileInFolder;
+  const pauseMediaDownloadTask = electron?.pauseMediaDownloadTask;
+  const resumeMediaDownloadTask = electron?.resumeMediaDownloadTask;
+  const retryMediaDownloadTask = electron?.retryMediaDownloadTask;
+  const cancelMediaDownloadTask = electron?.cancelMediaDownloadTask;
 
   const [pendingAction, setPendingAction] = useState<ActionKey | null>(null);
   const pendingTimeoutRef = useRef<number | null>(null);
@@ -80,8 +86,13 @@ const DownloadActions = ({ data }: Props) => {
           return;
         }
 
+        if (!showFileInFolder) {
+          addToast({ title: "当前运行环境暂不支持打开文件位置", color: "default" });
+          return;
+        }
+
         try {
-          await window.electron.showFileInFolder(data.savePath);
+          await showFileInFolder(data.savePath);
         } catch (err) {
           addToast({ title: `${err instanceof Error ? err.message : String(err)}`, color: "danger" });
         }
@@ -96,8 +107,12 @@ const DownloadActions = ({ data }: Props) => {
       show: data.status === "downloading",
       onPress: async () => {
         if (pendingAction) return;
+        if (!pauseMediaDownloadTask) {
+          addToast({ title: "当前运行环境暂不支持管理下载任务", color: "default" });
+          return;
+        }
         lockAction("pause");
-        await window.electron.pauseMediaDownloadTask(data.id);
+        await pauseMediaDownloadTask(data.id);
       },
     },
     {
@@ -109,8 +124,12 @@ const DownloadActions = ({ data }: Props) => {
       show: ["downloadPaused", "mergePaused", "convertPaused"].includes(data.status),
       onPress: async () => {
         if (pendingAction) return;
+        if (!resumeMediaDownloadTask) {
+          addToast({ title: "当前运行环境暂不支持管理下载任务", color: "default" });
+          return;
+        }
         lockAction("resume");
-        await window.electron.resumeMediaDownloadTask(data.id);
+        await resumeMediaDownloadTask(data.id);
       },
     },
     {
@@ -120,8 +139,12 @@ const DownloadActions = ({ data }: Props) => {
       show: data.status === "failed",
       onPress: async () => {
         if (pendingAction) return;
+        if (!retryMediaDownloadTask) {
+          addToast({ title: "当前运行环境暂不支持管理下载任务", color: "default" });
+          return;
+        }
         lockAction("retry");
-        await window.electron.retryMediaDownloadTask(data.id);
+        await retryMediaDownloadTask(data.id);
       },
     },
     {
@@ -133,6 +156,10 @@ const DownloadActions = ({ data }: Props) => {
       className: "hover:text-danger",
       onPress: async () => {
         if (pendingAction) return;
+        if (!cancelMediaDownloadTask) {
+          addToast({ title: "当前运行环境暂不支持管理下载任务", color: "default" });
+          return;
+        }
 
         if (
           ["downloading", "downloadPaused", "merging", "mergePaused", "converting", "convertPaused"].includes(
@@ -146,7 +173,7 @@ const DownloadActions = ({ data }: Props) => {
             onConfirm: async () => {
               if (pendingAction) return false;
               lockAction("delete");
-              await window.electron.cancelMediaDownloadTask(data.id);
+              await cancelMediaDownloadTask(data.id);
               return true;
             },
           });
@@ -154,7 +181,7 @@ const DownloadActions = ({ data }: Props) => {
         }
 
         lockAction("delete");
-        await window.electron.cancelMediaDownloadTask(data.id);
+        await cancelMediaDownloadTask(data.id);
       },
     },
   ];

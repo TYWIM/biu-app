@@ -1,8 +1,9 @@
-import log from "electron-log/renderer";
+import log from "@/common/utils/logger";
 import moment from "moment";
 
 import { getAudioWebStreamUrl } from "@/service/audio-web-url";
 import { getPlayerPlayurl, type DashAudio } from "@/service/player-playurl";
+import { useSettings } from "@/store/settings";
 import { useUser } from "@/store/user";
 
 import { audioQualitySort } from "../constants/audio";
@@ -42,8 +43,32 @@ function selectAudioByQuality(audioList: DashAudio[], quality: AudioQuality): Da
   }
 }
 
-export async function getDashUrl(bvid: string, cid: string | number, audioQuality: AudioQuality = "auto") {
+function resolveDashAudioQuality(requestedQuality?: AudioQuality): AudioQuality {
+  return requestedQuality ?? useSettings.getState().audioQuality ?? "auto";
+}
+
+function resolveAudioSongQuality() {
+  const preferredQuality = useSettings.getState().audioQuality ?? "auto";
+  const canUseLossless = Boolean(useUser.getState().user?.vipStatus);
+
+  switch (preferredQuality) {
+    case "low":
+      return 0;
+    case "medium":
+      return 1;
+    case "high":
+      return 2;
+    case "lossless":
+      return canUseLossless ? 3 : 2;
+    case "auto":
+    default:
+      return canUseLossless ? 3 : 2;
+  }
+}
+
+export async function getDashUrl(bvid: string, cid: string | number, audioQuality?: AudioQuality) {
   try {
+    const resolvedQuality = resolveDashAudioQuality(audioQuality);
     const getUrlInfoRes = await getPlayerPlayurl({
       bvid,
       cid,
@@ -56,7 +81,7 @@ export async function getDashUrl(bvid: string, cid: string | number, audioQualit
     const flacAudio = getUrlInfoRes?.data?.dash?.flac?.audio;
     const dolbyAudio = getUrlInfoRes?.data?.dash?.dolby?.audio?.[0];
 
-    if (audioQuality === "auto" || audioQuality === "lossless") {
+    if (resolvedQuality === "auto" || resolvedQuality === "lossless") {
       if (flacAudio) {
         return {
           isLossless: true,
@@ -82,7 +107,7 @@ export async function getDashUrl(bvid: string, cid: string | number, audioQualit
     }
 
     const audioList = getUrlInfoRes?.data?.dash?.audio || [];
-    const selectedAudio = selectAudioByQuality(audioList, audioQuality);
+    const selectedAudio = selectAudioByQuality(audioList, resolvedQuality);
     return {
       isLossless: false,
       audioCodecs: selectedAudio?.codecs?.toLowerCase() || "",
@@ -105,7 +130,7 @@ export async function getDashUrl(bvid: string, cid: string | number, audioQualit
 export const getAudioUrl = async (sid: number | string) => {
   const res = await getAudioWebStreamUrl({
     songid: sid,
-    quality: useUser.getState().user?.vipStatus ? 3 : 2,
+    quality: resolveAudioSongQuality(),
     privilege: 2,
     mid: useUser.getState().user?.mid || 0,
     platform: "web",

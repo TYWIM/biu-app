@@ -4,6 +4,7 @@ import { Button, addToast } from "@heroui/react";
 import { RiExportFill, RiImportFill } from "@remixicon/react";
 import { merge } from "es-toolkit/object";
 
+import { getRuntimeStore } from "@/common/utils/runtime-store";
 import { useSettings } from "@/store/settings";
 import { defaultAppSettings } from "@shared/settings/app-settings";
 import { StoreNameMap } from "@shared/store";
@@ -15,8 +16,9 @@ const ImportExport = () => {
 
   const handleExport = async () => {
     try {
-      const settingStore = await window.electron.getStore(StoreNameMap.AppSettings);
-      const blob = new Blob([JSON.stringify(settingStore?.appSettings ?? defaultAppSettings, null, 2)], {
+      const settingStore = await getRuntimeStore(StoreNameMap.AppSettings);
+      const exportData = settingStore?.appSettings ?? getSettings() ?? defaultAppSettings;
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], {
         type: "application/json",
       });
       const url = URL.createObjectURL(blob);
