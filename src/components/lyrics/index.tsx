@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { addToast, useDisclosure } from "@heroui/react";
-import { RiTBoxLine } from "@remixicon/react";
+import { RiFileCopyLine, RiShareLine, RiTBoxLine } from "@remixicon/react";
 import clsx from "classnames";
 import { debounce } from "es-toolkit";
 
@@ -194,18 +194,18 @@ const Lyrics = ({ color, centered, showControls }: { color?: string; centered?: 
           params.aid = aidAsNumber;
         }
 
-        const body = await getLyricsByBili(params);
+        const result = await getLyricsByBili(params);
 
         if (canceled) return;
 
-        if (!body?.length) {
+        if (!result?.lyrics?.length) {
           setLyrics([]);
           setTranslatedLyrics([]);
           return;
         }
 
-        setLyrics(body);
-        setTranslatedLyrics([]);
+        setLyrics(result.lyrics);
+        setTranslatedLyrics(result.translatedLyrics ?? []);
       } catch {
         if (canceled) return;
         setLyrics([]);
@@ -296,6 +296,54 @@ const Lyrics = ({ color, centered, showControls }: { color?: string; centered?: 
   const setLineRef = useCallback((index: number, node: HTMLDivElement | null) => {
     lineRefs.current[index] = node;
   }, []);
+
+  const handleCopyLyrics = useCallback(async () => {
+    if (!lyrics.length) return;
+
+    const text = lyrics
+      .map(line => {
+        const translation = translationMap.get(line.time);
+        return translation ? `${line.text}\n${translation}` : line.text;
+      })
+      .join("\n\n");
+
+    try {
+      await navigator.clipboard.writeText(text);
+      addToast({ title: "歌词已复制到剪贴板", color: "success" });
+    } catch {
+      addToast({ title: "复制失败，请手动复制", color: "danger" });
+    }
+  }, [lyrics, translationMap]);
+
+  const handleShareLyrics = useCallback(async () => {
+    if (!lyrics.length) return;
+
+    const playItem = usePlayList.getState().getPlayItem();
+    const title = playItem?.pageTitle || playItem?.title || "Biu 音乐";
+
+    const text = lyrics
+      .map(line => {
+        const translation = translationMap.get(line.time);
+        return translation ? `${line.text}\n${translation}` : line.text;
+      })
+      .join("\n\n");
+
+    const shareData = {
+      title: `${title} - 歌词`,
+      text: text.slice(0, 500) + (text.length > 500 ? "..." : ""),
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(`${shareData.title}\n\n${text}`);
+        addToast({ title: "歌词已复制到剪贴板", color: "success" });
+      }
+    } catch {
+      // 用户取消分享不提示错误
+    }
+  }, [lyrics, translationMap]);
 
   const updateCenterPadding = useCallback(() => {
     if (activeIndex < 0) {
@@ -425,6 +473,24 @@ const Lyrics = ({ color, centered, showControls }: { color?: string; centered?: 
             </div>
             <div className="pointer-events-auto">
               <OffsetControl value={offset} onChange={handleOffsetChange} onOpenChange={() => {}} />
+            </div>
+            <div className="pointer-events-auto">
+              <IconButton
+                type="button"
+                onPress={handleCopyLyrics}
+                className="bg-foreground/20 text-foreground hover:bg-foreground/30 min-w-0 rounded-full text-xs font-semibold"
+              >
+                <RiFileCopyLine size={16} />
+              </IconButton>
+            </div>
+            <div className="pointer-events-auto">
+              <IconButton
+                type="button"
+                onPress={handleShareLyrics}
+                className="bg-foreground/20 text-foreground hover:bg-foreground/30 min-w-0 rounded-full text-xs font-semibold"
+              >
+                <RiShareLine size={16} />
+              </IconButton>
             </div>
             <div className="pointer-events-auto">
               <IconButton

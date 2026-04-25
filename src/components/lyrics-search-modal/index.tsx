@@ -106,8 +106,64 @@ const LyricsSearchModal = ({ isOpen, onOpenChange, onLyricsAdopted }: Props) => 
         setNeteaseLoading(false);
         try {
           setLrclibLoading(true);
-          const res = await searchLrclibLyricsRuntime({ q: query });
-          setLrclibSongs(res ?? []);
+
+          // 尝试解析 "歌曲名 - 歌手" 或 "歌曲名 歌手" 格式
+          const separators = [" - ", " — ", " – ", " -", "- "];
+          let trackName = query;
+          let artistName: string | undefined;
+
+          for (const sep of separators) {
+            const idx = query.indexOf(sep);
+            if (idx > 0) {
+              trackName = query.slice(0, idx).trim();
+              artistName = query.slice(idx + sep.length).trim();
+              break;
+            }
+          }
+
+          // 如果没有分隔符，尝试用空格分割（最后一部分可能是歌手）
+          if (!artistName && query.includes(" ")) {
+            const parts = query.split(/\s+/);
+            if (parts.length >= 2) {
+              trackName = parts.slice(0, -1).join(" ");
+              artistName = parts[parts.length - 1];
+            }
+          }
+
+          const res = await searchLrclibLyricsRuntime({
+            q: query,
+            track_name: trackName !== query ? trackName : undefined,
+            artist_name: artistName,
+          });
+
+          // 按匹配度排序：优先显示有同步歌词、时长接近的结果
+          const playItem = getPlayItem();
+          const targetDuration = playItem?.duration;
+
+          const sorted = (res ?? []).sort((a, b) => {
+            let scoreA = 0;
+            let scoreB = 0;
+
+            // 有同步歌词优先
+            if (a.syncedLyrics) scoreA += 10;
+            if (b.syncedLyrics) scoreB += 10;
+
+            // 时长接近优先（±10秒内）
+            if (targetDuration && a.duration) {
+              const diffA = Math.abs(a.duration - targetDuration);
+              if (diffA < 10) scoreA += 5;
+              else if (diffA < 30) scoreA += 2;
+            }
+            if (targetDuration && b.duration) {
+              const diffB = Math.abs(b.duration - targetDuration);
+              if (diffB < 10) scoreB += 5;
+              else if (diffB < 30) scoreB += 2;
+            }
+
+            return scoreB - scoreA;
+          });
+
+          setLrclibSongs(sorted);
         } catch {
           setLrclibSongs([]);
           addToast({ title: "LrcLib 搜索失败", color: "danger" });
@@ -116,7 +172,7 @@ const LyricsSearchModal = ({ isOpen, onOpenChange, onLyricsAdopted }: Props) => 
         }
       }
     },
-    [activeTab, canSearchLrclib, canSearchNetease],
+    [activeTab, canSearchLrclib, canSearchNetease, getPlayItem],
   );
 
   useEffect(() => {

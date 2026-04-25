@@ -9,7 +9,7 @@ const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
 const useNativeHttp = shouldUseNativeHttp();
 
 const neteaseRequest = axios.create({
-  timeout: 10000,
+  timeout: 15000,
   headers: {
     Referer: NETEASE_REFERER,
     origin: NETEASE_ORIGIN,
@@ -19,11 +19,25 @@ const neteaseRequest = axios.create({
 });
 
 const lrclibRequest = axios.create({
-  timeout: 10000,
+  timeout: 15000,
   ...(useNativeHttp ? { adapter: nativeHttpAdapter as any } : {}),
 });
 
-neteaseRequest.interceptors.response.use(res => res.data);
+// 响应拦截器：处理网易云 API 特殊状态码
+neteaseRequest.interceptors.response.use(
+  res => res.data,
+  error => {
+    // 网易云 API 有时会返回 200 但 code 不为 0，这里统一处理
+    if (error.response?.data?.code === -460) {
+      return Promise.reject(new Error("请求过于频繁，请稍后再试"));
+    }
+    if (error.response?.data?.code === -463) {
+      return Promise.reject(new Error("IP 受限，请稍后再试"));
+    }
+    return Promise.reject(error);
+  },
+);
+
 lrclibRequest.interceptors.response.use(res => res.data);
 
 const getElectronLyricsApi = () => {
