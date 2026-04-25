@@ -1,6 +1,12 @@
 export const getUrlParams = (url: string) => {
-  const urlParams = new URLSearchParams(url.split("?")[1]);
-  return Object.fromEntries(urlParams.entries());
+  try {
+    const queryIndex = url.indexOf("?");
+    if (queryIndex === -1) return {};
+    const urlParams = new URLSearchParams(url.slice(queryIndex + 1));
+    return Object.fromEntries(urlParams.entries());
+  } catch {
+    return {};
+  }
 };
 
 export const formatUrlProtocol = (url?: string) => {

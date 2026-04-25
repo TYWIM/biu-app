@@ -1,12 +1,14 @@
 import log from "@/common/utils/logger";
-import moment from "moment";
+import dayjs from "dayjs";
 
 import { postClickInterfaceClickWebH5 } from "@/service/click-interface-click-web-h5";
 import { postClickInterfaceWebHeartbeat } from "@/service/click-interface-web-heartbeat";
 import { useSettings } from "@/store/settings";
 import { useUser } from "@/store/user";
+import { usePlayProgress } from "@/store/play-progress";
 
 const HEARTBEAT_INTERVAL_SECONDS = 30;
+const HEARTBEAT_TIMER_INTERVAL_MS = HEARTBEAT_INTERVAL_SECONDS * 1000;
 
 interface ReportablePlayItem {
   id?: string;
@@ -20,16 +22,26 @@ interface ReportablePlayItem {
 
 interface PlayReportSession {
   session: string;
-  startTs: number; // seconds
+  startTs: number;
   aid: number;
   bvid?: string;
   cid?: number;
-  maxPlayedTime: number; // seconds
-  lastReportAt: number; // seconds
+  maxPlayedTime: number;
+  lastReportAt: number;
   playId?: string;
+  playItem: ReportablePlayItem;
 }
 
 let currentSession: PlayReportSession | null = null;
+let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+let heartbeatFailCount = 0;
+const MAX_HEARTBEAT_FAIL_COUNT = 5;
+
+let _getCurrentDuration: (() => number | undefined) | null = null;
+
+export function bindDurationGetter(getter: () => number | undefined) {
+  _getCurrentDuration = getter;
+}
 
 const normalizeNumber = (value?: number | string): number | undefined => {
   const num = Number(value);
@@ -52,21 +64,40 @@ const generateSessionId = () => {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID().replace(/-/g, "");
   }
-  return "";
+  return Date.now().toString(36) + Math.random().toString(36).slice(2);
 };
 
 const checkReportingEnabled = () => {
   const { reportPlayHistory } = useSettings.getState();
   if (!reportPlayHistory) {
     currentSession = null;
+    stopHeartbeatTimer();
     return false;
   }
   return true;
 };
 
-/**
- * 开始上报：调用 click/web/h5 接口，建立心跳会话。
- */
+function startHeartbeatTimer() {
+  stopHeartbeatTimer();
+  heartbeatFailCount = 0;
+  heartbeatTimer = setInterval(() => {
+    if (!currentSession) {
+      stopHeartbeatTimer();
+      return;
+    }
+    const currentTime = usePlayProgress.getState().currentTime;
+    const duration = _getCurrentDuration?.() ?? currentSession.playItem.duration;
+    void reportHeartbeat(currentSession.playItem, currentTime, duration, 0);
+  }, HEARTBEAT_TIMER_INTERVAL_MS);
+}
+
+function stopHeartbeatTimer() {
+  if (heartbeatTimer !== null) {
+    clearInterval(heartbeatTimer);
+    heartbeatTimer = null;
+  }
+}
+
 export async function beginPlayReport(item?: ReportablePlayItem) {
   if (!checkReportingEnabled()) {
     return;
@@ -81,7 +112,7 @@ export async function beginPlayReport(item?: ReportablePlayItem) {
   }
 
   const session = generateSessionId();
-  const startTs = moment().unix();
+  const startTs = dayjs().unix();
 
   currentSession = {
     session,
@@ -92,6 +123,7 @@ export async function beginPlayReport(item?: ReportablePlayItem) {
     maxPlayedTime: 0,
     lastReportAt: 0,
     playId: item.id,
+    playItem: item,
   };
 
   try {
@@ -123,12 +155,10 @@ export async function beginPlayReport(item?: ReportablePlayItem) {
   } catch (error) {
     log.warn("[play-report] start report failed", error);
   }
+
+  startHeartbeatTimer();
 }
 
-/**
- * 周期性心跳上报。
- * playType：0 播放中 / 1 开始播放 / 2 暂停 / 3 继续播放 / 4 结束播放
- */
 export async function reportHeartbeat(
   item?: ReportablePlayItem,
   playedTime?: number,
@@ -149,10 +179,17 @@ export async function reportHeartbeat(
   currentSession.maxPlayedTime = Math.max(currentSession.maxPlayedTime, played);
   const normalizedDuration = Number.isFinite(duration) ? Math.floor(duration as number) : undefined;
 
-  const now = moment().unix();
+  const now = dayjs().unix();
   const shouldForceSend = playType !== 0;
   if (!shouldForceSend && now - currentSession.lastReportAt < HEARTBEAT_INTERVAL_SECONDS) {
     return;
+  }
+
+  if (heartbeatFailCount >= MAX_HEARTBEAT_FAIL_COUNT) {
+    const backoffSeconds = HEARTBEAT_INTERVAL_SECONDS + heartbeatFailCount * 15;
+    if (now - currentSession.lastReportAt < backoffSeconds) {
+      return;
+    }
   }
 
   currentSession.lastReportAt = now;
@@ -188,11 +225,15 @@ export async function reportHeartbeat(
         web_location: 1315873,
       },
     );
+    heartbeatFailCount = 0;
   } catch (error) {
+    heartbeatFailCount++;
     log.warn("[play-report] heartbeat failed", error);
   }
 }
 
 export function endPlayReport() {
+  stopHeartbeatTimer();
   currentSession = null;
+  heartbeatFailCount = 0;
 }

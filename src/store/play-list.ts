@@ -8,14 +8,15 @@ import { persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 
 import { getPlayModeList, PlayMode } from "@/common/constants/audio";
-import { getAudioUrl, getDashUrl, isUrlValid } from "@/common/utils/audio";
+import { getAudioUrl, getDashUrl, getUrlExpirySeconds, isUrlValid } from "@/common/utils/audio";
 import {
   createPlaybackAudio,
   type PlaybackAudio,
+  setNativePlayerRemoteCommandHandler,
   shouldUseNativePlayer,
   updateNativePlayerMetadata,
 } from "@/common/utils/native-player";
-import { beginPlayReport, endPlayReport, reportHeartbeat } from "@/common/utils/play-report";
+import { beginPlayReport, bindDurationGetter, endPlayReport, reportHeartbeat } from "@/common/utils/play-report";
 import { stripHtml } from "@/common/utils/str";
 import { formatUrlProtocol } from "@/common/utils/url";
 import { getAudioSongInfo } from "@/service/audio-song-info";
@@ -91,6 +92,8 @@ interface State {
   nextId?: string;
   /** 是否在随机播放模式下保持视频分集顺序 */
   shouldKeepPagesOrderInRandomPlayMode: boolean;
+  /** 网络是否在线 */
+  isOnline: boolean;
 }
 
 export interface PlayItem {
@@ -124,6 +127,7 @@ interface Action {
   addList: (items: PlayItem[]) => void;
   delPage: (id: string) => void;
   del: (id: string) => void;
+  reorder: (fromIndex: number, toIndex: number) => void;
   clear: () => void;
   next: () => Promise<void>;
   prev: () => Promise<void>;
@@ -134,11 +138,35 @@ interface Action {
 
 const idGenerator = () => `${Date.now()}${uniqueId()}`;
 
+const CACHE_TTL_MS = 5 * 60 * 1000;
+
+interface CacheEntry<T> { data: T; expiry: number }
+
+const mvDataCache = new Map<string, CacheEntry<PlayData[]>>();
+const audioDataCache = new Map<number, CacheEntry<PlayData[]>>();
+
+const getCached = <K, T>(cache: Map<K, CacheEntry<T>>, key: K): T | undefined => {
+  const entry = cache.get(key);
+  if (!entry) return undefined;
+  if (Date.now() > entry.expiry) {
+    cache.delete(key);
+    return undefined;
+  }
+  return entry.data;
+};
+
+const setCached = <K, T>(cache: Map<K, CacheEntry<T>>, key: K, data: T) => {
+  cache.set(key, { data, expiry: Date.now() + CACHE_TTL_MS });
+};
+
 const getMVData = async (bvid: string) => {
+  const cached = getCached(mvDataCache, bvid);
+  if (cached) return cached;
+
   const res = await getWebInterfaceView({ bvid });
   const hasMultiPart = (res?.data?.pages?.length ?? 0) > 1;
 
-  return (
+  const data =
     res?.data?.pages?.map(item => ({
       id: idGenerator(),
       type: "mv" as PlayDataType,
@@ -158,14 +186,19 @@ const getMVData = async (bvid: string) => {
         : formatUrlProtocol(res?.data?.pic),
       totalPage: res?.data?.pages?.length,
       duration: item.duration,
-    })) || []
-  );
+    })) || [];
+
+  setCached(mvDataCache, bvid, data);
+  return data;
 };
 
 const getAudioData = async (sid: number) => {
+  const cached = getCached(audioDataCache, sid);
+  if (cached) return cached;
+
   const res = await getAudioSongInfo({ sid });
 
-  return [
+  const data = [
     {
       id: idGenerator(),
       type: "audio" as PlayDataType,
@@ -177,6 +210,9 @@ const getAudioData = async (sid: number) => {
       ownerMid: res?.data?.uid || 0,
     },
   ];
+
+  setCached(audioDataCache, sid, data);
+  return data;
 };
 
 const toastError = (title: string) => {
@@ -239,6 +275,15 @@ const createAudio = (): PlaybackAudio => createPlaybackAudio();
 
 export const audio = createAudio();
 
+setNativePlayerRemoteCommandHandler(command => {
+  const { next, prev, list } = usePlayList.getState();
+  if (command === "next" && list.length > 1) {
+    next();
+  } else if (command === "prev") {
+    prev();
+  }
+});
+
 const updatePlaybackState = () => {
   if ("mediaSession" in navigator) {
     navigator.mediaSession.playbackState = audio.paused ? "paused" : "playing";
@@ -270,6 +315,79 @@ const playAudioSafely = async () => {
   }
 };
 
+const prefetchNextAudioUrl = () => {
+  const { playMode, list, playId, nextId } = usePlayList.getState();
+
+  if (!list?.length || !playId) return;
+
+  let nextPlayData: PlayData | undefined;
+
+  if (nextId) {
+    nextPlayData = list.find(item => item.id === nextId);
+  } else {
+    const currentIndex = list.findIndex(item => item.id === playId);
+    if (currentIndex === -1) return;
+
+    switch (playMode) {
+      case PlayMode.Sequence:
+      case PlayMode.Single:
+      case PlayMode.Loop: {
+        const nextIndex = list.length === 1 ? currentIndex : (currentIndex + 1) % list.length;
+        nextPlayData = list[nextIndex];
+        break;
+      }
+      case PlayMode.Random: {
+        const currentPlayItem = list[currentIndex];
+        if (
+          usePlayList.getState().shouldKeepPagesOrderInRandomPlayMode &&
+          currentPlayItem.pageIndex &&
+          currentPlayItem.pageIndex !== currentPlayItem.totalPage
+        ) {
+          const nextPage = list.find(
+            item => item.bvid === currentPlayItem.bvid && item.pageIndex === currentPlayItem.pageIndex! + 1,
+          );
+          if (nextPage) nextPlayData = nextPage;
+        }
+        break;
+      }
+    }
+  }
+
+  if (!nextPlayData || nextPlayData.source === "local") return;
+
+  if (nextPlayData.audioUrl && isUrlValid(nextPlayData.audioUrl)) return;
+
+  if (nextPlayData.type === "mv" && nextPlayData.bvid && nextPlayData.cid) {
+    void getDashUrl(nextPlayData.bvid, nextPlayData.cid).then(mvPlayData => {
+      if (mvPlayData?.audioUrl) {
+        usePlayList.setState(state => {
+          const listItem = state.list.find(item => item.id === nextPlayData!.id);
+          if (listItem) {
+            listItem.audioUrl = mvPlayData.audioUrl;
+            listItem.videoUrl = mvPlayData.videoUrl;
+            listItem.isLossless = mvPlayData.isLossless;
+            listItem.isDolby = mvPlayData.isDolby;
+          }
+        });
+      }
+    }).catch(() => {});
+  }
+
+  if (nextPlayData.type === "audio" && nextPlayData.sid) {
+    void getAudioUrl(nextPlayData.sid).then(musicPlayData => {
+      if (musicPlayData?.audioUrl) {
+        usePlayList.setState(state => {
+          const listItem = state.list.find(item => item.id === nextPlayData!.id);
+          if (listItem) {
+            listItem.audioUrl = musicPlayData.audioUrl;
+            listItem.isLossless = musicPlayData.isLossless;
+          }
+        });
+      }
+    }).catch(() => {});
+  }
+};
+
 const updatePositionState = () => {
   if ("mediaSession" in navigator) {
     const dur = audio.duration;
@@ -283,7 +401,13 @@ const updatePositionState = () => {
   }
 };
 
-const syncCurrentTimeState = () => {
+const TIMEUPDATE_THROTTLE_MS = 66;
+let lastTimeUpdateTs = 0;
+
+const syncCurrentTimeState = (force = false) => {
+  const now = performance.now();
+  if (!force && now - lastTimeUpdateTs < TIMEUPDATE_THROTTLE_MS) return;
+  lastTimeUpdateTs = now;
   const currentTime = Math.max(0, Math.round(audio.currentTime * 100) / 100);
   usePlayProgress.getState().setCurrentTime(currentTime);
 };
@@ -420,6 +544,90 @@ export const usePlayList = create<State & Action>()(
         }
       };
 
+      const URL_EXPIRY_CHECK_INTERVAL_MS = 30_000;
+      const URL_EXPIRY_THRESHOLD_SECONDS = 120;
+      let urlExpiryCheckTimer: ReturnType<typeof setInterval> | null = null;
+      let isRefreshingUrl = false;
+
+      const silentRefreshAudioUrl = async () => {
+        if (isRefreshingUrl) return;
+        isRefreshingUrl = true;
+        try {
+        const { playId, list } = get();
+        const item = list.find(i => i.id === playId);
+        if (!item || item.source === "local") return;
+
+        if (item.type === "mv" && item.bvid && item.cid) {
+          try {
+            const mvPlayData = await getDashUrl(item.bvid, item.cid);
+            if (mvPlayData?.audioUrl) {
+              set(state => {
+                const listItem = state.list.find(i => i.id === state.playId);
+                if (listItem) {
+                  listItem.audioUrl = mvPlayData.audioUrl;
+                  listItem.videoUrl = mvPlayData.videoUrl;
+                  listItem.isLossless = mvPlayData.isLossless;
+                  listItem.isDolby = mvPlayData.isDolby;
+                }
+              });
+              if (audio && !audio.paused) {
+                const currentTime = audio.currentTime;
+                audio.src = mvPlayData.audioUrl;
+                audio.currentTime = currentTime;
+                void audio.play();
+              }
+            }
+          } catch (e) {
+            log.warn("[play-list] silent refresh mv url failed", e);
+          }
+        }
+
+        if (item.type === "audio" && item.sid) {
+          try {
+            const musicPlayData = await getAudioUrl(item.sid);
+            if (musicPlayData?.audioUrl) {
+              set(state => {
+                const listItem = state.list.find(i => i.id === state.playId);
+                if (listItem) {
+                  listItem.audioUrl = musicPlayData.audioUrl;
+                  listItem.isLossless = musicPlayData.isLossless;
+                }
+              });
+              if (audio && !audio.paused) {
+                const currentTime = audio.currentTime;
+                audio.src = musicPlayData.audioUrl;
+                audio.currentTime = currentTime;
+                void audio.play();
+              }
+            }
+          } catch (e) {
+            log.warn("[play-list] silent refresh audio url failed", e);
+          }
+        }
+        } finally {
+          isRefreshingUrl = false;
+        }
+      };
+
+      const startUrlExpiryCheck = () => {
+        stopUrlExpiryCheck();
+        urlExpiryCheckTimer = setInterval(() => {
+          const item = get().list.find(i => i.id === get().playId);
+          if (!item?.audioUrl || item.source === "local") return;
+          const remainingSeconds = getUrlExpirySeconds(item.audioUrl);
+          if (remainingSeconds > 0 && remainingSeconds <= URL_EXPIRY_THRESHOLD_SECONDS) {
+            void silentRefreshAudioUrl();
+          }
+        }, URL_EXPIRY_CHECK_INTERVAL_MS);
+      };
+
+      const stopUrlExpiryCheck = () => {
+        if (urlExpiryCheckTimer !== null) {
+          clearInterval(urlExpiryCheckTimer);
+          urlExpiryCheckTimer = null;
+        }
+      };
+
       return {
         isPlaying: false,
         isMuted: false,
@@ -428,6 +636,7 @@ export const usePlayList = create<State & Action>()(
         rate: 1,
         duration: undefined,
         shouldKeepPagesOrderInRandomPlayMode: true,
+        isOnline: navigator.onLine,
         list: [],
         init: async () => {
           if (audio) {
@@ -440,7 +649,7 @@ export const usePlayList = create<State & Action>()(
 
             audio.onloadedmetadata = () => {
               syncDurationState();
-              syncCurrentTimeState();
+              syncCurrentTimeState(true);
               updatePositionState();
             };
 
@@ -456,14 +665,10 @@ export const usePlayList = create<State & Action>()(
 
             audio.ontimeupdate = () => {
               syncCurrentTimeState();
-              const playItem = get().getPlayItem?.();
-              if (shouldReportPlayRecord(playItem)) {
-                void reportHeartbeat(playItem, audio.currentTime, audio.duration, 0);
-              }
             };
 
             audio.onseeked = () => {
-              syncCurrentTimeState();
+              syncCurrentTimeState(true);
               updatePositionState();
             };
 
@@ -476,6 +681,8 @@ export const usePlayList = create<State & Action>()(
               syncDurationState();
               updatePlaybackState();
               updatePositionState();
+              startUrlExpiryCheck();
+              prefetchNextAudioUrl();
             };
 
             audio.onplay = () => {
@@ -491,9 +698,10 @@ export const usePlayList = create<State & Action>()(
 
             audio.onpause = () => {
               set({ isPlaying: false });
-              syncCurrentTimeState();
+              syncCurrentTimeState(true);
               updatePlaybackState();
               updatePositionState();
+              stopUrlExpiryCheck();
               const playItem = get().getPlayItem?.();
               if (shouldReportPlayRecord(playItem)) {
                 void reportHeartbeat(playItem, audio.currentTime, audio.duration, 2);
@@ -503,6 +711,7 @@ export const usePlayList = create<State & Action>()(
             audio.onerror = () => {
               set({ isPlaying: false, duration: undefined });
               updatePlaybackState();
+              stopUrlExpiryCheck();
             };
 
             audio.onemptied = () => {
@@ -532,6 +741,34 @@ export const usePlayList = create<State & Action>()(
               get().next();
             };
 
+            const handleOffline = () => {
+              log.warn("[play-list] network offline, pausing playback");
+              set({ isOnline: false });
+              if (!audio.paused) {
+                audio.pause();
+              }
+              addToast({
+                title: "网络已断开",
+                description: "请检查网络连接",
+                color: "warning",
+              });
+            };
+
+            const handleOnline = () => {
+              log.info("[play-list] network online");
+              set({ isOnline: true });
+              if (get().playId && audio.paused && !get().isPlaying) {
+                void ensureAudioSrcValid().then(() => {
+                  if (audio.src) {
+                    void audio.play();
+                  }
+                });
+              }
+            };
+
+            window.addEventListener("offline", handleOffline);
+            window.addEventListener("online", handleOnline);
+
             if ("mediaSession" in navigator) {
               navigator.mediaSession.setActionHandler("play", () => get().togglePlay());
               navigator.mediaSession.setActionHandler("pause", () => get().togglePlay());
@@ -558,7 +795,15 @@ export const usePlayList = create<State & Action>()(
             if (get().playId) {
               const playItem = get().list.find(item => item.id === get().playId);
               if (playItem) {
-                await ensureAudioSrcValid();
+                if (playItem.duration) {
+                  set({ duration: playItem.duration });
+                }
+
+                try {
+                  await ensureAudioSrcValid();
+                } catch (e) {
+                  log.warn("[play-list] restore audio source failed", e);
+                }
 
                 const localCurrentTime = usePlayProgress.getState().initCurrentTime();
                 if (localCurrentTime) {
@@ -1033,6 +1278,14 @@ export const usePlayList = create<State & Action>()(
             remove(state.list, item => isSame(item, removedItem));
           });
         },
+        reorder: (fromIndex: number, toIndex: number) => {
+          const { list } = get();
+          if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0 || fromIndex >= list.length || toIndex >= list.length) return;
+          set(state => {
+            const [moved] = state.list.splice(fromIndex, 1);
+            state.list.splice(toIndex, 0, moved);
+          });
+        },
         clear: () => {
           const currentPlayItem = get().getPlayItem?.();
           if (shouldReportPlayRecord(currentPlayItem)) {
@@ -1068,8 +1321,27 @@ export const usePlayList = create<State & Action>()(
         volume: state.volume,
         playMode: state.playMode,
         rate: state.rate,
-        duration: state.duration,
-        list: state.list,
+        list: state.list.map(item => ({
+          id: item.id,
+          type: item.type,
+          bvid: item.bvid,
+          sid: item.sid,
+          aid: item.aid,
+          cid: item.cid,
+          title: item.title,
+          cover: item.cover,
+          ownerName: item.ownerName,
+          ownerMid: item.ownerMid,
+          hasMultiPart: item.hasMultiPart,
+          pageTitle: item.pageTitle,
+          pageCover: item.pageCover,
+          pageIndex: item.pageIndex,
+          totalPage: item.totalPage,
+          duration: item.duration,
+          source: item.source,
+          isLossless: item.isLossless,
+          isDolby: item.isDolby,
+        })),
         playId: state.playId,
         nextId: state.nextId,
         shouldKeepPagesOrderInRandomPlayMode: state.shouldKeepPagesOrderInRandomPlayMode,
@@ -1079,7 +1351,7 @@ export const usePlayList = create<State & Action>()(
 );
 
 async function refreshCurrentAudioSource(): Promise<boolean> {
-  const { getPlayItem } = usePlayList.getState?.() ?? {};
+  const { getPlayItem } = usePlayList.getState();
   const playItem = getPlayItem?.();
 
   if (!playItem) {
@@ -1301,3 +1573,5 @@ useSettings.subscribe(state => {
   previousFollowSystemVolume = state.followSystemVolume;
   usePlayList.getState().syncVolumePreference();
 });
+
+bindDurationGetter(() => usePlayList.getState().duration);

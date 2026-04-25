@@ -1,20 +1,18 @@
-import moment from "moment";
-import momentDurationFormatSetup from "moment-duration-format";
-
-momentDurationFormatSetup(moment);
+import dayjs from "dayjs";
 
 export function formatDuration(seconds: number) {
-  const dur = moment.duration(seconds, "seconds");
+  const totalSeconds = Math.floor(Math.abs(seconds));
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
 
-  if (seconds >= 3600) {
-    // 超过 60 分钟 → hh:mm:ss
-    return dur.format("hh:mm:ss", { trim: false });
-  } else {
-    // 小于 60 秒 → ss
-    return dur.format("mm:ss", { trim: false });
+  if (totalSeconds >= 3600) {
+    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   }
+
+  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-export const formatSecondsToDate = (s?: number) => (s ? moment.unix(s).format("YYYY-MM-DD") : "");
+export const formatSecondsToDate = (s?: number) => (s ? dayjs.unix(s).format("YYYY-MM-DD") : "");
 
-export const formatMillisecond = (s?: number) => (s ? moment(s).format("YYYY-MM-DD") : "");
+export const formatMillisecond = (s?: number) => (s ? dayjs(s).format("YYYY-MM-DD") : "");

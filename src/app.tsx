@@ -2,7 +2,8 @@ import { useEffect } from "react";
 import { useHref, useLocation, useNavigate, useRoutes } from "react-router";
 
 import { HeroUIProvider, ToastProvider } from "@heroui/react";
-import moment from "moment";
+import { App as CapApp } from "@capacitor/app";
+import dayjs from "dayjs";
 
 import { getCookitFromBSite } from "./common/utils/cookie";
 import { toggleMiniMode } from "./common/utils/mini-player";
@@ -15,12 +16,12 @@ import { usePlayList } from "./store/play-list";
 import { usePlayProgress } from "./store/play-progress";
 import { useShortcutSettings } from "./store/shortcuts";
 
-import "moment/locale/zh-cn";
+import "dayjs/locale/zh-cn";
 
 import "overlayscrollbars/overlayscrollbars.css";
 import "./app.css";
 
-moment.locale("zh-cn");
+dayjs.locale("zh-cn");
 
 export function App() {
   const routeElement = useRoutes(routes);
@@ -198,15 +199,27 @@ export function App() {
   useEffect(() => {
     const handleBeforeUnload = () => {
       if (usePlayProgress.getState().currentTime) {
-        usePlayProgress.getState().saveCurrentTime();
+        usePlayProgress.getState().flushCurrentTime();
       }
     };
 
     window.addEventListener("beforeunload", handleBeforeUnload);
 
-    // 清理函数
+    let capPauseListener: (() => void) | null = null;
+
+    try {
+      CapApp.addListener("appStateChange", (state) => {
+        if (!state.isActive) {
+          handleBeforeUnload();
+        }
+      }).then((listener) => {
+        capPauseListener = () => listener.remove();
+      }).catch(() => {});
+    } catch {}
+
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
+      capPauseListener?.();
     };
   }, []);
 

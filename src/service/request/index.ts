@@ -1,8 +1,9 @@
-import axios, { type CreateAxiosDefaults } from "axios";
+import axios, { type AxiosRequestConfig, type CreateAxiosDefaults } from "axios";
 
 import { nativeHttpAdapter, shouldUseNativeHttp } from "@/common/utils/native-http-adapter";
 
 import { requestInterceptors } from "./request-interceptors";
+import { retryInterceptor } from "./retry-interceptor";
 import { geetestInterceptors } from "./response-interceptors";
 
 const BILIBILI_REFERER = "https://www.bilibili.com";
@@ -48,6 +49,15 @@ export const passportRequest = axios.create({
   baseURL: "https://passport.bilibili.com",
 });
 
+const allInstances = [axiosInstance, searchRequest, biliRequest, memberRequest, apiRequest, passportRequest];
+
+for (const instance of allInstances) {
+  instance.interceptors.request.use((config) => {
+    (config as AxiosRequestConfig & { __axiosInstance?: typeof instance }).__axiosInstance = instance;
+    return config;
+  });
+}
+
 apiRequest.interceptors.request.use(requestInterceptors);
 passportRequest.interceptors.request.use(requestInterceptors);
 searchRequest.interceptors.request.use(requestInterceptors);
@@ -61,3 +71,7 @@ apiRequest.interceptors.response.use(res => res.data);
 passportRequest.interceptors.response.use(res => res.data);
 searchRequest.interceptors.response.use(res => res.data);
 memberRequest.interceptors.response.use(res => res.data);
+
+for (const instance of allInstances) {
+  instance.interceptors.response.use(undefined, retryInterceptor);
+}

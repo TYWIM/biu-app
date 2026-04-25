@@ -9,6 +9,7 @@ import android.os.Looper;
 import androidx.core.content.ContextCompat;
 import androidx.media3.common.AudioAttributes;
 import androidx.media3.common.C;
+import androidx.media3.common.ForwardingPlayer;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.MediaMetadata;
 import androidx.media3.common.PlaybackException;
@@ -16,7 +17,9 @@ import androidx.media3.common.PlaybackParameters;
 import androidx.media3.common.Player;
 import androidx.media3.datasource.DataSource;
 import androidx.media3.datasource.DefaultHttpDataSource;
+import androidx.media3.exoplayer.DefaultLoadControl;
 import androidx.media3.exoplayer.ExoPlayer;
+import androidx.media3.exoplayer.LoadControl;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
 import androidx.media3.exoplayer.source.MediaSource;
 import androidx.media3.session.MediaSession;
@@ -43,7 +46,8 @@ public class BiuPlayerManager {
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final Set<StateListener> listeners = new CopyOnWriteArraySet<>();
 
-    private ExoPlayer player;
+    private ExoPlayer exoPlayer;
+    private ForwardingPlayer forwardingPlayer;
     private MediaSession mediaSession;
     private String sourceUrl = "";
     private String title = "";
@@ -60,13 +64,13 @@ public class BiuPlayerManager {
     private final Runnable progressRunnable = new Runnable() {
         @Override
         public void run() {
-            if (!progressRunning || player == null) {
+            if (!progressRunning || exoPlayer == null) {
                 return;
             }
 
             notifyState("progress", null);
 
-            if (player.isPlaying() || player.getPlayWhenReady()) {
+            if (exoPlayer.isPlaying() || exoPlayer.getPlayWhenReady()) {
                 mainHandler.postDelayed(this, 500);
             } else {
                 progressRunning = false;
@@ -120,7 +124,7 @@ public class BiuPlayerManager {
     public MediaSession attachService(MediaSessionService service) {
         ensurePlayer();
         if (mediaSession == null) {
-            mediaSession = new MediaSession.Builder(appContext, player)
+            mediaSession = new MediaSession.Builder(appContext, forwardingPlayer)
                     .setId("biu-player")
                     .build();
         }
@@ -142,13 +146,30 @@ public class BiuPlayerManager {
         }
     }
 
+    public void releasePlayer() {
+        if (exoPlayer != null) {
+            progressRunning = false;
+            mainHandler.removeCallbacks(progressRunnable);
+            exoPlayer.removeListener(playerListener);
+            exoPlayer.release();
+            exoPlayer = null;
+        }
+        forwardingPlayer = null;
+        if (mediaSession != null) {
+            mediaSession.release();
+            mediaSession = null;
+        }
+        ready = false;
+        ended = false;
+    }
+
     public MediaSession getMediaSession() {
         return mediaSession;
     }
 
     public ExoPlayer getPlayer() {
         ensurePlayer();
-        return player;
+        return exoPlayer;
     }
 
     public void addListener(StateListener listener) {
@@ -182,17 +203,18 @@ public class BiuPlayerManager {
         ended = false;
 
         if (sourceUrl.isEmpty()) {
-            player.pause();
-            player.stop();
-            player.clearMediaItems();
+            exoPlayer.pause();
+            exoPlayer.stop();
+            exoPlayer.clearMediaItems();
             notifyState("cleared", null);
             return buildState("cleared", null);
         }
 
+        ensureService();
         MediaItem mediaItem = buildMediaItem();
         MediaSource mediaSource = new DefaultMediaSourceFactory(buildDataSourceFactory(sourceUrl)).createMediaSource(mediaItem);
-        player.setMediaSource(mediaSource);
-        player.prepare();
+        exoPlayer.setMediaSource(mediaSource);
+        exoPlayer.prepare();
         notifyState("source", null);
         return buildState("source", null);
     }
@@ -202,18 +224,18 @@ public class BiuPlayerManager {
         artist = nextArtist == null ? "" : nextArtist;
         cover = nextCover == null ? "" : nextCover;
 
-        if (player == null || sourceUrl.isEmpty() || player.getMediaItemCount() == 0) {
+        if (exoPlayer == null || sourceUrl.isEmpty() || exoPlayer.getMediaItemCount() == 0) {
             notifyState("metadata", null);
             return;
         }
 
-        player.replaceMediaItem(0, buildMediaItem());
+        exoPlayer.replaceMediaItem(0, buildMediaItem());
         notifyState("metadata", null);
     }
 
     public JSObject play() {
         ensurePlayer();
-        player.play();
+        exoPlayer.play();
         ensureService();
         notifyState("play", null);
         updateProgressLoop();
@@ -222,7 +244,7 @@ public class BiuPlayerManager {
 
     public JSObject pause() {
         ensurePlayer();
-        player.pause();
+        exoPlayer.pause();
         notifyState("pause", null);
         updateProgressLoop();
         return buildState("pause", null);
@@ -231,7 +253,7 @@ public class BiuPlayerManager {
     public JSObject seekTo(double position) {
         ensurePlayer();
         ended = false;
-        player.seekTo((long) (Math.max(0, position) * 1000L));
+        exoPlayer.seekTo((long) (Math.max(0, position) * 1000L));
         notifyState("seek", null);
         return buildState("seek", null);
     }
@@ -241,9 +263,9 @@ public class BiuPlayerManager {
         sourceUrl = "";
         ready = false;
         ended = false;
-        player.pause();
-        player.stop();
-        player.clearMediaItems();
+        exoPlayer.pause();
+        exoPlayer.stop();
+        exoPlayer.clearMediaItems();
         notifyState("cleared", null);
         updateProgressLoop();
         return buildState("cleared", null);
@@ -255,7 +277,7 @@ public class BiuPlayerManager {
     }
 
     private void ensurePlayer() {
-        if (player != null) {
+        if (exoPlayer != null) {
             return;
         }
 
@@ -264,13 +286,56 @@ public class BiuPlayerManager {
                 .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
                 .build();
 
-        player = new ExoPlayer.Builder(appContext)
+        LoadControl loadControl = new DefaultLoadControl.Builder()
+                .setBufferDurationsMs(
+                        15000,
+                        60000,
+                        2500,
+                        5000
+                )
+                .build();
+
+        exoPlayer = new ExoPlayer.Builder(appContext)
                 .setAudioAttributes(audioAttributes, true)
                 .setWakeMode(C.WAKE_MODE_NETWORK)
                 .setHandleAudioBecomingNoisy(true)
+                .setLoadControl(loadControl)
                 .build();
-        player.addListener(playerListener);
+        exoPlayer.addListener(playerListener);
         applyConfig();
+
+        forwardingPlayer = new ForwardingPlayer(exoPlayer) {
+            @Override
+            public void seekToNext() {
+                notifyCommandEvent("next");
+            }
+
+            @Override
+            public void seekToNextMediaItem() {
+                notifyCommandEvent("next");
+            }
+
+            @Override
+            public void seekToPrevious() {
+                notifyCommandEvent("prev");
+            }
+
+            @Override
+            public void seekToPreviousMediaItem() {
+                notifyCommandEvent("prev");
+            }
+
+            @Override
+            public boolean isCommandAvailable(int command) {
+                if (command == Player.COMMAND_SEEK_TO_NEXT
+                        || command == Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM
+                        || command == Player.COMMAND_SEEK_TO_PREVIOUS
+                        || command == Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM) {
+                    return true;
+                }
+                return super.isCommandAvailable(command);
+            }
+        };
     }
 
     private void ensureService() {
@@ -280,23 +345,23 @@ public class BiuPlayerManager {
     }
 
     private void applyConfig() {
-        if (player == null) {
+        if (exoPlayer == null) {
             return;
         }
 
-        player.setVolume(muted ? 0f : volume);
-        player.setRepeatMode(loop ? Player.REPEAT_MODE_ONE : Player.REPEAT_MODE_OFF);
-        player.setPlaybackParameters(new PlaybackParameters(playbackRate));
+        exoPlayer.setVolume(muted ? 0f : volume);
+        exoPlayer.setRepeatMode(loop ? Player.REPEAT_MODE_ONE : Player.REPEAT_MODE_OFF);
+        exoPlayer.setPlaybackParameters(new PlaybackParameters(playbackRate));
     }
 
     private void updateProgressLoop() {
-        if (player == null) {
+        if (exoPlayer == null) {
             progressRunning = false;
             mainHandler.removeCallbacks(progressRunnable);
             return;
         }
 
-        boolean shouldRun = player.isPlaying() || player.getPlayWhenReady();
+        boolean shouldRun = exoPlayer.isPlaying() || exoPlayer.getPlayWhenReady();
         if (shouldRun && !progressRunning) {
             progressRunning = true;
             mainHandler.post(progressRunnable);
@@ -364,16 +429,16 @@ public class BiuPlayerManager {
         }
 
         state.put("src", sourceUrl);
-        state.put("currentTime", player == null ? 0 : Math.max(0, player.getCurrentPosition()) / 1000.0);
+        state.put("currentTime", exoPlayer == null ? 0 : Math.max(0, exoPlayer.getCurrentPosition()) / 1000.0);
 
         double duration = 0;
-        if (player != null && player.getDuration() != C.TIME_UNSET && player.getDuration() > 0) {
-            duration = player.getDuration() / 1000.0;
+        if (exoPlayer != null && exoPlayer.getDuration() != C.TIME_UNSET && exoPlayer.getDuration() > 0) {
+            duration = exoPlayer.getDuration() / 1000.0;
         }
         state.put("duration", duration);
-        state.put("paused", player == null || !player.getPlayWhenReady());
-        state.put("playing", player != null && player.isPlaying());
-        state.put("buffering", player != null && player.getPlaybackState() == Player.STATE_BUFFERING);
+        state.put("paused", exoPlayer == null || !exoPlayer.getPlayWhenReady());
+        state.put("playing", exoPlayer != null && exoPlayer.isPlaying());
+        state.put("buffering", exoPlayer != null && exoPlayer.getPlaybackState() == Player.STATE_BUFFERING);
         state.put("muted", muted);
         state.put("volume", volume);
         state.put("playbackRate", playbackRate);
@@ -392,6 +457,15 @@ public class BiuPlayerManager {
         JSObject state = buildState(reason, error);
         for (StateListener listener : listeners) {
             listener.onStateChanged(state);
+        }
+    }
+
+    private void notifyCommandEvent(String command) {
+        JSObject event = new JSObject();
+        event.put("reason", "command");
+        event.put("command", command);
+        for (StateListener listener : listeners) {
+            listener.onStateChanged(event);
         }
     }
 

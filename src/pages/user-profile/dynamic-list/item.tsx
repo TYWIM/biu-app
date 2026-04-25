@@ -12,7 +12,11 @@ import {
   User,
 } from "@heroui/react";
 import { RiExternalLinkLine, RiMoreLine, RiPlayFill, RiThumbUpFill, RiThumbUpLine } from "@remixicon/react";
-import moment from "moment";
+import dayjs from "dayjs";
+import relativeTime from "dayjs/plugin/relativeTime";
+import "dayjs/locale/zh-cn";
+
+dayjs.extend(relativeTime);
 
 import type { WebDynamicItem } from "@/service/web-dynamic";
 
@@ -40,7 +44,7 @@ const DynamicItem = ({ item }: DynamicItemProps) => {
   const play = usePlayList(s => s.play);
 
   // Format time
-  const timeDisplay = author?.pub_time || moment(author?.pub_ts * 1000).fromNow();
+  const timeDisplay = author?.pub_time || dayjs(author?.pub_ts * 1000).fromNow();
 
   // Get text content
   const textContent = dynamic?.desc?.text || opus?.summary?.text || "";

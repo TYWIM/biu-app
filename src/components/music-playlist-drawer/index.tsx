@@ -2,13 +2,15 @@ import React, { useCallback, useEffect, useMemo, useRef } from "react";
 
 import { addToast, Drawer, DrawerBody, DrawerContent, DrawerHeader } from "@heroui/react";
 import { RiDeleteBinLine, RiFocus3Line, RiMusic2Line } from "@remixicon/react";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import clsx from "classnames";
 import { uniqBy } from "es-toolkit/array";
 
 import useIsMobile from "@/common/hooks/use-is-mobile";
 import { openBiliVideoLink } from "@/common/utils/url";
 import { type ScrollRefObject } from "@/components/scroll-container";
-import { VirtualList } from "@/components/virtual-list";
+import ScrollContainer from "@/components/scroll-container";
 import { useModalStore } from "@/store/modal";
 import { usePlayList, type PlayData } from "@/store/play-list";
 import { useUser } from "@/store/user";
@@ -34,6 +36,7 @@ const PlayListDrawer = () => {
   const list = usePlayList(s => s.list);
   const playId = usePlayList(s => s.playId);
   const clear = usePlayList(s => s.clear);
+  const reorder = usePlayList(s => s.reorder);
   const user = useUser(s => s.user);
   const playListItem = usePlayList(state => state.playListItem);
   const addMediaDownloadTask = typeof window !== "undefined" ? window.electron?.addMediaDownloadTask : undefined;
@@ -47,6 +50,26 @@ const PlayListDrawer = () => {
   const currentCover = playItem?.pageCover || playItem?.cover;
   const currentTitle = playItem?.pageTitle || playItem?.title;
   const currentSubtitle = playItem?.source === "local" ? "本地音乐" : playItem?.ownerName || "未知作者";
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = pureList.findIndex(item => item.id === active.id);
+    const newIndex = pureList.findIndex(item => item.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const originalOldIndex = list.findIndex(item => item.id === pureList[oldIndex].id);
+    const originalNewIndex = list.findIndex(item => item.id === pureList[newIndex].id);
+    if (originalOldIndex === -1 || originalNewIndex === -1) return;
+
+    reorder(originalOldIndex, originalNewIndex);
+  }, [list, pureList, reorder]);
 
   const handleAction = useCallback(async (key: string, item: PlayData) => {
     switch (key) {
@@ -250,23 +273,26 @@ const PlayListDrawer = () => {
                   </div>
                 </button>
               )}
-              <VirtualList
-                className={isMobile ? "h-full min-h-0 w-full flex-1 px-1" : "h-full w-full px-2"}
-                scrollRef={scrollRef}
-                data={pureList}
-                itemHeight={RowHeight}
-                renderItem={item => (
-                  <ListItem
-                    data={item}
-                    isLogin={Boolean(user?.isLogin)}
-                    canDownload={canDownload}
-                    isPlaying={getQueueItemIdentity(item) === currentPlayIdentity}
-                    onClose={() => setOpen(false)}
-                    onPress={() => playListItem(item.id)}
-                    onAction={key => handleAction(key, item)}
-                  />
-                )}
-              />
+              <ScrollContainer className={isMobile ? "h-full min-h-0 w-full flex-1 px-1" : "h-full w-full px-2"} ref={scrollRef}>
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                  <SortableContext items={pureList.map(item => item.id)} strategy={verticalListSortingStrategy}>
+                    <div className="flex flex-col gap-1">
+                      {pureList.map(item => (
+                        <ListItem
+                          key={item.id}
+                          data={item}
+                          isLogin={Boolean(user?.isLogin)}
+                          canDownload={canDownload}
+                          isPlaying={getQueueItemIdentity(item) === currentPlayIdentity}
+                          onClose={() => setOpen(false)}
+                          onPress={() => playListItem(item.id)}
+                          onAction={key => handleAction(key, item)}
+                        />
+                      ))}
+                    </div>
+                  </SortableContext>
+                </DndContext>
+              </ScrollContainer>
             </div>
           </DrawerBody>
         ) : (

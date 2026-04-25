@@ -2,7 +2,9 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 
 import { Button, Dropdown, DropdownItem, DropdownMenu, DropdownTrigger } from "@heroui/react";
-import { RiMoreFill, RiMusic2Line, RiPlayFill } from "@remixicon/react";
+import { RiDraggable, RiMoreFill, RiMusic2Line, RiPlayFill } from "@remixicon/react";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import clx from "classnames";
 
 import useIsMobile from "@/common/hooks/use-is-mobile";
@@ -30,23 +32,28 @@ const ListItem = ({ data, isLogin, canDownload, isPlaying, onAction, onClose, on
   const mediaBadge = data.source === "local" ? "本地" : data.type === "audio" ? "音频" : "视频音频";
   const pageBadge = data.hasMultiPart && data.pageIndex ? `P${data.pageIndex}/${data.totalPage || "?"}` : undefined;
 
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: data.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 50 : undefined,
+  };
+
   return (
-    <Button
-      as="div"
-      key={data.id}
-      fullWidth
-      disableAnimation
-      variant={isPlaying ? "flat" : "light"}
-      color={isPlaying && !isMobile ? "primary" : "default"}
-      onPress={onPress}
+    <div
+      ref={setNodeRef}
+      style={style}
       className={clx(
         "group flex h-auto min-h-auto w-full min-w-auto items-center justify-between rounded-[18px] transition-colors",
         isMobile ? "px-3 py-2.5" : "rounded-md p-2",
         isMobile && !isPlaying && "bg-white/0 text-white hover:bg-white/8 hover:text-white",
         isMobile && isPlaying && "border border-white/12 bg-white/12 text-white shadow-[0_10px_24px_-20px_rgba(255,255,255,0.9)]",
+        isPlaying && !isMobile && "bg-primary/10",
       )}
     >
-      <div className="m-0 flex min-w-0 flex-1 items-center gap-3">
+      <div className="m-0 flex min-w-0 flex-1 items-center gap-3" onClick={onPress} style={{ cursor: "pointer" }}>
         <div className={clx("relative flex-none overflow-hidden", isMobile ? "h-14 w-14 rounded-[18px]" : "h-12 w-12 rounded-md")}>
           <Image
             removeWrapper
@@ -106,6 +113,24 @@ const ListItem = ({ data, isLogin, canDownload, isPlaying, onAction, onClose, on
             )}
           </div>
         </div>
+      </div>
+      <div className="flex flex-none items-center gap-1">
+        <Button
+          isIconOnly
+          variant="light"
+          size="sm"
+          ref={setActivatorNodeRef}
+          {...attributes}
+          {...listeners}
+          className={clx(
+            "touch-none select-none",
+            isMobile
+              ? "size-9 min-w-9 rounded-full bg-white/8 text-white hover:bg-white/14 hover:text-white"
+              : "size-7 min-w-7 opacity-0 group-hover:opacity-100",
+          )}
+        >
+          <RiDraggable size={16} />
+        </Button>
         <Dropdown
           disableAnimation
           isOpen={isOpen}
@@ -133,7 +158,6 @@ const ListItem = ({ data, isLogin, canDownload, isPlaying, onAction, onClose, on
           <DropdownMenu
             aria-label="播放列表操作菜单"
             items={getMenus({ isLogin, isLocal: data.source === "local", canDownload })}
-            // @ts-ignore 忽略onAction类型问题
             onAction={onAction}
           >
             {item => (
@@ -144,7 +168,7 @@ const ListItem = ({ data, isLogin, canDownload, isPlaying, onAction, onClose, on
           </DropdownMenu>
         </Dropdown>
       </div>
-    </Button>
+    </div>
   );
 };
 

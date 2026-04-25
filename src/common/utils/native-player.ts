@@ -37,6 +37,7 @@ export interface PlaybackAudio {
 
 interface NativePlayerState {
   reason?: string;
+  command?: string;
   src?: string;
   currentTime?: number;
   duration?: number;
@@ -91,6 +92,14 @@ export const updateNativePlayerMetadata = async (metadata: { title?: string; art
   await NativePlayer.updateMetadata(metadata);
 };
 
+let nativeAudioAdapterInstance: NativeAudioAdapter | null = null;
+
+export const setNativePlayerRemoteCommandHandler = (handler: (command: "next" | "prev") => void) => {
+  if (nativeAudioAdapterInstance) {
+    nativeAudioAdapterInstance.onRemoteCommand = handler;
+  }
+};
+
 class NativeAudioAdapter implements PlaybackAudio {
   src = "";
 
@@ -138,6 +147,8 @@ class NativeAudioAdapter implements PlaybackAudio {
 
   onemptied: MediaEventHandler<"onemptied"> = null;
 
+  onRemoteCommand: ((command: "next" | "prev") => void) | null = null;
+
   private readonly listeners = new Map<string, Set<EventListenerOrEventListenerObject>>();
 
   private ready = false;
@@ -150,15 +161,34 @@ class NativeAudioAdapter implements PlaybackAudio {
 
   private commandQueue: Promise<unknown> = Promise.resolve();
 
+  private pendingCount = 0;
+
+  private static readonly COMMAND_TIMEOUT_MS = 5000;
+
+  private static readonly MAX_PENDING_COMMANDS = 10;
+
   constructor() {
     void this.init();
   }
 
   private enqueueCommand = <T>(task: () => Promise<T>) => {
-    const result = this.commandQueue.then(task, task);
+    if (this.pendingCount >= NativeAudioAdapter.MAX_PENDING_COMMANDS) {
+      return Promise.reject(new Error("NativePlayer command queue overflow"));
+    }
+
+    this.pendingCount++;
+    const result = this.commandQueue.then(() => {
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
+      const timeout = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error("NativePlayer command timeout")), NativeAudioAdapter.COMMAND_TIMEOUT_MS);
+      });
+      const taskResult = task();
+      taskResult.then(() => { if (timeoutId) clearTimeout(timeoutId); }, () => { if (timeoutId) clearTimeout(timeoutId); });
+      return Promise.race([taskResult, timeout]);
+    });
     this.commandQueue = result.then(
-      () => undefined,
-      () => undefined,
+      () => { this.pendingCount--; },
+      () => { this.pendingCount--; },
     );
     return result;
   };
@@ -294,6 +324,12 @@ class NativeAudioAdapter implements PlaybackAudio {
     if (reason === "cleared") {
       callMediaHandler(this.onemptied as ((this: GlobalEventHandlers, ev: Event) => any) | null, "emptied");
       this.emit("emptied");
+    }
+
+    if (reason === "command" && next.command) {
+      if (next.command === "next" || next.command === "prev") {
+        this.onRemoteCommand?.(next.command);
+      }
     }
 
     if (next.error) {
@@ -436,6 +472,7 @@ export const createPlaybackAudio = (): PlaybackAudio => {
   }
 
   const nativeAudio = new NativeAudioAdapter();
+  nativeAudioAdapterInstance = nativeAudio;
 
   return new Proxy(nativeAudio, {
     get(target, prop, receiver) {

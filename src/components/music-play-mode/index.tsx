@@ -19,8 +19,11 @@ const MusicPlayMode = ({ className, iconSize = 18, tooltipPlacement = "top" }: P
   const shouldKeepPagesOrderInRandomPlayMode = usePlayList(s => s.shouldKeepPagesOrderInRandomPlayMode);
   const setShouldKeepPagesOrderInRandomPlayMode = usePlayList(s => s.setShouldKeepPagesOrderInRandomPlayMode);
   const [isOpen, setIsOpen] = React.useState(false);
+  const [justSwitched, setJustSwitched] = React.useState(false);
   const closeTimer = React.useRef<number | null>(null);
+  const switchTimer = React.useRef<number | null>(null);
   const playModeList = getPlayModeList(iconSize);
+  const currentMode = playModeList.find(item => item.value === playMode);
 
   const openPopover = () => {
     if (closeTimer.current) {
@@ -40,43 +43,62 @@ const MusicPlayMode = ({ className, iconSize = 18, tooltipPlacement = "top" }: P
     }, 150);
   };
 
-  if (playMode === PlayMode.Random) {
-    return (
-      <Tooltip
-        isOpen={isOpen}
-        onOpenChange={setIsOpen}
-        placement={tooltipPlacement}
-        closeDelay={150}
-        content={
-          <div onMouseEnter={openPopover} onMouseLeave={closePopoverWithDelay}>
-            <Switch
-              size="sm"
-              disableAnimation
-              isSelected={shouldKeepPagesOrderInRandomPlayMode}
-              onValueChange={setShouldKeepPagesOrderInRandomPlayMode}
-            >
-              保持分集顺序
-            </Switch>
-          </div>
-        }
+  const handleToggle = () => {
+    togglePlayMode();
+    setJustSwitched(true);
+    if (switchTimer.current) clearTimeout(switchTimer.current);
+    switchTimer.current = window.setTimeout(() => {
+      setJustSwitched(false);
+      switchTimer.current = null;
+    }, 1200);
+    setIsOpen(true);
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    closeTimer.current = window.setTimeout(() => {
+      setIsOpen(false);
+      closeTimer.current = null;
+    }, 1500);
+  };
+
+  React.useEffect(() => {
+    return () => {
+      if (closeTimer.current) clearTimeout(closeTimer.current);
+      if (switchTimer.current) clearTimeout(switchTimer.current);
+    };
+  }, []);
+
+  const tooltipContent = playMode === PlayMode.Random ? (
+    <div onMouseEnter={openPopover} onMouseLeave={closePopoverWithDelay}>
+      <Switch
+        size="sm"
+        disableAnimation
+        isSelected={shouldKeepPagesOrderInRandomPlayMode}
+        onValueChange={setShouldKeepPagesOrderInRandomPlayMode}
       >
-        <IconButton
-          className={twMerge("flex-none", className)}
-          aria-label="播放模式"
-          onPress={togglePlayMode}
-          onMouseEnter={openPopover}
-          onMouseLeave={closePopoverWithDelay}
-        >
-          {playModeList.find(item => item.value === playMode)?.icon}
-        </IconButton>
-      </Tooltip>
-    );
-  }
+        保持分集顺序
+      </Switch>
+    </div>
+  ) : (
+    <span className="text-xs">{currentMode?.desc}</span>
+  );
 
   return (
-    <IconButton className={twMerge("flex-none", className)} aria-label="播放模式" onPress={togglePlayMode}>
-      {playModeList.find(item => item.value === playMode)?.icon}
-    </IconButton>
+    <Tooltip
+      isOpen={isOpen}
+      onOpenChange={setIsOpen}
+      placement={tooltipPlacement}
+      closeDelay={150}
+      content={tooltipContent}
+    >
+      <IconButton
+        className={twMerge("flex-none", className)}
+        aria-label="播放模式"
+        onPress={handleToggle}
+        onMouseEnter={openPopover}
+        onMouseLeave={closePopoverWithDelay}
+      >
+        {currentMode?.icon}
+      </IconButton>
+    </Tooltip>
   );
 };
 

@@ -1,5 +1,5 @@
 import log from "@/common/utils/logger";
-import moment from "moment";
+import dayjs from "dayjs";
 
 import { getAudioWebStreamUrl } from "@/service/audio-web-url";
 import { getPlayerPlayurl, type DashAudio } from "@/service/player-playurl";
@@ -43,15 +43,45 @@ function selectAudioByQuality(audioList: DashAudio[], quality: AudioQuality): Da
   }
 }
 
+function getNetworkEffectiveType(): string {
+  const connection = (navigator as unknown as { connection?: { effectiveType?: string; saveData?: boolean } }).connection;
+  return connection?.effectiveType ?? "4g";
+}
+
+function isSaveDataEnabled(): boolean {
+  const connection = (navigator as unknown as { connection?: { effectiveType?: string; saveData?: boolean } }).connection;
+  return connection?.saveData === true;
+}
+
+function applyNetworkAwareQuality(quality: AudioQuality): AudioQuality {
+  if (isSaveDataEnabled()) {
+    return "medium";
+  }
+
+  const effectiveType = getNetworkEffectiveType();
+  if (effectiveType === "2g" || effectiveType === "slow-2g") {
+    return "low";
+  }
+  if (effectiveType === "3g") {
+    if (quality === "auto" || quality === "lossless") {
+      return "medium";
+    }
+  }
+
+  return quality;
+}
+
 function resolveDashAudioQuality(requestedQuality?: AudioQuality): AudioQuality {
-  return requestedQuality ?? useSettings.getState().audioQuality ?? "auto";
+  const userQuality = requestedQuality ?? useSettings.getState().audioQuality ?? "auto";
+  return applyNetworkAwareQuality(userQuality);
 }
 
 function resolveAudioSongQuality() {
-  const preferredQuality = useSettings.getState().audioQuality ?? "auto";
+  const userQuality = useSettings.getState().audioQuality ?? "auto";
+  const quality = applyNetworkAwareQuality(userQuality);
   const canUseLossless = Boolean(useUser.getState().user?.vipStatus);
 
-  switch (preferredQuality) {
+  switch (quality) {
     case "low":
       return 0;
     case "medium":
@@ -118,6 +148,23 @@ export async function getDashUrl(bvid: string, cid: string | number, audioQualit
     };
   } catch (error) {
     log.error("[Get video play url error]", error);
+
+    if (audioQuality === undefined) {
+      try {
+        return await getDashUrl(bvid, cid, "high");
+      } catch {
+        return { isLossless: false };
+      }
+    }
+
+    if (audioQuality === "high" || audioQuality === "lossless") {
+      try {
+        return await getDashUrl(bvid, cid, "medium");
+      } catch {
+        return { isLossless: false };
+      }
+    }
+
     return {
       isLossless: false,
     };
@@ -127,16 +174,22 @@ export async function getDashUrl(bvid: string, cid: string | number, audioQualit
 /**
  * 登录情况下获取音乐播放链接
  */
-export const getAudioUrl = async (sid: number | string) => {
+export const getAudioUrl = async (sid: number | string, quality?: number) => {
+  const songQuality = quality ?? resolveAudioSongQuality();
+
   const res = await getAudioWebStreamUrl({
     songid: sid,
-    quality: resolveAudioSongQuality(),
+    quality: songQuality,
     privilege: 2,
     mid: useUser.getState().user?.mid || 0,
     platform: "web",
   });
 
   const isFlac = res?.data?.type === 3;
+
+  if (!res?.data?.cdns?.[0] && songQuality >= 2) {
+    return getAudioUrl(sid, songQuality - 1);
+  }
 
   return {
     audioUrl: res?.data?.cdns?.[0],
@@ -147,5 +200,12 @@ export const getAudioUrl = async (sid: number | string) => {
 
 /** URL是否有效 */
 export const isUrlValid = (url?: string): url is string => {
-  return Boolean(url) && moment().isBefore(moment.unix(Number(getUrlParams(url as string).deadline)));
+  return Boolean(url) && dayjs().isBefore(dayjs.unix(Number(getUrlParams(url as string).deadline)));
+};
+
+export const getUrlExpirySeconds = (url?: string): number => {
+  if (!url) return 0;
+  const deadline = Number(getUrlParams(url).deadline);
+  if (!Number.isFinite(deadline)) return 0;
+  return Math.max(0, deadline - dayjs().unix());
 };

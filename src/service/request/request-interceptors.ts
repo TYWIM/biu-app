@@ -1,5 +1,5 @@
 import { type InternalAxiosRequestConfig } from "axios";
-import moment from "moment";
+import dayjs from "dayjs";
 
 import { refreshCookie } from "@/common/utils/cookie";
 import { getRuntimeCookie } from "@/common/utils/runtime-cookie";
@@ -10,9 +10,9 @@ import { encodeParamsWbi } from "./wbi-sign";
 let refreshCookiePromise: Promise<any> | null = null;
 
 export const requestInterceptors = async (config: InternalAxiosRequestConfig) => {
-  if (!config.skipRefreshCheck && (useToken.getState().nextCheckRefreshTime || 0) < moment().unix()) {
+  if (!config.skipRefreshCheck && (useToken.getState().nextCheckRefreshTime || 0) < dayjs().unix()) {
     if (!refreshCookiePromise) {
-      useToken.setState({ nextCheckRefreshTime: moment().add(30, "seconds").unix() });
+      useToken.setState({ nextCheckRefreshTime: dayjs().add(30, "seconds").unix() });
       refreshCookiePromise = refreshCookie().finally(() => {
         refreshCookiePromise = null;
       });
@@ -20,7 +20,7 @@ export const requestInterceptors = async (config: InternalAxiosRequestConfig) =>
     try {
       await refreshCookiePromise;
     } finally {
-      useToken.setState({ nextCheckRefreshTime: moment().add(2, "days").unix() });
+      useToken.setState({ nextCheckRefreshTime: dayjs().add(2, "days").unix() });
     }
   }
 

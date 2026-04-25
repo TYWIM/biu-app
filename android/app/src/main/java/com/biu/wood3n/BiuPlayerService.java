@@ -36,6 +36,7 @@ public class BiuPlayerService extends MediaSessionService {
 
     @Override
     public void onDestroy() {
+        BiuPlayerManager.getInstance(this).releasePlayer();
         BiuPlayerManager.getInstance(this).detachService(this);
         super.onDestroy();
     }

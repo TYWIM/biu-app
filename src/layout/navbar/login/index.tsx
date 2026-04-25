@@ -1,7 +1,7 @@
 import React, { useCallback } from "react";
 
 import { Divider, Modal, ModalBody, ModalContent, Tab, Tabs, addToast } from "@heroui/react";
-import moment from "moment";
+import dayjs from "dayjs";
 
 import useIsMobile from "@/common/hooks/use-is-mobile";
 import { useFavoritesStore } from "@/store/favorite";
@@ -31,7 +31,7 @@ const Login = ({ isOpen, onOpenChange }: Props) => {
         if (refreshToken) {
           updateToken({
             tokenData: { refresh_token: refreshToken },
-            nextCheckRefreshTime: moment().add(2, "days").unix(),
+            nextCheckRefreshTime: dayjs().add(2, "days").unix(),
           });
         }
 

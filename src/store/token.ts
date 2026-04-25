@@ -1,4 +1,4 @@
-import moment from "moment";
+import dayjs from "dayjs";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -20,7 +20,7 @@ export const useToken = create<TokenState & Action>()(
   persist(
     set => ({
       tokenData: {},
-      nextCheckRefreshTime: moment().unix(),
+      nextCheckRefreshTime: dayjs().unix(),
       updateToken: async (info: Partial<TokenState>) => {
         set(state => ({ ...state, ...info }));
       },
