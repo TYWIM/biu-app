@@ -17,10 +17,12 @@ import {
   updateNativePlayerMetadata,
 } from "@/common/utils/native-player";
 import { beginPlayReport, bindDurationGetter, endPlayReport, reportHeartbeat } from "@/common/utils/play-report";
+import { getRuntimeStore, setRuntimeStore } from "@/common/utils/runtime-store";
 import { stripHtml } from "@/common/utils/str";
 import { formatUrlProtocol } from "@/common/utils/url";
 import { getAudioSongInfo } from "@/service/audio-song-info";
 import { getWebInterfaceView } from "@/service/web-interface-view";
+import { StoreNameMap } from "@shared/store";
 
 import { usePlayProgress } from "./play-progress";
 import { useSettings } from "./settings";
@@ -274,6 +276,47 @@ const updateMediaSession = ({ title, artist, cover }: { title: string; artist?: 
 const createAudio = (): PlaybackAudio => createPlaybackAudio();
 
 export const audio = createAudio();
+
+// 每首歌的播放速度缓存
+const getRateCacheKey = (item: PlayData | undefined): string | null => {
+  if (!item) return null;
+  if (item.source === "local" && item.id) {
+    return `local-${item.id}`;
+  }
+  if (item.type === "mv" && item.bvid && item.cid) {
+    return `mv-${item.bvid}-${item.cid}`;
+  }
+  if (item.type === "audio" && item.sid) {
+    return `audio-${item.sid}`;
+  }
+  return null;
+};
+
+const getCachedRate = async (item: PlayData | undefined): Promise<number | null> => {
+  const key = getRateCacheKey(item);
+  if (!key) return null;
+  try {
+    const store = await getRuntimeStore(StoreNameMap.PlaybackRate);
+    const rate = store?.[key];
+    return typeof rate === "number" ? rate : null;
+  } catch {
+    return null;
+  }
+};
+
+const setCachedRate = async (item: PlayData | undefined, rate: number): Promise<void> => {
+  const key = getRateCacheKey(item);
+  if (!key) return;
+  try {
+    const store = (await getRuntimeStore(StoreNameMap.PlaybackRate)) || {};
+    await setRuntimeStore(StoreNameMap.PlaybackRate, {
+      ...store,
+      [key]: rate,
+    });
+  } catch {
+    // ignore
+  }
+};
 
 setNativePlayerRemoteCommandHandler(command => {
   const { next, prev, list } = usePlayList.getState();
@@ -872,6 +915,11 @@ export const usePlayList = create<State & Action>()(
           set(state => {
             state.rate = rate;
           });
+          // 保存当前歌曲的播放速度
+          const currentItem = get().getPlayItem();
+          if (currentItem) {
+            void setCachedRate(currentItem, rate);
+          }
         },
         seek: s => {
           usePlayProgress.getState().setCurrentTime(s);
@@ -1413,6 +1461,15 @@ function resetAudioAndPlay(url: string) {
   audio.currentTime = 0;
   audio.load();
   void playAudioSafely();
+
+  // 异步恢复该歌曲的播放速度
+  const playItem = usePlayList.getState().getPlayItem();
+  void getCachedRate(playItem).then(cachedRate => {
+    if (cachedRate !== null && cachedRate !== usePlayList.getState().rate) {
+      audio.playbackRate = cachedRate;
+      usePlayList.setState({ rate: cachedRate });
+    }
+  });
 }
 
 // 切换歌曲时，更新当前播放的歌曲信息
