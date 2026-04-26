@@ -25,6 +25,7 @@ import { usePlayList } from "@/store/play-list";
 import { useSettings } from "@/store/settings";
 
 import Empty from "../empty";
+import Equalizer from "../equalizer";
 import IconButton from "../icon-button";
 import MusicPlayControl from "../music-play-control";
 import MusicPlayMode from "../music-play-mode";
@@ -694,6 +695,7 @@ const FullScreenPlayer = () => {
                         <MusicPlayMode />
                         <MusicPlayControl />
                         <OpenPlaylistDrawerButton />
+                        <Equalizer />
                       </div>
                     </>
                   )}

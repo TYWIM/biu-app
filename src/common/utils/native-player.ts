@@ -53,6 +53,20 @@ interface NativePlayerState {
   error?: string;
 }
 
+export interface EqualizerBand {
+  index: number;
+  frequency: number;
+  level: number;
+}
+
+export interface EqualizerInfo {
+  available: boolean;
+  minLevel: number;
+  maxLevel: number;
+  numBands: number;
+  bands?: EqualizerBand[];
+}
+
 interface NativePlayerPlugin {
   configure(options: { volume: number; muted: boolean; playbackRate: number; loop: boolean }): Promise<NativePlayerState>;
   setSource(options: { url: string }): Promise<NativePlayerState>;
@@ -62,6 +76,9 @@ interface NativePlayerPlugin {
   seekTo(options: { position: number }): Promise<NativePlayerState>;
   clear(): Promise<NativePlayerState>;
   getState(): Promise<NativePlayerState>;
+  getEqualizerInfo(): Promise<EqualizerInfo>;
+  setEqualizerBands(options: { levels: number[] }): Promise<EqualizerInfo>;
+  setEqualizerPreset(options: { preset: string }): Promise<EqualizerInfo>;
   addListener(
     eventName: "playerStateChange",
     listenerFunc: (state: NativePlayerState) => void,
@@ -90,6 +107,42 @@ export const updateNativePlayerMetadata = async (metadata: { title?: string; art
   }
 
   await NativePlayer.updateMetadata(metadata);
+};
+
+export const getEqualizerInfo = async (): Promise<EqualizerInfo | null> => {
+  if (!shouldUseNativePlayer()) {
+    return null;
+  }
+
+  try {
+    return await NativePlayer.getEqualizerInfo();
+  } catch {
+    return null;
+  }
+};
+
+export const setEqualizerBands = async (levels: number[]): Promise<EqualizerInfo | null> => {
+  if (!shouldUseNativePlayer()) {
+    return null;
+  }
+
+  try {
+    return await NativePlayer.setEqualizerBands({ levels });
+  } catch {
+    return null;
+  }
+};
+
+export const setEqualizerPreset = async (preset: string): Promise<EqualizerInfo | null> => {
+  if (!shouldUseNativePlayer()) {
+    return null;
+  }
+
+  try {
+    return await NativePlayer.setEqualizerPreset({ preset });
+  } catch {
+    return null;
+  }
 };
 
 let nativeAudioAdapterInstance: NativeAudioAdapter | null = null;
@@ -468,6 +521,12 @@ export const createPlaybackAudio = (): PlaybackAudio => {
     if (typeof window !== "undefined" && (window as Window & { electron?: unknown }).electron) {
       audio.crossOrigin = "anonymous";
     }
+    // 附加 Web Audio 均衡器
+    import("./web-equalizer").then(({ attachEqualizer }) => {
+      attachEqualizer(audio);
+    }).catch(() => {
+      // 均衡器加载失败不影响播放
+    });
     return audio;
   }
 

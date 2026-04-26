@@ -127,4 +127,59 @@ public class BiuPlayerPlugin extends Plugin {
             }
         });
     }
+
+    @PluginMethod
+    public void getEqualizerInfo(PluginCall call) {
+        getActivity().runOnUiThread(() -> {
+            try {
+                call.resolve(playerManager.getEqualizerInfo());
+            } catch (Exception e) {
+                call.reject("getEqualizerInfo failed: " + e.getMessage());
+            }
+        });
+    }
+
+    @PluginMethod
+    public void setEqualizerBands(PluginCall call) {
+        com.getcapacitor.JSArray levelsArray = call.getArray("levels");
+        if (levelsArray == null) {
+            call.reject("levels array is required");
+            return;
+        }
+
+        short[] levels = new short[levelsArray.length()];
+        for (int i = 0; i < levelsArray.length(); i++) {
+            try {
+                levels[i] = (short) levelsArray.getInt(i);
+            } catch (Exception e) {
+                call.reject("invalid level at index " + i);
+                return;
+            }
+        }
+
+        getActivity().runOnUiThread(() -> {
+            try {
+                call.resolve(playerManager.setEqualizerBands(levels));
+            } catch (Exception e) {
+                call.reject("setEqualizerBands failed: " + e.getMessage());
+            }
+        });
+    }
+
+    @PluginMethod
+    public void setEqualizerPreset(PluginCall call) {
+        String preset = call.getString("preset", "");
+        if (preset.isEmpty()) {
+            call.reject("preset name is required");
+            return;
+        }
+
+        getActivity().runOnUiThread(() -> {
+            try {
+                call.resolve(playerManager.setEqualizerPreset(preset));
+            } catch (Exception e) {
+                call.reject("setEqualizerPreset failed: " + e.getMessage());
+            }
+        });
+    }
 }

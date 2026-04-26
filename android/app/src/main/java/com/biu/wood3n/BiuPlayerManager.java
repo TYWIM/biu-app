@@ -2,6 +2,7 @@ package com.biu.wood3n;
 
 import android.content.Context;
 import android.content.Intent;
+import android.media.audiofx.Equalizer;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
@@ -49,6 +50,7 @@ public class BiuPlayerManager {
     private ExoPlayer exoPlayer;
     private ForwardingPlayer forwardingPlayer;
     private MediaSession mediaSession;
+    private Equalizer equalizer;
     private String sourceUrl = "";
     private String title = "";
     private String artist = "";
@@ -60,6 +62,7 @@ public class BiuPlayerManager {
     private boolean ready = false;
     private boolean ended = false;
     private boolean progressRunning = false;
+    private short[] eqBandLevels;
 
     private final Runnable progressRunnable = new Runnable() {
         @Override
@@ -159,6 +162,7 @@ public class BiuPlayerManager {
             mediaSession.release();
             mediaSession = null;
         }
+        releaseEqualizer();
         ready = false;
         ended = false;
     }
@@ -302,6 +306,14 @@ public class BiuPlayerManager {
                 .setLoadControl(loadControl)
                 .build();
         exoPlayer.addListener(playerListener);
+        exoPlayer.addListener(new Player.Listener() {
+            @Override
+            public void onAudioSessionIdChanged(int audioSessionId) {
+                if (audioSessionId != C.AUDIO_SESSION_ID_UNSET) {
+                    setupEqualizer(audioSessionId);
+                }
+            }
+        });
         applyConfig();
 
         forwardingPlayer = new ForwardingPlayer(exoPlayer) {
@@ -483,5 +495,95 @@ public class BiuPlayerManager {
             return "cleared";
         }
         return "state";
+    }
+
+    // ========== Equalizer ==========
+
+    private void setupEqualizer(int audioSessionId) {
+        releaseEqualizer();
+        try {
+            equalizer = new Equalizer(0, audioSessionId);
+            equalizer.setEnabled(true);
+            if (eqBandLevels != null) {
+                applyEqualizerBands(eqBandLevels);
+            }
+        } catch (Exception e) {
+            android.util.Log.w("BiuPlayer", "Equalizer setup failed: " + e.getMessage());
+        }
+    }
+
+    private void releaseEqualizer() {
+        if (equalizer != null) {
+            try {
+                equalizer.setEnabled(false);
+                equalizer.release();
+            } catch (Exception e) {
+                android.util.Log.w("BiuPlayer", "Equalizer release failed: " + e.getMessage());
+            }
+            equalizer = null;
+        }
+    }
+
+    public JSObject getEqualizerInfo() {
+        JSObject result = new JSObject();
+        if (equalizer == null) {
+            result.put("available", false);
+            return result;
+        }
+
+        result.put("available", true);
+        result.put("minLevel", equalizer.getBandLevelRange()[0]);
+        result.put("maxLevel", equalizer.getBandLevelRange()[1]);
+
+        short numBands = equalizer.getNumberOfBands();
+        result.put("numBands", numBands);
+
+        com.getcapacitor.JSArray bands = new com.getcapacitor.JSArray();
+        for (short i = 0; i < numBands; i++) {
+            JSObject band = new JSObject();
+            band.put("index", i);
+            band.put("frequency", equalizer.getCenterFreq(i) / 1000); // Hz -> kHz
+            band.put("level", equalizer.getBandLevel(i));
+            bands.put(band);
+        }
+        result.put("bands", bands);
+
+        return result;
+    }
+
+    public JSObject setEqualizerBands(short[] levels) {
+        eqBandLevels = levels;
+        if (equalizer != null) {
+            applyEqualizerBands(levels);
+        }
+        return getEqualizerInfo();
+    }
+
+    private void applyEqualizerBands(short[] levels) {
+        if (equalizer == null || levels == null) {
+            return;
+        }
+        short numBands = equalizer.getNumberOfBands();
+        for (short i = 0; i < Math.min(numBands, levels.length); i++) {
+            try {
+                short[] range = equalizer.getBandLevelRange();
+                short level = (short) Math.max(range[0], Math.min(range[1], levels[i]));
+                equalizer.setBandLevel(i, level);
+            } catch (Exception e) {
+                android.util.Log.w("BiuPlayer", "setBandLevel failed for band " + i + ": " + e.getMessage());
+            }
+        }
+    }
+
+    public JSObject setEqualizerPreset(String presetName) {
+        if (equalizer == null) {
+            return getEqualizerInfo();
+        }
+
+        short[] levels = EqualizerPresets.getPreset(presetName);
+        if (levels != null) {
+            return setEqualizerBands(levels);
+        }
+        return getEqualizerInfo();
     }
 }
