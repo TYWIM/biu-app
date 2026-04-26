@@ -480,6 +480,8 @@ const Lyrics = ({ color, centered, showControls }: { color?: string; centered?: 
             <div className="pointer-events-auto">
               <IconButton
                 type="button"
+                tooltip="复制歌词"
+                tooltipProps={{ placement: "left" }}
                 onPress={handleCopyLyrics}
                 className="bg-foreground/20 text-foreground hover:bg-foreground/30 min-w-0 rounded-full text-xs font-semibold"
               >
@@ -489,6 +491,8 @@ const Lyrics = ({ color, centered, showControls }: { color?: string; centered?: 
             <div className="pointer-events-auto">
               <IconButton
                 type="button"
+                tooltip="分享歌词"
+                tooltipProps={{ placement: "left" }}
                 onPress={handleShareLyrics}
                 className="bg-foreground/20 text-foreground hover:bg-foreground/30 min-w-0 rounded-full text-xs font-semibold"
               >
@@ -498,6 +502,8 @@ const Lyrics = ({ color, centered, showControls }: { color?: string; centered?: 
             <div className="pointer-events-auto">
               <IconButton
                 type="button"
+                tooltip="搜索歌词"
+                tooltipProps={{ placement: "left" }}
                 onPress={onOpenSearch}
                 className="bg-foreground/20 text-foreground hover:bg-foreground/30 min-w-0 rounded-full text-xs font-semibold"
               >

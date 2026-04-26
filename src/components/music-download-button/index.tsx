@@ -5,6 +5,8 @@ import { RiDownload2Fill, RiFileImageLine, RiFileMusicLine, RiFileVideoLine } fr
 
 import AsyncButton from "@/components/async-button";
 import IconButton from "@/components/icon-button";
+import { addDownloadTask } from "@/common/utils/native-download";
+import { isCapacitorNative } from "@/common/utils/runtime-platform";
 import { usePlayList } from "@/store/play-list";
 
 const MusicDownloadButton = () => {
@@ -12,50 +14,76 @@ const MusicDownloadButton = () => {
   const playId = usePlayList(s => s.playId);
   const playItem = list.find(item => item.id === playId);
   const addMediaDownloadTask = typeof window !== "undefined" ? window.electron?.addMediaDownloadTask : undefined;
-  const canDownloadMedia = Boolean(addMediaDownloadTask);
+  const isNative = isCapacitorNative();
+  const canDownloadMedia = Boolean(addMediaDownloadTask) || isNative;
   const [isTooltipOpen, setIsTooltipOpen] = useState(false);
 
   const downloadAudio = async () => {
-    const downloadTask = addMediaDownloadTask;
-    if (!downloadTask) {
-      addToast({ title: "浏览器预览模式不支持下载音频", color: "default" });
+    // 优先使用桌面端下载
+    if (addMediaDownloadTask) {
+      await addMediaDownloadTask({
+        outputFileType: "audio",
+        title: playItem?.pageTitle || playItem?.title || `audio-${Date.now()}`,
+        cover: playItem?.pageCover || playItem?.cover,
+        bvid: playItem?.bvid,
+        cid: playItem?.cid,
+        sid: playItem?.type === "audio" ? playItem?.sid : undefined,
+      });
+      addToast({ title: "已添加下载任务", color: "success" });
       return;
     }
 
-    await downloadTask({
-      outputFileType: "audio",
-      title: playItem?.pageTitle || playItem?.title || `audio-${Date.now()}`,
-      cover: playItem?.pageCover || playItem?.cover,
-      bvid: playItem?.bvid,
-      cid: playItem?.cid,
-      sid: playItem?.type === "audio" ? playItem?.sid : undefined,
-    });
+    // 移动端原生下载
+    if (isNative) {
+      const result = await addDownloadTask({
+        outputFileType: "audio",
+        title: playItem?.pageTitle || playItem?.title || `audio-${Date.now()}`,
+        cover: playItem?.pageCover || playItem?.cover,
+        bvid: playItem?.bvid,
+        cid: playItem?.cid,
+        sid: playItem?.type === "audio" ? playItem?.sid : undefined,
+      });
+      if (result) {
+        addToast({ title: "已添加下载任务", color: "success" });
+      } else {
+        addToast({ title: "下载失败，请检查网络", color: "danger" });
+      }
+      return;
+    }
 
-    addToast({
-      title: "已添加下载任务",
-      color: "success",
-    });
+    addToast({ title: "当前环境不支持下载", color: "default" });
   };
 
   const downloadVideo = async () => {
-    const downloadTask = addMediaDownloadTask;
-    if (!downloadTask) {
-      addToast({ title: "浏览器预览模式不支持下载视频", color: "default" });
+    if (addMediaDownloadTask) {
+      await addMediaDownloadTask({
+        outputFileType: "video",
+        title: playItem?.pageTitle || playItem?.title || `video-${Date.now()}`,
+        cover: playItem?.pageCover || playItem?.cover,
+        bvid: playItem?.bvid,
+        cid: playItem?.cid,
+      });
+      addToast({ title: "已添加下载任务", color: "success" });
       return;
     }
 
-    await downloadTask({
-      outputFileType: "video",
-      title: playItem?.pageTitle || playItem?.title || `video-${Date.now()}`,
-      cover: playItem?.pageCover || playItem?.cover,
-      bvid: playItem?.bvid,
-      cid: playItem?.cid,
-    });
+    if (isNative) {
+      const result = await addDownloadTask({
+        outputFileType: "video",
+        title: playItem?.pageTitle || playItem?.title || `video-${Date.now()}`,
+        cover: playItem?.pageCover || playItem?.cover,
+        bvid: playItem?.bvid,
+        cid: playItem?.cid,
+      });
+      if (result) {
+        addToast({ title: "已添加下载任务", color: "success" });
+      } else {
+        addToast({ title: "下载失败，请检查网络", color: "danger" });
+      }
+      return;
+    }
 
-    addToast({
-      title: "已添加下载任务",
-      color: "success",
-    });
+    addToast({ title: "当前环境不支持下载", color: "default" });
   };
 
   const downloadCover = async () => {
@@ -173,7 +201,7 @@ const MusicDownloadButton = () => {
         </Listbox>
       }
     >
-      <IconButton>
+      <IconButton tooltip="下载">
         <RiDownload2Fill size={18} />
       </IconButton>
     </Tooltip>

@@ -379,7 +379,12 @@ const FullScreenPlayer = () => {
                 }
                 scheduleHideUi(3000);
               }}
-              onTouchStart={() => {
+              onTouchStart={e => {
+                // 避免点击控制按钮时触发，防止闪烁
+                const target = e.target as HTMLElement;
+                if (target.closest("button") || target.closest("[role='button']")) {
+                  return;
+                }
                 setIsUiVisible(true);
               }}
             >
