@@ -305,14 +305,14 @@ const FullScreenPlayer = () => {
   ].filter(Boolean) as string[];
   const isPlayerDark = showBlurredBackground || appTheme === "dark";
   const mobileSecondaryControlClassName = isPlayerDark
-    ? "size-10 min-w-10 rounded-full border border-white/10 bg-white/10 text-white hover:bg-white/16 hover:text-white transition-transform duration-150 active:scale-90"
-    : "size-10 min-w-10 rounded-full border border-slate-900/8 bg-white/82 text-slate-900 hover:bg-white hover:text-slate-950 transition-transform duration-150 active:scale-90";
+    ? "size-10 min-w-10 rounded-full border border-white/10 bg-white/10 text-white hover:bg-white/16 hover:text-white"
+    : "size-10 min-w-10 rounded-full border border-slate-900/8 bg-white/82 text-slate-900 hover:bg-white hover:text-slate-950";
   const mobilePrimaryControlClassName = isPlayerDark
-    ? "size-14 min-w-14 rounded-full bg-white text-black shadow-[0_14px_32px_-20px_rgba(255,255,255,0.88)] hover:bg-white/90 hover:text-black transition-transform duration-150 active:scale-[0.88]"
-    : "size-14 min-w-14 rounded-full bg-slate-950 text-white shadow-[0_14px_32px_-20px_rgba(15,23,42,0.38)] hover:bg-slate-900 hover:text-white transition-transform duration-150 active:scale-[0.88]";
+    ? "size-14 min-w-14 rounded-full bg-white text-black shadow-[0_14px_32px_-20px_rgba(255,255,255,0.88)] hover:bg-white/90 hover:text-black"
+    : "size-14 min-w-14 rounded-full bg-slate-950 text-white shadow-[0_14px_32px_-20px_rgba(15,23,42,0.38)] hover:bg-slate-900 hover:text-white";
   const mobileHeaderButtonClassName = isPlayerDark
-    ? "size-11 min-w-11 rounded-full border border-white/10 bg-black/20 text-white hover:bg-black/28 hover:text-white transition-transform duration-150 active:scale-90"
-    : "size-11 min-w-11 rounded-full border border-slate-900/8 bg-white/80 text-slate-900 hover:bg-white hover:text-slate-950 transition-transform duration-150 active:scale-90";
+    ? "size-11 min-w-11 rounded-full border border-white/10 bg-black/20 text-white hover:bg-black/28 hover:text-white"
+    : "size-11 min-w-11 rounded-full border border-slate-900/8 bg-white/80 text-slate-900 hover:bg-white hover:text-slate-950";
   const mobileMetaBadgeClassName = isPlayerDark
     ? "rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[11px] font-medium text-white/85 backdrop-blur-md"
     : "rounded-full border border-slate-900/8 bg-white/78 px-3 py-1 text-[11px] font-medium text-slate-800 shadow-[0_6px_16px_rgb(148_163_184_/_0.12)]";
