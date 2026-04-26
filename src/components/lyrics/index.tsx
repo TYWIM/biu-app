@@ -340,8 +340,11 @@ const Lyrics = ({ color, centered, showControls }: { color?: string; centered?: 
         await navigator.clipboard.writeText(`${shareData.title}\n\n${text}`);
         addToast({ title: "歌词已复制到剪贴板", color: "success" });
       }
-    } catch {
-      // 用户取消分享不提示错误
+    } catch (err) {
+      // AbortError 为用户取消，其他错误提示
+      if (err instanceof Error && err.name !== "AbortError") {
+        addToast({ title: "分享失败", color: "danger" });
+      }
     }
   }, [lyrics, translationMap]);
 
