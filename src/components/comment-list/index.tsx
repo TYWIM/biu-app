@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { addToast, Button, Spinner, Tab, Tabs, Textarea } from "@heroui/react";
-import { RiThumbUpFill, RiThumbUpLine, RiMessage3Line } from "@remixicon/react";
+import { RiThumbUpFill, RiThumbUpLine, RiMessage3Line, RiPushpinLine } from "@remixicon/react";
 import clsx from "classnames";
 
 import useIsMobile from "@/common/hooks/use-is-mobile";
@@ -9,7 +9,7 @@ import { formatNumber } from "@/common/utils/number";
 import { formatTimeAgo } from "@/common/utils/time";
 import Image from "@/components/image";
 import ScrollContainer, { type ScrollRefObject } from "@/components/scroll-container";
-import type { ReplyItem } from "@/service/reply";
+import type { ReplyContent, ReplyItem } from "@/service/reply";
 import { getReplyDetail, getReplyListCursor, likeReply, sendReply } from "@/service/reply";
 
 interface CommentListProps {
@@ -20,6 +20,10 @@ interface CommentListProps {
 }
 
 type SortType = "hot" | "time";
+
+interface EmojiMap {
+  [name: string]: string;
+}
 
 const findComment = (comments: ReplyItem[], rpid: number): ReplyItem | undefined => {
   for (const comment of comments) {
@@ -40,11 +44,208 @@ const updateComment = (
     return nextReplies === comment.replies ? nextComment : { ...nextComment, replies: nextReplies };
   });
 
+const buildEmojiMap = (content: ReplyContent): EmojiMap => {
+  const map: EmojiMap = {};
+  const details = content.emoji_info?.emoji_details;
+  if (details) {
+    for (const emoji of details) {
+      map[emoji.text] = emoji.url;
+    }
+  }
+  return map;
+};
+
+const renderRichContent = (content: ReplyContent): React.ReactNode[] => {
+  const emojiMap = buildEmojiMap(content);
+  const { message, jump_url } = content;
+
+  if (!message) return [];
+
+  const jumpEntries = jump_url
+    ? Object.entries(jump_url).sort((a, b) => b[0].length - a[0].length)
+    : [];
+
+  const emojiRegex = /\[([^\]]+)\]/g;
+  const allRegex = new RegExp(
+    [
+      emojiRegex.source,
+      ...jumpEntries.map(([key]) => key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
+    ].join("|"),
+    "g",
+  );
+
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = allRegex.exec(message)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(message.slice(lastIndex, match.index));
+    }
+
+    const matchedText = match[0];
+
+    if (matchedText.startsWith("[") && matchedText.endsWith("]")) {
+      const emojiName = matchedText;
+      const emojiUrl = emojiMap[emojiName];
+      if (emojiUrl) {
+        parts.push(
+          <img
+            key={`emoji-${match.index}`}
+            src={emojiUrl}
+            alt={emojiName}
+            className="inline-block h-5 w-5 align-text-bottom"
+          />,
+        );
+      } else {
+        parts.push(matchedText);
+      }
+    } else {
+      const jumpInfo = jump_url?.[matchedText];
+      if (jumpInfo) {
+        parts.push(
+          <a
+            key={`link-${match.index}`}
+            href={jumpInfo.app_url_schema || "#"}
+            className="text-primary underline break-all"
+            onClick={e => {
+              if (!jumpInfo.app_url_schema) {
+                e.preventDefault();
+              }
+            }}
+          >
+            {jumpInfo.title || matchedText}
+          </a>,
+        );
+      } else {
+        parts.push(matchedText);
+      }
+    }
+
+    lastIndex = match.index + matchedText.length;
+  }
+
+  if (lastIndex < message.length) {
+    parts.push(message.slice(lastIndex));
+  }
+
+  return parts.length > 0 ? parts : [message];
+};
+
+interface CommentItemProps {
+  comment: ReplyItem;
+  isReply?: boolean;
+  replyLoadingMap: Record<number, boolean>;
+  onLike: (comment: ReplyItem) => void;
+  onSetReplyTarget: (comment: ReplyItem) => void;
+  onLoadReplies: (comment: ReplyItem) => void;
+}
+
+const CommentItem: React.FC<CommentItemProps> = ({
+  comment,
+  isReply,
+  replyLoadingMap,
+  onLike,
+  onSetReplyTarget,
+  onLoadReplies,
+}) => {
+  const rootId = comment.root || comment.rpid;
+  const visibleReplies = comment.replies ?? [];
+  const remainingReplyCount = Math.max(0, comment.rcount - visibleReplies.length);
+  const isLoadingReplies = Boolean(replyLoadingMap[rootId]);
+
+  return (
+    <div className={clsx("flex gap-3", isReply ? "mt-3" : "py-4 border-b border-default-100 last:border-0")}>
+      <Image
+        src={comment.member.avatar}
+        alt={comment.member.uname}
+        className={clsx("flex-shrink-0 rounded-full object-cover", isReply ? "h-7 w-7" : "h-10 w-10")}
+      />
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-1">
+          <span className={clsx("font-medium text-primary truncate", isReply ? "text-xs" : "text-sm")}>{comment.member.uname}</span>
+          {comment.member.vip?.vipStatus === 1 && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-pink-100 text-pink-600 font-medium">
+              {comment.member.vip.label.text}
+            </span>
+          )}
+        </div>
+        <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap break-words">
+          {renderRichContent(comment.content)}
+        </p>
+        {comment.content.pictures && comment.content.pictures.length > 0 && (
+          <div className="flex gap-2 mt-2 flex-wrap">
+            {comment.content.pictures.map((pic, index) => (
+              <Image
+                key={index}
+                src={pic.img_src}
+                alt="评论图片"
+                className="h-24 w-24 rounded-lg object-cover"
+              />
+            ))}
+          </div>
+        )}
+        <div className="flex items-center gap-4 mt-2 text-xs text-default-500">
+          <span>{formatTimeAgo(comment.ctime)}</span>
+          <button
+            type="button"
+            onClick={() => onLike(comment)}
+            aria-label={comment.action === 1 ? "取消点赞评论" : "点赞评论"}
+            className={clsx(
+              "flex items-center gap-1 transition-colors",
+              comment.action === 1 ? "text-pink-500" : "hover:text-foreground",
+            )}
+          >
+            {comment.action === 1 ? <RiThumbUpFill size={14} /> : <RiThumbUpLine size={14} />}
+            {formatNumber(comment.like)}
+          </button>
+          <button
+            type="button"
+            onClick={() => onSetReplyTarget(comment)}
+            aria-label="回复评论"
+            className="flex items-center gap-1 hover:text-foreground transition-colors"
+          >
+            <RiMessage3Line size={14} />
+            回复
+          </button>
+        </div>
+        {!isReply && visibleReplies.length > 0 && (
+          <div className="mt-3 rounded-lg bg-default-50 p-3">
+            {visibleReplies.map(reply => (
+              <CommentItem
+                key={reply.rpid}
+                comment={reply}
+                isReply
+                replyLoadingMap={replyLoadingMap}
+                onLike={onLike}
+                onSetReplyTarget={onSetReplyTarget}
+                onLoadReplies={onLoadReplies}
+              />
+            ))}
+          </div>
+        )}
+        {!isReply && remainingReplyCount > 0 && (
+          <Button
+            size="sm"
+            variant="light"
+            className="mt-2 h-7 px-2 text-xs text-primary"
+            isLoading={isLoadingReplies}
+            onPress={() => onLoadReplies(comment)}
+          >
+            查看 {formatNumber(remainingReplyCount)} 条回复
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const CommentList: React.FC<CommentListProps> = ({ avid, targetId, type = 1, title = "评论" }) => {
   const resolvedTargetId = targetId ?? avid ?? 0;
   const isMobile = useIsMobile();
   const [sort, setSort] = useState<SortType>("hot");
   const [comments, setComments] = useState<ReplyItem[]>([]);
+  const [topComment, setTopComment] = useState<ReplyItem | null>(null);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -77,6 +278,8 @@ const CommentList: React.FC<CommentListProps> = ({ avid, targetId, type = 1, tit
         const newComments = response.data.replies || [];
         if (isRefresh) {
           setComments(newComments);
+          const top = response.data.top;
+          setTopComment(top && top.rpid ? top : null);
         } else {
           setComments(prev => [...prev, ...newComments]);
         }
@@ -97,6 +300,7 @@ const CommentList: React.FC<CommentListProps> = ({ avid, targetId, type = 1, tit
 
   useEffect(() => {
     setComments([]);
+    setTopComment(null);
     cursorRef.current = 0;
     setCursor(0);
     setHasMore(true);
@@ -112,7 +316,7 @@ const CommentList: React.FC<CommentListProps> = ({ avid, targetId, type = 1, tit
     }
   };
 
-  const handleLike = async (comment: ReplyItem) => {
+  const handleLike = useCallback(async (comment: ReplyItem) => {
     const action = comment.action === 1 ? 0 : 1;
     setComments(prev =>
       updateComment(prev, comment.rpid, item => ({
@@ -144,9 +348,9 @@ const CommentList: React.FC<CommentListProps> = ({ avid, targetId, type = 1, tit
         })),
       );
     }
-  };
+  }, []);
 
-  const handleLoadReplies = async (comment: ReplyItem, forceRefresh = false) => {
+  const handleLoadReplies = useCallback(async (comment: ReplyItem, forceRefresh = false) => {
     const rootId = comment.root || comment.rpid;
     if (replyLoadingMap[rootId]) return;
 
@@ -182,7 +386,12 @@ const CommentList: React.FC<CommentListProps> = ({ avid, targetId, type = 1, tit
     } finally {
       setReplyLoadingMap(prev => ({ ...prev, [rootId]: false }));
     }
-  };
+  }, [comments, replyLoadingMap]);
+
+  const handleSetReplyTarget = useCallback((comment: ReplyItem) => {
+    setReplyTarget(comment);
+    setDraft(prev => prev || "");
+  }, []);
 
   const handleSubmit = async () => {
     const message = draft.trim();
@@ -238,92 +447,10 @@ const CommentList: React.FC<CommentListProps> = ({ avid, targetId, type = 1, tit
     }
   };
 
-  const CommentItem: React.FC<{ comment: ReplyItem; isReply?: boolean }> = ({ comment, isReply }) => {
-    const rootId = comment.root || comment.rpid;
-    const visibleReplies = comment.replies ?? [];
-    const remainingReplyCount = Math.max(0, comment.rcount - visibleReplies.length);
-    const isLoadingReplies = Boolean(replyLoadingMap[rootId]);
-
-    return (
-      <div className={clsx("flex gap-3", isReply ? "mt-3" : "py-4 border-b border-default-100 last:border-0")}>
-        <Image
-          src={comment.member.avatar}
-          alt={comment.member.uname}
-          className={clsx("flex-shrink-0 rounded-full object-cover", isReply ? "h-7 w-7" : "h-10 w-10")}
-        />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <span className={clsx("font-medium text-primary truncate", isReply ? "text-xs" : "text-sm")}>{comment.member.uname}</span>
-            {comment.member.vip?.vipStatus === 1 && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-pink-100 text-pink-600 font-medium">
-                {comment.member.vip.label.text}
-              </span>
-            )}
-          </div>
-          <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap break-words">
-            {comment.content.message}
-          </p>
-          {comment.content.pictures && comment.content.pictures.length > 0 && (
-            <div className="flex gap-2 mt-2 flex-wrap">
-              {comment.content.pictures.map((pic, index) => (
-                <Image
-                  key={index}
-                  src={pic.img_src}
-                  alt="评论图片"
-                  className="h-24 w-24 rounded-lg object-cover"
-                />
-              ))}
-            </div>
-          )}
-          <div className="flex items-center gap-4 mt-2 text-xs text-default-500">
-            <span>{formatTimeAgo(comment.ctime)}</span>
-            <button
-              type="button"
-              onClick={() => handleLike(comment)}
-              aria-label={comment.action === 1 ? "取消点赞评论" : "点赞评论"}
-              className={clsx(
-                "flex items-center gap-1 transition-colors",
-                comment.action === 1 ? "text-pink-500" : "hover:text-foreground",
-              )}
-            >
-              {comment.action === 1 ? <RiThumbUpFill size={14} /> : <RiThumbUpLine size={14} />}
-              {formatNumber(comment.like)}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setReplyTarget(comment);
-                setDraft(prev => prev || "");
-              }}
-              aria-label="回复评论"
-              className="flex items-center gap-1 hover:text-foreground transition-colors"
-            >
-              <RiMessage3Line size={14} />
-              回复
-            </button>
-          </div>
-          {!isReply && visibleReplies.length > 0 && (
-            <div className="mt-3 rounded-lg bg-default-50 p-3">
-              {visibleReplies.map(reply => (
-                <CommentItem key={reply.rpid} comment={reply} isReply />
-              ))}
-            </div>
-          )}
-          {!isReply && remainingReplyCount > 0 && (
-            <Button
-              size="sm"
-              variant="light"
-              className="mt-2 h-7 px-2 text-xs text-primary"
-              isLoading={isLoadingReplies}
-              onPress={() => handleLoadReplies(comment)}
-            >
-              查看 {formatNumber(remainingReplyCount)} 条回复
-            </Button>
-          )}
-        </div>
-      </div>
-    );
-  };
+  const isTopInComments = useMemo(
+    () => topComment ? comments.some(c => c.rpid === topComment.rpid) : false,
+    [topComment, comments],
+  );
 
   return (
     <div className={clsx("flex flex-col h-full", isMobile ? "bg-background" : "")}>
@@ -364,8 +491,30 @@ const CommentList: React.FC<CommentListProps> = ({ avid, targetId, type = 1, tit
           </div>
         ) : (
           <>
+            {topComment && !isTopInComments && (
+              <div className="border-b border-primary-200 mb-1">
+                <div className="flex items-center gap-1 text-xs text-primary py-2">
+                  <RiPushpinLine size={12} />
+                  <span>置顶</span>
+                </div>
+                <CommentItem
+                  comment={topComment}
+                  replyLoadingMap={replyLoadingMap}
+                  onLike={handleLike}
+                  onSetReplyTarget={handleSetReplyTarget}
+                  onLoadReplies={handleLoadReplies}
+                />
+              </div>
+            )}
             {comments.map(comment => (
-              <CommentItem key={comment.rpid} comment={comment} />
+              <CommentItem
+                key={comment.rpid}
+                comment={comment}
+                replyLoadingMap={replyLoadingMap}
+                onLike={handleLike}
+                onSetReplyTarget={handleSetReplyTarget}
+                onLoadReplies={handleLoadReplies}
+              />
             ))}
             {hasMore && (
               <div className="flex justify-center py-4">
