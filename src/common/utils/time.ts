@@ -16,3 +16,26 @@ export function formatDuration(seconds: number) {
 export const formatSecondsToDate = (s?: number) => (s ? dayjs.unix(s).format("YYYY-MM-DD") : "");
 
 export const formatMillisecond = (s?: number) => (s ? dayjs(s).format("YYYY-MM-DD") : "");
+
+export function formatTimeAgo(timestamp: number): string {
+  const now = dayjs();
+  const time = dayjs.unix(timestamp);
+  const diffSeconds = now.diff(time, "second");
+
+  if (diffSeconds < 60) {
+    return "刚刚";
+  }
+  if (diffSeconds < 3600) {
+    return `${Math.floor(diffSeconds / 60)}分钟前`;
+  }
+  if (diffSeconds < 86400) {
+    return `${Math.floor(diffSeconds / 3600)}小时前`;
+  }
+  if (diffSeconds < 604800) {
+    return `${Math.floor(diffSeconds / 86400)}天前`;
+  }
+  if (now.year() === time.year()) {
+    return time.format("MM-DD");
+  }
+  return time.format("YYYY-MM-DD");
+}

@@ -2,14 +2,14 @@ import { Capacitor } from "@capacitor/core";
 
 import log from "@/common/utils/logger";
 
-import { isCapacitorNative } from "./native-player";
+import { isCapacitorNative } from "./runtime-platform";
 
 export interface DownloadTask {
   outputFileType: "audio" | "video";
   title: string;
   cover?: string;
   bvid?: string;
-  cid?: number;
+  cid?: number | string;
   sid?: number;
   url?: string;
 }
@@ -84,7 +84,7 @@ export async function getDownloadList(): Promise<DownloadProgress[]> {
   try {
     const { BiuDownload } = await import("@/native/biu-download");
     const result = await BiuDownload.getDownloadList();
-    return result.list || [];
+    return (result.list || []) as DownloadProgress[];
   } catch (error) {
     log.error("[download] Failed to get download list:", error);
     return [];

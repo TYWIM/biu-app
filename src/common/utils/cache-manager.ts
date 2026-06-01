@@ -1,6 +1,8 @@
+import { StoreNameMap } from "@shared/store";
+
 import log from "@/common/utils/logger";
 
-import { getRuntimeStore, setRuntimeStore, StoreNameMap } from "./runtime-store";
+import { getRuntimeStore, setRuntimeStore } from "./runtime-store";
 
 const CACHE_METADATA_KEY = StoreNameMap.MediaDownloads;
 

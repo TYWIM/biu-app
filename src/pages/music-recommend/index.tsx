@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { addToast, Spinner, Tab, Tabs } from "@heroui/react";
 import { RiPlayFill } from "@remixicon/react";
@@ -10,10 +10,12 @@ import AsyncButton from "@/components/async-button";
 import Empty from "@/components/empty";
 import ScrollContainer, { type ScrollRefObject } from "@/components/scroll-container";
 import { getMusicComprehensiveWebRank, type Data as MusicItem } from "@/service/music-comprehensive-web-rank";
+import { searchWebInterfaceHistory, type HistoryListItem } from "@/service/web-interface-history-search";
 import { getRegionFeedRcmd, type Archive } from "@/service/web-interface-region-feed-rcmd";
 import { useModalStore } from "@/store/modal";
 import { usePlayList } from "@/store/play-list";
 import { useSettings } from "@/store/settings";
+import { useUser } from "@/store/user";
 
 import type { RecommendItem } from "./types";
 
@@ -24,12 +26,123 @@ import NewMusicTop from "./new-music-top";
 const PAGE_SIZE = 20;
 const REGION_PAGE_SIZE = 15;
 const REGION_WEB_LOCATION = "333.40138";
+const DAILY_RECOMMEND_LIMIT = 30;
 
-type RecommendTabKey = "music" | "guichu" | "pop";
+type RecommendTabKey = "daily" | "guess" | "music" | "guichu" | "pop";
 
 const REGION_MAP: Record<Exclude<RecommendTabKey, "pop">, number> = {
+  daily: 1003,
+  guess: 1003,
   music: 1003,
   guichu: 1007,
+};
+
+interface PreferenceSource {
+  title?: string;
+  author?: string;
+  authorMid?: number;
+  bvid?: string;
+  viewedAt?: number;
+  weight?: number;
+}
+
+interface RecommendationPreference {
+  authorWeights: Map<number, number>;
+  keywordWeights: Map<string, number>;
+  seenBvids: Set<string>;
+}
+
+const TOKEN_STOP_WORDS = new Set([
+  "official",
+  "music",
+  "video",
+  "完整版",
+  "现场版",
+  "高音质",
+  "动态歌词",
+  "合集",
+  "翻唱",
+]);
+
+const tokenizeTitle = (title?: string) => {
+  if (!title) return [];
+  const matches = title.toLowerCase().match(/[\u4e00-\u9fa5]{2,}|[a-z0-9]{2,}/g) ?? [];
+  return matches
+    .map(token => token.trim())
+    .filter(token => token.length >= 2 && !TOKEN_STOP_WORDS.has(token))
+    .slice(0, 8);
+};
+
+const bumpMap = <K,>(map: Map<K, number>, key: K | undefined, weight: number) => {
+  if (key === undefined || key === null) return;
+  map.set(key, (map.get(key) || 0) + weight);
+};
+
+const buildRecommendationPreference = (sources: PreferenceSource[]): RecommendationPreference => {
+  const authorWeights = new Map<number, number>();
+  const keywordWeights = new Map<string, number>();
+  const seenBvids = new Set<string>();
+
+  sources.forEach((source, index) => {
+    const recencyBoost = Math.max(0.35, 1 - index * 0.015);
+    const weight = (source.weight ?? 1) * recencyBoost;
+    bumpMap(authorWeights, source.authorMid, weight * 4);
+    if (source.bvid) seenBvids.add(source.bvid);
+    tokenizeTitle(source.title).forEach(token => bumpMap(keywordWeights, token, weight));
+    tokenizeTitle(source.author).forEach(token => bumpMap(keywordWeights, token, weight * 0.4));
+  });
+
+  return { authorWeights, keywordWeights, seenBvids };
+};
+
+const scoreRecommendItem = (item: RecommendItem, preference: RecommendationPreference) => {
+  let score = Math.log10((item.playCount || 0) + 10) * 0.12;
+
+  if (item.authorMid) {
+    score += preference.authorWeights.get(item.authorMid) || 0;
+  }
+
+  tokenizeTitle(item.title).forEach(token => {
+    score += preference.keywordWeights.get(token) || 0;
+  });
+  tokenizeTitle(item.author).forEach(token => {
+    score += (preference.keywordWeights.get(token) || 0) * 0.5;
+  });
+
+  if (item.bvid && preference.seenBvids.has(item.bvid)) {
+    score -= 6;
+  }
+
+  return score;
+};
+
+const personalizeItems = (items: RecommendItem[], preference: RecommendationPreference) => {
+  return [...items].sort((a, b) => {
+    const scoreDelta = scoreRecommendItem(b, preference) - scoreRecommendItem(a, preference);
+    if (scoreDelta !== 0) return scoreDelta;
+    return (b.playCount || 0) - (a.playCount || 0);
+  });
+};
+
+const hashString = (value: string) => {
+  let hash = 2166136261;
+  for (let i = 0; i < value.length; i += 1) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+};
+
+const getDailyItems = (items: RecommendItem[], preference: RecommendationPreference) => {
+  const dayKey = new Date().toISOString().slice(0, 10);
+  return personalizeItems(items, preference)
+    .map((item, index) => ({
+      item,
+      order: hashString(`${dayKey}-${item.bvid || item.id}`) - index * 1000,
+    }))
+    .sort((a, b) => a.order - b.order)
+    .slice(0, DAILY_RECOMMEND_LIMIT)
+    .map(entry => entry.item);
 };
 
 const normalizeRankItem = (item: MusicItem): RecommendItem => {
@@ -67,20 +180,54 @@ const MusicRecommend = () => {
   const isBrowserPreview = checkIsBrowserPreview();
   const addMediaDownloadTask = typeof window !== "undefined" ? window.electron?.addMediaDownloadTask : undefined;
   const canDownload = Boolean(addMediaDownloadTask);
+  const user = useUser(state => state.user);
+  const playQueue = usePlayList(state => state.list);
 
   const [list, setList] = useState<RecommendItem[]>([]);
+  const [historyItems, setHistoryItems] = useState<HistoryListItem[]>([]);
   const [hasMore, setHasMore] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
   const pageRef = useRef(1);
-  const [activeTab, setActiveTab] = useState<RecommendTabKey>("music");
+  const [activeTab, setActiveTab] = useState<RecommendTabKey>("daily");
   const scrollRestoreRef = useRef<{ tab: RecommendTabKey; top: number } | null>(null);
   const [popLayoutVersion, setPopLayoutVersion] = useState(0);
 
   const displayMode = useSettings(state => state.displayMode);
   const shouldUseGrid = isMobile || displayMode === "card";
   const listKey = `${activeTab}-${shouldUseGrid ? "card" : displayMode}-${activeTab === "pop" ? popLayoutVersion : 0}`;
+
+  const preference = useMemo(() => {
+    const historySources: PreferenceSource[] = historyItems.map((item, index) => ({
+      title: item.title,
+      author: item.author_name,
+      authorMid: item.author_mid,
+      bvid: item.history.bvid,
+      viewedAt: item.view_at,
+      weight: 2.2 - Math.min(index, 40) * 0.025,
+    }));
+
+    const queueSources: PreferenceSource[] = playQueue.slice(-80).reverse().map((item, index) => ({
+      title: item.pageTitle || item.title,
+      author: item.ownerName,
+      authorMid: item.ownerMid,
+      bvid: item.bvid,
+      weight: 1.4 - Math.min(index, 40) * 0.02,
+    }));
+
+    return buildRecommendationPreference([...historySources, ...queueSources]);
+  }, [historyItems, playQueue]);
+
+  const displayList = useMemo(() => {
+    if (activeTab === "guess") {
+      return personalizeItems(list, preference);
+    }
+    if (activeTab === "daily") {
+      return getDailyItems(list, preference);
+    }
+    return list;
+  }, [activeTab, list, preference]);
 
   const getScrollElement = useCallback(() => {
     return (scrollerRef.current?.osInstance()?.elements().viewport as HTMLElement | null) ?? null;
@@ -89,6 +236,33 @@ const MusicRecommend = () => {
   const handlePopLayoutChange = useCallback(() => {
     setPopLayoutVersion(prev => prev + 1);
   }, []);
+
+  useEffect(() => {
+    if (!user?.isLogin) {
+      setHistoryItems([]);
+      return;
+    }
+
+    let cancelled = false;
+    const loadHistoryPreference = async () => {
+      try {
+        const res = await searchWebInterfaceHistory({ business: "archive", pn: 1 });
+        if (!cancelled && res.code === 0) {
+          setHistoryItems(res.data?.list ?? []);
+        }
+      } catch {
+        if (!cancelled) {
+          setHistoryItems([]);
+        }
+      }
+    };
+
+    void loadHistoryPreference();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.isLogin]);
 
   const fetchPage = useCallback(
     async (pn: number = 1) => {
@@ -186,10 +360,10 @@ const MusicRecommend = () => {
       viewport.scrollTop = top;
       scrollRestoreRef.current = null;
     });
-  }, [activeTab, getScrollElement, initialLoading, list.length]);
+  }, [activeTab, getScrollElement, initialLoading, displayList.length]);
 
   const handlePlayAll = useCallback(async () => {
-    const items = list
+    const items = displayList
       .map(item => {
         return {
           type: "mv" as const,
@@ -209,7 +383,7 @@ const MusicRecommend = () => {
 
     await usePlayList.getState().addList(items);
     addToast({ title: `已添加 ${items.length} 首到播放列表`, color: "success" });
-  }, [list]);
+  }, [displayList]);
 
   const handleMenuAction = useCallback(
     async (key: string, item: RecommendItem) => {
@@ -314,14 +488,14 @@ const MusicRecommend = () => {
             <div className="min-w-0">
               <div className="text-primary mb-1 text-[10px] font-medium tracking-[0.28em] uppercase">Recommend</div>
               <div className="text-foreground text-[28px] leading-none font-semibold tracking-tight">发现</div>
-              <div className="text-foreground-500 mt-2 text-sm">按分区浏览内容，并一键加入当前播放队列</div>
+              <div className="text-foreground-500 mt-2 text-sm">按你的播放习惯重排推荐，并一键加入当前播放队列</div>
             </div>
             <AsyncButton
               color="primary"
               size="sm"
               radius="full"
               startContent={<RiPlayFill size={18} />}
-              isDisabled={initialLoading || list.length === 0}
+              isDisabled={initialLoading || displayList.length === 0}
               onPress={handlePlayAll}
               className="shrink-0 px-4 dark:text-black"
             >
@@ -354,6 +528,8 @@ const MusicRecommend = () => {
             setActiveTab(nextTab);
           }}
         >
+          <Tab key="daily" title="每日" />
+          <Tab key="guess" title="猜你喜欢" />
           <Tab key="music" title="音乐" />
           <Tab key="guichu" title="鬼畜" />
           <Tab key="pop" title="流行" />
@@ -362,7 +538,7 @@ const MusicRecommend = () => {
           color="primary"
           size={isMobile ? "sm" : "md"}
           startContent={<RiPlayFill size={18} />}
-          isDisabled={initialLoading || list.length === 0}
+          isDisabled={initialLoading || displayList.length === 0}
           onPress={handlePlayAll}
           className={isMobile ? "hidden dark:text-black" : "dark:text-black"}
         >
@@ -371,7 +547,7 @@ const MusicRecommend = () => {
       </div>
       {activeTab === "pop" && <NewMusicTop onLayoutChange={handlePopLayoutChange} />}
       <div className="relative">
-        {!initialLoading && list.length === 0 ? (
+        {!initialLoading && displayList.length === 0 ? (
           <div className="py-4">
             <Empty
               title={
@@ -393,7 +569,7 @@ const MusicRecommend = () => {
         ) : shouldUseGrid ? (
           <MusicRecommendGridList
             key={listKey}
-            items={list}
+            items={displayList}
             hasMore={hasMore}
             loading={loadingMore}
             onLoadMore={loadMore}
@@ -404,7 +580,7 @@ const MusicRecommend = () => {
         ) : (
           <MusicRecommendList
             key={listKey}
-            items={list}
+            items={displayList}
             hasMore={hasMore}
             loading={loadingMore}
             onLoadMore={loadMore}
@@ -413,7 +589,7 @@ const MusicRecommend = () => {
             onMenuAction={handleMenuAction}
           />
         )}
-        {initialLoading && list.length === 0 && (
+        {initialLoading && displayList.length === 0 && (
           <div className="flex h-[40vh] items-center justify-center">
             <Spinner size="lg" />
           </div>

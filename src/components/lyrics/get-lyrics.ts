@@ -43,6 +43,7 @@ export async function getLyricsByBili(params: WebPlayerParams): Promise<BiliLyri
   }
 
   const originalUrl = originalSub.subtitle_url_v2 || originalSub.subtitle_url;
+  if (!originalUrl) return null;
   const [originalRes, translatedRes] = await Promise.all([
     getLyric(originalUrl),
     translatedSub?.subtitle_url_v2 || translatedSub?.subtitle_url

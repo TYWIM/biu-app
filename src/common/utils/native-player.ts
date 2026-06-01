@@ -216,9 +216,9 @@ class NativeAudioAdapter implements PlaybackAudio {
 
   private pendingCount = 0;
 
-  private static readonly COMMAND_TIMEOUT_MS = 5000;
+  private static readonly COMMAND_TIMEOUT_MS = 30000;
 
-  private static readonly MAX_PENDING_COMMANDS = 10;
+  private static readonly MAX_PENDING_COMMANDS = 50;
 
   constructor() {
     void this.init();

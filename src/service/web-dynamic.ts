@@ -24,7 +24,7 @@ export interface WebDynamicFeedSpaceParams {
   timezone_offset?: number; // 时区偏移量, 默认 -480
   features?: string; // 功能开关
   platform?: string; // 平台, 如 web
-  type?: "video"; // 动态类型
+  type?: "all" | "video"; // 动态类型
 }
 
 /**

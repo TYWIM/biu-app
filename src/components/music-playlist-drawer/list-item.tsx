@@ -158,7 +158,7 @@ const ListItem = ({ data, isLogin, canDownload, isPlaying, onAction, onClose, on
           <DropdownMenu
             aria-label="播放列表操作菜单"
             items={getMenus({ isLogin, isLocal: data.source === "local", canDownload })}
-            onAction={onAction}
+            onAction={key => onAction(String(key))}
           >
             {item => (
               <DropdownItem key={item.key} color={item.color} startContent={item.icon}>

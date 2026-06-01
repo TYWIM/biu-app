@@ -1,6 +1,6 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 
-import { Button, Drawer, DrawerBody, DrawerContent, Image, Popover, PopoverContent, PopoverTrigger, Slider } from "@heroui/react";
+import { Button, Drawer, DrawerBody, DrawerContent, Image, Popover, PopoverContent, PopoverTrigger, Slider, Tab, Tabs } from "@heroui/react";
 import {
   RiArrowDownSLine,
   RiArrowLeftSLine,
@@ -18,6 +18,7 @@ import useIsMobile from "@/common/hooks/use-is-mobile";
 import { Themes } from "@/common/constants/theme";
 import { hexToHsl, resolveTheme, isHex } from "@/common/utils/color";
 import { shouldUseNativePlayer } from "@/common/utils/native-player";
+import CommentList from "@/components/comment-list";
 import Lyrics from "@/components/lyrics";
 import { useFullScreenPlayerSettings } from "@/store/full-screen-player-settings";
 import { useModalStore } from "@/store/modal";
@@ -164,6 +165,7 @@ const FullScreenPlayer = () => {
   const [isPageListOpen, setIsPageListOpen] = useState(false);
   const [isUiVisible, setIsUiVisible] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"lyrics" | "comments">("lyrics");
   const controlsRef = useRef<HTMLDivElement>(null);
   const [controlsHeight, setControlsHeight] = useState(80);
 
@@ -380,9 +382,8 @@ const FullScreenPlayer = () => {
                 scheduleHideUi(3000);
               }}
               onTouchStart={e => {
-                // 避免点击控制按钮时触发，防止闪烁
-                const target = e.target as HTMLElement;
-                if (target.closest("button") || target.closest("[role='button']")) {
+                // 移动端始终显示 UI，不需要切换
+                if (isMobile) {
                   return;
                 }
                 setIsUiVisible(true);
@@ -574,8 +575,28 @@ const FullScreenPlayer = () => {
                   </div>
 
                   {!isLocal && showLyrics && (
-                    <div className={clsx("min-h-0 flex-1 overflow-hidden px-4 pb-4", !showCover ? "pt-6" : "pt-4")}>
-                      <Lyrics color={lyricsColor} centered={!showCover} showControls={true} />
+                    <div className="min-h-0 flex-1 overflow-hidden">
+                      <Tabs
+                        size="sm"
+                        selectedKey={activeTab}
+                        onSelectionChange={key => setActiveTab(key as "lyrics" | "comments")}
+                        className="w-full"
+                        classNames={{
+                          base: "px-4 pt-2",
+                          tabList: "gap-2",
+                          cursor: "bg-primary/20",
+                        }}
+                      >
+                        <Tab key="lyrics" title="歌词" />
+                        <Tab key="comments" title="评论" />
+                      </Tabs>
+                      <div className="h-[calc(100%-40px)] overflow-hidden px-4 pb-4">
+                        {activeTab === "lyrics" ? (
+                          <Lyrics color={lyricsColor} centered={!showCover} showControls={true} />
+                        ) : (
+                          <CommentList avid={Number(playItem?.aid) || 0} />
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -636,12 +657,12 @@ const FullScreenPlayer = () => {
               <div
                 ref={controlsRef}
                 className={clsx(
-                  "absolute inset-x-0 bottom-0 z-40 transform transition-[transform,opacity] duration-300 ease-out",
+                  "absolute inset-x-0 bottom-0 z-40",
                   isMobile
-                    ? mobileControlsStateClassName
+                    ? "pointer-events-auto"
                     : isUiVisible
-                      ? "pointer-events-auto translate-y-0 opacity-100 blur-0"
-                      : "pointer-events-none translate-y-full opacity-0 blur-0",
+                      ? "pointer-events-auto translate-y-0 opacity-100"
+                      : "pointer-events-none translate-y-full opacity-0",
                 )}
               >
                 <div

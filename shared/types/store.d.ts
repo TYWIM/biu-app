@@ -6,8 +6,10 @@ declare global {
   type StoreDataMap = {
     [StoreNameMap.AppSettings]: { appSettings: AppSettings };
     [StoreNameMap.UserLoginInfo]: UserInfo;
+    [StoreNameMap.MediaDownloads]: MediaDownloadsData;
     [StoreNameMap.ShortcutSettings]: ShortcutSettings;
     [StoreNameMap.LyricsCache]: Record<string, MusicLyrics>;
+    [StoreNameMap.PlaybackRate]: Record<string, number>;
   };
 }
 

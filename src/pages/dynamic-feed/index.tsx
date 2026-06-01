@@ -1,6 +1,6 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 
-import { Spinner, Button } from "@heroui/react";
+import { Spinner, Button, Tab, Tabs } from "@heroui/react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
 import useIsMobile from "@/common/hooks/use-is-mobile";
@@ -9,6 +9,9 @@ import { getWebDynamicFeedAll, getWebDynamicFeedSpace, type WebDynamicItem } fro
 
 import AuthorList from "./author-list";
 import DynamicItem from "./item";
+
+type FeedType = "video" | "all";
+type SortMode = "latest" | "hot";
 
 const DynamicFeedPage = () => {
   const isMobile = useIsMobile();
@@ -19,6 +22,8 @@ const DynamicFeedPage = () => {
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedAuthorMid, setSelectedAuthorMid] = useState<number | null>(null);
+  const [feedType, setFeedType] = useState<FeedType>("video");
+  const [sortMode, setSortMode] = useState<SortMode>("latest");
   const requestIdRef = useRef(0);
 
   const scrollRef = useRef<ScrollRefObject>(null);
@@ -32,7 +37,12 @@ const DynamicFeedPage = () => {
   }, []);
 
   const fetchData = useCallback(
-    async (currentOffset: string = "", hostMid: number | null = null, requestId = requestIdRef.current) => {
+    async (
+      currentOffset: string = "",
+      hostMid: number | null = null,
+      requestId = requestIdRef.current,
+      requestedFeedType: FeedType = "video",
+    ) => {
       if (requestId !== requestIdRef.current || isLoadingRef.current) return;
       isLoadingRef.current = true;
       setIsLoading(true);
@@ -43,11 +53,11 @@ const DynamicFeedPage = () => {
           ? await getWebDynamicFeedSpace({
               host_mid: hostMid,
               offset: currentOffset,
-              type: "video",
+              type: requestedFeedType,
               platform: "web",
             })
           : await getWebDynamicFeedAll({
-              type: "video",
+              type: requestedFeedType,
               offset: currentOffset,
               platform: "web",
             });
@@ -76,11 +86,24 @@ const DynamicFeedPage = () => {
 
   useEffect(() => {
     const requestId = invalidateRequests();
-    fetchData("", null, requestId);
+    fetchData("", null, requestId, feedType);
     return () => {
       invalidateRequests();
     };
   }, [fetchData, invalidateRequests]);
+
+  const displayItems = useMemo(() => {
+    if (sortMode === "latest") return items;
+
+    return [...items].sort((a, b) => {
+      const aStat = a.modules.module_stat;
+      const bStat = b.modules.module_stat;
+      const aScore = (aStat?.like?.count || 0) + (aStat?.comment?.count || 0) * 2 + (aStat?.forward?.count || 0) * 3;
+      const bScore = (bStat?.like?.count || 0) + (bStat?.comment?.count || 0) * 2 + (bStat?.forward?.count || 0) * 3;
+      if (bScore !== aScore) return bScore - aScore;
+      return (b.modules.module_author.pub_ts || 0) - (a.modules.module_author.pub_ts || 0);
+    });
+  }, [items, sortMode]);
 
   useEffect(() => {
     const initScrollElement = () => {
@@ -97,7 +120,7 @@ const DynamicFeedPage = () => {
   }, []);
 
   const rowVirtualizer = useVirtualizer({
-    count: items.length,
+    count: displayItems.length,
     getScrollElement: () => scrollElement,
     estimateSize: () => (isMobile ? 420 : 280),
     overscan: 5,
@@ -107,9 +130,9 @@ const DynamicFeedPage = () => {
     if (!scrollElement || isLoading || !hasMore || error) return;
     const { scrollTop, scrollHeight, clientHeight } = scrollElement;
     if (scrollHeight - scrollTop - clientHeight < 200) {
-      fetchData(offset, selectedAuthorMid, requestIdRef.current);
+      fetchData(offset, selectedAuthorMid, requestIdRef.current, feedType);
     }
-  }, [scrollElement, isLoading, hasMore, offset, error, fetchData, selectedAuthorMid]);
+  }, [scrollElement, isLoading, hasMore, offset, error, fetchData, selectedAuthorMid, feedType]);
 
   const handleSelectAuthor = useCallback(
     (mid: number | null) => {
@@ -120,9 +143,24 @@ const DynamicFeedPage = () => {
       setHasMore(true);
       setItems([]);
       setError(null);
-      fetchData("", nextMid, requestId);
+      fetchData("", nextMid, requestId, feedType);
     },
-    [fetchData, invalidateRequests, selectedAuthorMid],
+    [feedType, fetchData, invalidateRequests, selectedAuthorMid],
+  );
+
+  const handleFeedTypeChange = useCallback(
+    (key: React.Key) => {
+      const nextType = key as FeedType;
+      if (nextType === feedType) return;
+      const requestId = invalidateRequests();
+      setFeedType(nextType);
+      setOffset("");
+      setHasMore(true);
+      setItems([]);
+      setError(null);
+      fetchData("", selectedAuthorMid, requestId, nextType);
+    },
+    [feedType, fetchData, invalidateRequests, selectedAuthorMid],
   );
 
   useEffect(() => {
@@ -140,7 +178,27 @@ const DynamicFeedPage = () => {
     <div className={isMobile ? "flex h-full w-full flex-col" : "flex h-full w-full"}>
       <AuthorList selectedAuthorMid={selectedAuthorMid} onSelect={handleSelectAuthor} />
 
-      <div className="flex min-h-0 min-w-0 flex-1">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <div className={isMobile ? "border-divider/40 flex flex-col gap-2 border-b px-4 py-3" : "border-divider/40 flex items-center justify-between gap-3 border-b px-6 py-3"}>
+          <Tabs
+            size="sm"
+            selectedKey={feedType}
+            onSelectionChange={handleFeedTypeChange}
+            variant="light"
+          >
+            <Tab key="video" title="视频动态" />
+            <Tab key="all" title="全部动态" />
+          </Tabs>
+          <Tabs
+            size="sm"
+            selectedKey={sortMode}
+            onSelectionChange={key => setSortMode(key as SortMode)}
+            variant="light"
+          >
+            <Tab key="latest" title="最新" />
+            <Tab key="hot" title="热度" />
+          </Tabs>
+        </div>
         <ScrollContainer ref={scrollRef} className={isMobile ? "h-full w-full px-0" : "h-full w-full px-4"}>
           <div
             className={isMobile ? "relative w-full px-4 py-3" : "relative w-full px-4 py-4"}
@@ -149,7 +207,7 @@ const DynamicFeedPage = () => {
             }}
           >
             {rowVirtualizer.getVirtualItems().map(virtualItem => {
-              const item = items[virtualItem.index];
+              const item = displayItems[virtualItem.index];
               return (
                 <div
                   key={virtualItem.key}
@@ -176,7 +234,7 @@ const DynamicFeedPage = () => {
             {!isLoading && error && (
               <div className="flex flex-col items-center gap-2">
                 <p className="text-danger">{error}</p>
-                <Button size="sm" onPress={() => fetchData(offset, selectedAuthorMid, requestIdRef.current)}>
+                <Button size="sm" onPress={() => fetchData(offset, selectedAuthorMid, requestIdRef.current, feedType)}>
                   重试
                 </Button>
               </div>
