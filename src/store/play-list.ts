@@ -9,6 +9,7 @@ import { immer } from "zustand/middleware/immer";
 
 import { getPlayModeList, PlayMode } from "@/common/constants/audio";
 import { getAudioUrl, getDashUrl, getUrlExpirySeconds, isUrlValid } from "@/common/utils/audio";
+import { getOfflineAudioUrl, isDeviceOnline } from "@/common/utils/offline-playback";
 import {
   createPlaybackAudio,
   type PlaybackAudio,
@@ -547,14 +548,21 @@ export const usePlayList = create<State & Action>()(
               }
             });
           } else {
-            log.error("无法获取音频播放链接", {
-              type: "mv",
-              bvid: currentPlayItem.bvid,
-              cid: currentPlayItem.cid,
-              title: currentPlayItem.title,
-              mvPlayData,
-            });
-            toastError("无法获取音频播放链接");
+            const offlineUrl = await getOfflineAudioUrl(currentPlayItem.bvid, undefined, undefined);
+            if (offlineUrl) {
+              log.info("[offline] 使用离线缓存播放 MV", { bvid: currentPlayItem.bvid });
+              audio.src = offlineUrl;
+              addToast({ title: "使用离线缓存播放", color: "default" });
+            } else {
+              log.error("无法获取音频播放链接", {
+                type: "mv",
+                bvid: currentPlayItem.bvid,
+                cid: currentPlayItem.cid,
+                title: currentPlayItem.title,
+                mvPlayData,
+              });
+              toastError("无法获取音频播放链接");
+            }
           }
         }
 
@@ -576,13 +584,20 @@ export const usePlayList = create<State & Action>()(
               }
             });
           } else {
-            log.error("无法获取音频播放链接", {
-              type: "audio",
-              sid: currentPlayItem.sid,
-              title: currentPlayItem.title,
-              musicPlayData,
-            });
-            toastError("无法获取音频播放链接");
+            const offlineUrl = await getOfflineAudioUrl(undefined, undefined, currentPlayItem.sid);
+            if (offlineUrl) {
+              log.info("[offline] 使用离线缓存播放音频", { sid: currentPlayItem.sid });
+              audio.src = offlineUrl;
+              addToast({ title: "使用离线缓存播放", color: "default" });
+            } else {
+              log.error("无法获取音频播放链接", {
+                type: "audio",
+                sid: currentPlayItem.sid,
+                title: currentPlayItem.title,
+                musicPlayData,
+              });
+              toastError("无法获取音频播放链接");
+            }
           }
         }
       };
@@ -784,15 +799,28 @@ export const usePlayList = create<State & Action>()(
               get().next();
             };
 
-            const handleOffline = () => {
-              log.warn("[play-list] network offline, pausing playback");
+            const handleOffline = async () => {
+              log.warn("[play-list] network offline");
               set({ isOnline: false });
+              const currentItem = get().list.find(i => i.id === get().playId);
+              if (currentItem && currentItem.source !== "local") {
+                const offlineUrl = await getOfflineAudioUrl(currentItem.bvid, undefined, currentItem.sid);
+                if (offlineUrl) {
+                  log.info("[offline] 断网，切换到离线缓存播放");
+                  const currentTime = audio.currentTime;
+                  audio.src = offlineUrl;
+                  audio.currentTime = currentTime;
+                  void audio.play();
+                  addToast({ title: "网络已断开，使用离线缓存播放", color: "default" });
+                  return;
+                }
+              }
               if (!audio.paused) {
                 audio.pause();
               }
               addToast({
                 title: "网络已断开",
-                description: "请检查网络连接",
+                description: "无可用离线缓存",
                 color: "warning",
               });
             };

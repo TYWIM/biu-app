@@ -1,10 +1,11 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 
-import { Button, Drawer, DrawerBody, DrawerContent, Image, Popover, PopoverContent, PopoverTrigger, Slider, Tab, Tabs } from "@heroui/react";
+import { addToast, Button, Drawer, DrawerBody, DrawerContent, Image, Popover, PopoverContent, PopoverTrigger, Slider, Tab, Tabs } from "@heroui/react";
 import {
   RiArrowDownSLine,
   RiArrowLeftSLine,
   RiSettings3Line,
+  RiShareForwardLine,
   RiVolumeDownLine,
   RiVolumeMuteLine,
   RiVolumeUpLine,
@@ -525,6 +526,34 @@ const FullScreenPlayer = () => {
                       <FullScreenPlayerSettingsPanel isUiVisible={isUiVisible} />
                     </PopoverContent>
                   </Popover>
+                  {isMobile && playItem?.bvid && (
+                    <IconButton
+                      title="分享"
+                      tooltip="分享"
+                      className={mobileHeaderButtonClassName}
+                      onPress={async () => {
+                        const url = `https://www.bilibili.com/video/${playItem.bvid}`;
+                        try {
+                          if (navigator.share) {
+                            await navigator.share({ title: displayTitle, url });
+                          } else {
+                            await navigator.clipboard.writeText(`${displayTitle} ${url}`);
+                            addToast({ title: "链接已复制", color: "success" });
+                          }
+                        } catch (err) {
+                          if (err instanceof DOMException && err.name === "AbortError") return;
+                          try {
+                            await navigator.clipboard.writeText(`${displayTitle} ${url}`);
+                            addToast({ title: "链接已复制", color: "success" });
+                          } catch {
+                            addToast({ title: "分享失败", color: "danger" });
+                          }
+                        }
+                      }}
+                    >
+                      <RiShareForwardLine size={22} />
+                    </IconButton>
+                  )}
                 </div>
                 <div className="window-no-drag top-0 right-0">
                   {!isMobile && (platform === "linux" || platform === "windows") ? <WindowAction /> : null}
@@ -635,7 +664,30 @@ const FullScreenPlayer = () => {
                         !showCover ? "flex items-center justify-center" : "",
                       )}
                     >
-                      <Lyrics color={lyricsColor} centered={!showCover} showControls={isUiVisible} />
+                      <div className={clsx("flex h-full w-full flex-col", !showCover && "max-w-2xl")}>
+                        <Tabs
+                          size="sm"
+                          selectedKey={activeTab}
+                          onSelectionChange={key => setActiveTab(key as "lyrics" | "comments")}
+                          variant="light"
+                          className="w-full flex-none"
+                          classNames={{
+                            base: "pb-2",
+                            tabList: "gap-2",
+                            cursor: "bg-primary/20",
+                          }}
+                        >
+                          <Tab key="lyrics" title="歌词" />
+                          <Tab key="comments" title="评论" />
+                        </Tabs>
+                        <div className="min-h-0 flex-1 overflow-hidden">
+                          {activeTab === "lyrics" ? (
+                            <Lyrics color={lyricsColor} centered={!showCover} showControls={isUiVisible} />
+                          ) : (
+                            <CommentList avid={Number(playItem?.aid) || 0} />
+                          )}
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -711,7 +763,10 @@ const FullScreenPlayer = () => {
                           secondaryIconSize={22}
                           primaryIconSize={52}
                         />
-                        <OpenPlaylistDrawerButton className={mobileSecondaryControlClassName} iconSize={18} tooltip="播放列表" />
+                        <div className="flex items-center gap-1">
+                          <OpenPlaylistDrawerButton className={mobileSecondaryControlClassName} iconSize={18} tooltip="播放列表" />
+                          <Equalizer />
+                        </div>
                       </div>
                     </>
                   ) : (
