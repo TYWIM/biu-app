@@ -33,7 +33,6 @@ import MusicPlayControl from "../music-play-control";
 import MusicPlayMode from "../music-play-mode";
 import MusicPlayProgress from "../music-play-progress";
 import OpenPlaylistDrawerButton from "../open-playlist-drawer-button";
-import WindowAction from "../window-action";
 import { useGlassmorphism } from "./glassmorphism";
 import PageList from "./page-list";
 import FullScreenPlayerSettingsPanel from "./settings-panel";
@@ -141,8 +140,6 @@ const MobileVolumeControl = memo(({ isDark }: { isDark: boolean }) => {
 });
 
 const FullScreenPlayer = () => {
-  const electron = typeof window !== "undefined" ? window.electron : undefined;
-  const platform = electron?.getPlatform?.();
   const isMobile = useIsMobile();
   const isOpen = useModalStore(s => s.isFullScreenPlayerOpen);
   const close = useModalStore(s => s.closeFullScreenPlayer);
@@ -362,7 +359,7 @@ const FullScreenPlayer = () => {
         })}
         style={{
           ...themeVars,
-          cursor: !isMobile && !isUiVisible ? "none" : "auto",
+          cursor: "auto",
         }}
       >
         {onClose =>
@@ -371,17 +368,6 @@ const FullScreenPlayer = () => {
           ) : (
             <DrawerBody
               className={clsx("group/player relative gap-0 overflow-hidden bg-transparent p-0", isMobile ? "flex flex-col" : "flex flex-row")}
-              onMouseEnter={handleMouseEnter}
-              onMouseLeave={handleMouseLeave}
-              onMouseMove={() => {
-                if (isMobile) {
-                  return;
-                }
-                if (!isUiVisible) {
-                  setIsUiVisible(true);
-                }
-                scheduleHideUi(3000);
-              }}
               onTouchStart={e => {
                 // 移动端始终显示 UI，不需要切换
                 if (isMobile) {
@@ -556,7 +542,7 @@ const FullScreenPlayer = () => {
                   )}
                 </div>
                 <div className="window-no-drag top-0 right-0">
-                  {!isMobile && (platform === "linux" || platform === "windows") ? <WindowAction /> : null}
+                  
                 </div>
               </div>
 
@@ -783,20 +769,7 @@ const FullScreenPlayer = () => {
                 </div>
               </div>
 
-              {!isMobile && isUiVisible && playItem.hasMultiPart && !isPageListOpen && (
-                <div className="absolute top-1/2 right-0 z-20 -translate-y-1/2">
-                  <IconButton
-                    className="h-24 w-6 min-w-0 rounded-l-xl rounded-r-none bg-white/10 px-0 backdrop-blur-md transition-colors hover:bg-white/20"
-                    onPress={() => setIsPageListOpen(!isPageListOpen)}
-                    tooltip="显示分集列表"
-                    tooltipProps={{
-                      placement: "left",
-                    }}
-                  >
-                    <RiArrowLeftSLine size={24} className="text-white/80" />
-                  </IconButton>
-                </div>
-              )}
+              
 
               <PageList
                 ref={pageListRef}

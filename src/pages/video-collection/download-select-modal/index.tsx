@@ -29,9 +29,8 @@ interface MediaData {
 
 const DownloadSelectModal = ({ type, outputFileType, mediaCount, isOpen, onOpenChange }: DownloadSelectModalProps) => {
   const { id } = useParams();
-  const addMediaDownloadTaskList = typeof window !== "undefined" ? window.electron?.addMediaDownloadTaskList : undefined;
-  const canDownloadAll = Boolean(addMediaDownloadTaskList);
   const [list, setList] = useState<MediaData[]>([]);
+  const canDownloadAll = false; // Electron removed
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const getMedias = async () => {
@@ -74,33 +73,8 @@ const DownloadSelectModal = ({ type, outputFileType, mediaCount, isOpen, onOpenC
   };
 
   const handleDownload = async () => {
-    const downloadTaskList = addMediaDownloadTaskList;
-    if (!downloadTaskList) {
-      onOpenChange(false);
-      addToast({ title: "浏览器预览模式不支持批量下载", color: "default" });
-      return;
-    }
-
-    if (selectedIds.length) {
-      await downloadTaskList(
-        selectedIds.map(id => {
-          const media = list.find(item => item.id === id);
-          return {
-            outputFileType,
-            bvid: media?.bvid,
-            sid: media?.sid,
-            title: media?.title as string,
-            cover: media?.cover,
-          };
-        }),
-      );
-
-      onOpenChange(false);
-      addToast({
-        title: "下载任务已添加",
-        color: "success",
-      });
-    }
+    addToast({ title: "浏览器预览模式不支持批量下载", color: "default" });
+    onOpenChange(false);
   };
 
   useEffect(() => {

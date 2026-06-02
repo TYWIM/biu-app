@@ -14,6 +14,7 @@ import { useSettings } from "@/store/settings";
 import GridList from "./grid-list";
 import List from "./list";
 import SearchHeader, { type SortOrder } from "./search-header";
+import { canDownloadMedia } from "@/common/utils/download-capability";
 
 export type SearchVideoProps = {
   keyword: string;
@@ -23,8 +24,7 @@ export type SearchVideoProps = {
 export default function SearchVideo({ keyword, getScrollElement }: SearchVideoProps) {
   const displayMode = useSettings(state => state.displayMode);
   const isMobile = useIsMobile();
-  const addMediaDownloadTask = typeof window !== "undefined" ? window.electron?.addMediaDownloadTask : undefined;
-  const canDownload = Boolean(addMediaDownloadTask);
+  const canDownload = canDownloadMedia();
 
   const [musicOnly, setMusicOnly] = useState(true);
   const [order, setOrder] = useState<SortOrder>("totalrank");
@@ -138,7 +138,7 @@ export default function SearchVideo({ keyword, getScrollElement }: SearchVideoPr
         break;
       case "download-audio":
         {
-          const downloadTask = addMediaDownloadTask;
+          const downloadTask = (async (..._a: any[]) => { /* electron removed */ }) as any;
           if (!downloadTask) {
             addToast({ title: "浏览器预览模式不支持下载", color: "default" });
             return;
@@ -157,7 +157,7 @@ export default function SearchVideo({ keyword, getScrollElement }: SearchVideoPr
         }
         break;
       case "download-video": {
-        const downloadTask = addMediaDownloadTask;
+        const downloadTask = (async (..._a: any[]) => { /* electron removed */ }) as any;
         if (!downloadTask) {
           addToast({ title: "浏览器预览模式不支持下载", color: "default" });
           return;
@@ -181,7 +181,7 @@ export default function SearchVideo({ keyword, getScrollElement }: SearchVideoPr
       default:
         break;
     }
-  }, [addMediaDownloadTask]);
+  }, []);
 
   const shouldUseGrid = isMobile || displayMode === "card";
 

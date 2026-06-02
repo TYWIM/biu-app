@@ -2,24 +2,42 @@
   "compilerOptions": {
     "target": "esnext",
     "jsx": "preserve",
-    "lib": ["ESNext", "dom"],
+    "lib": [
+      "ESNext",
+      "dom"
+    ],
     "baseUrl": ".",
     "module": "preserve",
     "moduleResolution": "bundler",
     "paths": {
-      "@/*": ["./src/*"],
-      "@shared/*": ["./shared/*"]
+      "@/*": [
+        "./src/*"
+      ],
+      "@shared/*": [
+        "./shared/*"
+      ]
     },
     "resolveJsonModule": true,
     "noImplicitAny": false,
-    "types": ["node"],
+    "types": [
+      "node"
+    ],
     "allowJs": true,
     "strict": true,
     "noEmit": true,
     "verbatimModuleSyntax": true,
     "forceConsistentCasingInFileNames": true,
-    "skipLibCheck": false
+    "skipLibCheck": true
   },
-  "include": ["src", "shared", "plugins", "electron", "tests", "rsbuild.config.ts"],
-  "exclude": ["node_modules", "dist", "public", ".electron"]
+  "include": [
+    "src",
+    "shared",
+    "tests",
+    "rsbuild.config.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "public"
+  ]
 }

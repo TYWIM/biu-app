@@ -6,10 +6,11 @@ import {
   RiPlayCircleLine,
   RiPlayListAddLine,
 } from "@remixicon/react";
+import { canDownloadMedia } from "@/common/utils/download-capability";
 
 export const getContextMenus = ({ is_pgc, canDownload }: { is_pgc: boolean; canDownload?: boolean }) => {
   const cannotPlay = is_pgc;
-  const resolvedCanDownload = canDownload ?? (typeof window !== "undefined" && Boolean(window.electron?.addMediaDownloadTask));
+  const resolvedCanDownload = canDownload ?? canDownloadMedia();
 
   return [
     {

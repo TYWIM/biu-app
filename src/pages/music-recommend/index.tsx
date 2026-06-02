@@ -22,6 +22,7 @@ import type { RecommendItem } from "./types";
 import MusicRecommendGridList from "./grid-list";
 import MusicRecommendList from "./list";
 import NewMusicTop from "./new-music-top";
+import { canDownloadMedia } from "@/common/utils/download-capability";
 
 const PAGE_SIZE = 20;
 const REGION_PAGE_SIZE = 15;
@@ -178,8 +179,7 @@ const MusicRecommend = () => {
   const scrollerRef = useRef<ScrollRefObject>(null);
   const isMobile = useIsMobile();
   const isBrowserPreview = checkIsBrowserPreview();
-  const addMediaDownloadTask = typeof window !== "undefined" ? window.electron?.addMediaDownloadTask : undefined;
-  const canDownload = Boolean(addMediaDownloadTask);
+    const canDownload = canDownloadMedia();
   const user = useUser(state => state.user);
   const playQueue = usePlayList(state => state.list);
 
@@ -427,7 +427,7 @@ const MusicRecommend = () => {
           break;
         case "download-audio":
           {
-            const downloadTask = addMediaDownloadTask;
+            const downloadTask = (async (..._a: any[]) => { /* electron removed */ }) as any;
             if (!downloadTask) {
               addToast({ title: "浏览器预览模式不支持下载", color: "default" });
               return;
@@ -446,7 +446,7 @@ const MusicRecommend = () => {
           }
           break;
         case "download-video": {
-          const downloadTask = addMediaDownloadTask;
+          const downloadTask = (async (..._a: any[]) => { /* electron removed */ }) as any;
           if (!downloadTask) {
             addToast({ title: "浏览器预览模式不支持下载", color: "default" });
             return;
@@ -473,7 +473,7 @@ const MusicRecommend = () => {
           break;
       }
     },
-    [addMediaDownloadTask],
+    [],
   );
 
   return (

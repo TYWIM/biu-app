@@ -21,10 +21,10 @@ const VideoPagesDownloadSelectModal = () => {
     );
 
   const { outputFileType, title, cover, bvid } = videoPageDownloadModalData || {};
-  const addMediaDownloadTask = typeof window !== "undefined" ? window.electron?.addMediaDownloadTask : undefined;
-  const addMediaDownloadTaskList = typeof window !== "undefined" ? window.electron?.addMediaDownloadTaskList : undefined;
-  const canDownload = Boolean(addMediaDownloadTask);
-  const canBatchDownload = Boolean(addMediaDownloadTaskList);
+  // Electron download removed - mobile only
+  // Electron batch download removed
+  const canDownload = false; // mobile only
+  const canBatchDownload = false; // mobile only
 
   const [selectedCids, setSelectedCids] = useState<string[]>([]);
 
@@ -38,7 +38,7 @@ const VideoPagesDownloadSelectModal = () => {
       if (res?.data?.length > 1) {
         setSelectedCids(res?.data?.map(item => String(item.cid)) || []);
       } else if (res?.data?.[0]?.cid) {
-        const downloadTask = addMediaDownloadTask;
+        const downloadTask = (async (..._a: any[]) => { /* electron removed */ }) as any;
         if (!downloadTask) {
           addToast({ title: "浏览器预览模式不支持下载分集", color: "default" });
           onVideoPageDownloadModalOpenChange(false);
@@ -69,7 +69,7 @@ const VideoPagesDownloadSelectModal = () => {
   );
 
   const downloadSelected = async () => {
-    const downloadTaskList = addMediaDownloadTaskList;
+    const downloadTaskList = (async (..._a: any[]) => { /* electron removed */ }) as any;
     if (!downloadTaskList) {
       addToast({ title: "浏览器预览模式不支持批量下载分集", color: "default" });
       onVideoPageDownloadModalOpenChange(false);

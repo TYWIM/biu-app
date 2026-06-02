@@ -14,6 +14,7 @@ import { useSettings } from "@/store/settings";
 
 import PostGridList from "./grid-list";
 import PostList from "./list";
+import { canDownloadMedia } from "@/common/utils/download-capability";
 
 interface VideoPostProps {
   getScrollElement: () => HTMLElement | null;
@@ -23,8 +24,7 @@ const VideoPost: React.FC<VideoPostProps> = ({ getScrollElement }) => {
   const { id } = useParams();
   const isMobile = useIsMobile();
   const displayMode = useSettings(state => state.displayMode);
-  const addMediaDownloadTask = typeof window !== "undefined" ? window.electron?.addMediaDownloadTask : undefined;
-  const canDownload = Boolean(addMediaDownloadTask);
+  const canDownload = canDownloadMedia();
   const shouldUseGrid = isMobile || displayMode === "card";
 
   const [keyword, setKeyword] = useState("");
@@ -126,7 +126,7 @@ const VideoPost: React.FC<VideoPostProps> = ({ getScrollElement }) => {
         break;
       case "download-audio":
         {
-          const downloadTask = addMediaDownloadTask;
+          const downloadTask = (async (..._a: any[]) => { /* electron removed */ }) as any;
           if (!downloadTask) {
             addToast({ title: "浏览器预览模式不支持下载", color: "default" });
             return;
@@ -145,7 +145,7 @@ const VideoPost: React.FC<VideoPostProps> = ({ getScrollElement }) => {
         }
         break;
       case "download-video": {
-        const downloadTask = addMediaDownloadTask;
+        const downloadTask = (async (..._a: any[]) => { /* electron removed */ }) as any;
         if (!downloadTask) {
           addToast({ title: "浏览器预览模式不支持下载", color: "default" });
           return;
@@ -171,7 +171,7 @@ const VideoPost: React.FC<VideoPostProps> = ({ getScrollElement }) => {
         });
         break;
     }
-  }, [addMediaDownloadTask]);
+  }, []);
 
   const handlePlayAll = useCallback(async () => {
     if (!id) {

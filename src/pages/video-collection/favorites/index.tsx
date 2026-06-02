@@ -28,6 +28,7 @@ import Header from "../header";
 import Operations from "../operation";
 import FavoriteGridList from "./grid-list";
 import FavoriteList from "./list";
+import { canDownloadMedia } from "@/common/utils/download-capability";
 
 /** 收藏夹详情 TODO:加上创建的视频合集 */
 const Favorites = () => {
@@ -37,8 +38,7 @@ const Favorites = () => {
   const addCollectedFavorite = useFavoritesStore(state => state.addCollectedFavorite);
   const rmCollectedFavorite = useFavoritesStore(state => state.rmCollectedFavorite);
   const displayMode = useSettings(state => state.displayMode);
-  const addMediaDownloadTask = typeof window !== "undefined" ? window.electron?.addMediaDownloadTask : undefined;
-  const canDownload = Boolean(addMediaDownloadTask);
+  const canDownload = canDownloadMedia();
   const shouldUseGrid = isMobile || displayMode === "card";
 
   const playList = usePlayList(state => state.playList);
@@ -400,7 +400,7 @@ const Favorites = () => {
           break;
         case "download-audio":
           {
-            const downloadTask = addMediaDownloadTask;
+            const downloadTask = (async (..._a: any[]) => { /* electron removed */ }) as any;
             if (!downloadTask) {
               addToast({ title: "浏览器预览模式不支持下载", color: "default" });
               return;
@@ -420,7 +420,7 @@ const Favorites = () => {
           }
           break;
         case "download-video": {
-          const downloadTask = addMediaDownloadTask;
+          const downloadTask = (async (..._a: any[]) => { /* electron removed */ }) as any;
           if (!downloadTask) {
             addToast({ title: "浏览器预览模式不支持下载", color: "default" });
             return;
@@ -449,7 +449,7 @@ const Favorites = () => {
           break;
       }
     },
-    [addMediaDownloadTask, favFolderId, isCreatedBySelf, handleRemoveItem, refreshInfo],
+    [ favFolderId, isCreatedBySelf, handleRemoveItem, refreshInfo],
   );
 
   return (

@@ -2,17 +2,15 @@ import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 
 import { Tab, Tabs } from "@heroui/react";
+import { App as CapApp } from "@capacitor/app";
 import { useShallow } from "zustand/react/shallow";
 
 import useIsMobile from "@/common/hooks/use-is-mobile";
-import { isCapacitorNative } from "@/common/utils/runtime-platform";
 import ScrollContainer from "@/components/scroll-container";
 import { useAppUpdateStore } from "@/store/app-update";
 import { useSettings } from "@/store/settings";
 
 import MenuSettings from "./menu-settings";
-import ProxySettings from "./proxy-settings";
-import ShortcutSettingsPage from "./shortcut-settings";
 import { SystemSettingsTab } from "./system-settings";
 
 const useSystemSettingsForm = () => {
@@ -22,18 +20,13 @@ const useSystemSettingsForm = () => {
     primaryColor,
     backgroundColor,
     borderRadius,
-    downloadPath,
-    closeWindowOption,
-    autoStart,
     audioQuality,
     followSystemVolume,
     hiddenMenuKeys,
     displayMode,
-    ffmpegPath,
     themeMode,
     pageTransition,
     showSearchHistory,
-    proxySettings,
     reportPlayHistory,
   } = useSettings(
     useShallow(s => ({
@@ -41,18 +34,13 @@ const useSystemSettingsForm = () => {
       primaryColor: s.primaryColor,
       backgroundColor: s.backgroundColor,
       borderRadius: s.borderRadius,
-      downloadPath: s.downloadPath,
-      closeWindowOption: s.closeWindowOption,
-      autoStart: s.autoStart,
       audioQuality: s.audioQuality,
       followSystemVolume: s.followSystemVolume,
       hiddenMenuKeys: s.hiddenMenuKeys,
       displayMode: s.displayMode,
-      ffmpegPath: s.ffmpegPath,
       themeMode: s.themeMode,
       pageTransition: s.pageTransition,
       showSearchHistory: s.showSearchHistory,
-      proxySettings: s.proxySettings,
       reportPlayHistory: s.reportPlayHistory,
     })),
   );
@@ -70,24 +58,13 @@ const useSystemSettingsForm = () => {
       primaryColor,
       backgroundColor,
       borderRadius,
-      downloadPath,
-      closeWindowOption,
-      autoStart,
       audioQuality,
       followSystemVolume,
       hiddenMenuKeys,
       displayMode,
-      ffmpegPath,
       themeMode,
       pageTransition,
       showSearchHistory,
-      proxySettings: proxySettings ?? {
-        type: "none",
-        host: "",
-        port: undefined,
-        username: "",
-        password: "",
-      },
       reportPlayHistory,
     },
   });
@@ -97,16 +74,12 @@ const useSystemSettingsForm = () => {
       if (!name) return;
       const patch = { [name]: (values as any)[name] } as Partial<AppSettings>;
       updateSettings(patch);
-      if (name === "proxySettings" && values.proxySettings && window.electron?.setProxySettings) {
-        window.electron.setProxySettings(values.proxySettings as ProxySettings);
-      }
     });
     return () => subscription.unsubscribe();
   }, [watch, updateSettings]);
 
   useEffect(() => {
-    const versionPromise = window.electron?.getAppVersion?.();
-    versionPromise?.then(v => setAppVersion(v));
+    CapApp.getInfo().then(info => setAppVersion(info.version)).catch(() => {});
   }, []);
 
   return {
@@ -122,7 +95,6 @@ const useSystemSettingsForm = () => {
 const SettingsPage = () => {
   const system = useSystemSettingsForm();
   const isMobile = useIsMobile();
-  const showDesktopOnlySettings = !isCapacitorNative();
 
   return (
     <ScrollContainer enableBackToTop className="h-full w-full">
@@ -145,16 +117,6 @@ const SettingsPage = () => {
             <Tab key="menu" title="菜单设置">
               <MenuSettings control={system.control} />
             </Tab>
-            {showDesktopOnlySettings && (
-              <Tab key="shortcut" title="快捷键设置">
-                <ShortcutSettingsPage />
-              </Tab>
-            )}
-            {showDesktopOnlySettings && (
-              <Tab key="proxy" title="代理设置">
-                <ProxySettings control={system.control} />
-              </Tab>
-            )}
           </Tabs>
         </div>
       </div>

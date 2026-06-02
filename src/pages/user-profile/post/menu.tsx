@@ -1,7 +1,8 @@
 import { RiFileMusicLine, RiFileVideoLine, RiPlayCircleLine, RiPlayListAddLine, RiStarLine } from "@remixicon/react";
+import { canDownloadMedia } from "@/common/utils/download-capability";
 
 export const getContextMenus = ({ canDownload }: { canDownload?: boolean } = {}) => {
-  const resolvedCanDownload = canDownload ?? (typeof window !== "undefined" && Boolean(window.electron?.addMediaDownloadTask));
+  const resolvedCanDownload = canDownload ?? canDownloadMedia();
 
   return [
     {

@@ -332,10 +332,6 @@ const updatePlaybackState = () => {
   if ("mediaSession" in navigator) {
     navigator.mediaSession.playbackState = audio.paused ? "paused" : "playing";
   }
-
-  if (window.electron && window.electron.updatePlaybackState) {
-    window.electron.updatePlaybackState(!audio.paused);
-  }
 };
 
 const playAudioSafely = async () => {

@@ -17,7 +17,7 @@ const ImportExport = () => {
   const handleExport = async () => {
     try {
       const settingStore = await getRuntimeStore(StoreNameMap.AppSettings);
-      const exportData = settingStore?.appSettings ?? getSettings() ?? defaultAppSettings;
+      const exportData = settingStore ?? getSettings() ?? defaultAppSettings;
       const blob = new Blob([JSON.stringify(exportData, null, 2)], {
         type: "application/json",
       });

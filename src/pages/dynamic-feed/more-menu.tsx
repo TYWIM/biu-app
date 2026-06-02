@@ -2,6 +2,7 @@ import React from "react";
 
 import { Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, Button } from "@heroui/react";
 import { RiFileMusicLine, RiFileVideoLine, RiMore2Fill, RiPlayListAddLine } from "@remixicon/react";
+import { canDownloadMedia } from "@/common/utils/download-capability";
 
 interface MoreMenuProps {
   onAddToNext?: () => void;
@@ -11,7 +12,7 @@ interface MoreMenuProps {
 }
 
 const MoreMenu: React.FC<MoreMenuProps> = ({ onAddToNext, onDownloadAudio, onDownloadVideo, canDownload }) => {
-  const resolvedCanDownload = canDownload ?? (typeof window !== "undefined" && Boolean(window.electron?.addMediaDownloadTask));
+  const resolvedCanDownload = canDownload ?? canDownloadMedia();
   const menuItems = [
     <DropdownItem key="add-next" startContent={<RiPlayListAddLine size={18} />} onPress={onAddToNext}>
       添加到下一首播放

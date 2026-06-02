@@ -32,35 +32,23 @@ export const useSettings = create<AppSettings & SettingsActions>()(
       name: "settings",
       storage: {
         getItem: async () => {
-          const store = await getRuntimeStore(StoreNameMap.AppSettings);
-
-          // 兼容之前的错误默认值
+          const store = await getRuntimeStore<{ appSettings: AppSettings }>(StoreNameMap.AppSettings);
           if (store?.appSettings?.fontFamily === "system-default") {
             store.appSettings.fontFamily = "system-ui";
           }
-
-          return {
-            state: store?.appSettings,
-          };
+          return { state: store?.appSettings };
         },
-
         setItem: async (_, value) => {
           if (value.state) {
-            await setRuntimeStore(StoreNameMap.AppSettings, {
-              appSettings: value.state,
-            });
+            await setRuntimeStore(StoreNameMap.AppSettings, { appSettings: value.state });
           }
         },
-
         removeItem: async () => {
           await clearRuntimeStore(StoreNameMap.AppSettings);
         },
       },
       partialize: state => {
         return {
-          downloadPath: state.downloadPath,
-          closeWindowOption: state.closeWindowOption,
-          autoStart: state.autoStart,
           fontFamily: state.fontFamily,
           primaryColor: state.primaryColor,
           backgroundColor: state.backgroundColor,
@@ -69,16 +57,10 @@ export const useSettings = create<AppSettings & SettingsActions>()(
           followSystemVolume: state.followSystemVolume,
           hiddenMenuKeys: state.hiddenMenuKeys,
           displayMode: state.displayMode,
-          ffmpegPath: state.ffmpegPath,
           themeMode: state.themeMode,
           pageTransition: state.pageTransition,
           showSearchHistory: state.showSearchHistory,
-          proxySettings: state.proxySettings,
-          sideMenuCollapsed: state.sideMenuCollapsed,
-          sideMenuWidth: state.sideMenuWidth,
-          sideMenuCollectionFolded: state.sideMenuCollectionFolded,
           reportPlayHistory: state.reportPlayHistory,
-          localMusicDirs: state.localMusicDirs,
         };
       },
     },

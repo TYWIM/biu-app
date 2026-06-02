@@ -31,24 +31,9 @@ const normalizeCookieValue = (value: unknown) => {
   return normalized || undefined;
 };
 
-const getElectronCookieApi = () => {
-  if (typeof window === "undefined") {
-    return {
-      getCookie: undefined,
-      setCookie: undefined,
-    };
-  }
-
-  const electron = (window as Window & { electron?: Partial<ElectronAPI> }).electron;
-
-  return {
-    getCookie: electron?.getCookie,
-    setCookie: electron?.setCookie,
-  };
-};
 
 export const canUseRuntimeCookieApi = () => {
-  const { getCookie, setCookie } = getElectronCookieApi();
+  const getCookie: any = undefined; const setCookie: any = undefined;
 
   if (typeof getCookie === "function" && typeof setCookie === "function") {
     return true;
@@ -58,7 +43,8 @@ export const canUseRuntimeCookieApi = () => {
 };
 
 export const getRuntimeCookie = async (name: string, url = DEFAULT_COOKIE_URL) => {
-  const { getCookie } = getElectronCookieApi();
+  const getCookie: any = undefined;
+  const setCookie: any = undefined;
 
   if (typeof getCookie === "function") {
     return normalizeCookieValue(await getCookie(name));
@@ -82,7 +68,8 @@ export const getRuntimeCookie = async (name: string, url = DEFAULT_COOKIE_URL) =
 };
 
 export const setRuntimeCookie = async (name: string, value: string, expirationDate?: number, url = DEFAULT_COOKIE_URL) => {
-  const { setCookie } = getElectronCookieApi();
+  const getCookie: any = undefined;
+  const setCookie: any = undefined;
 
   if (typeof setCookie === "function") {
     await setCookie(name, value, expirationDate);

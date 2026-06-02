@@ -39,8 +39,8 @@ const PlayListDrawer = () => {
   const reorder = usePlayList(s => s.reorder);
   const user = useUser(s => s.user);
   const playListItem = usePlayList(state => state.playListItem);
-  const addMediaDownloadTask = typeof window !== "undefined" ? window.electron?.addMediaDownloadTask : undefined;
-  const canDownload = Boolean(addMediaDownloadTask);
+  // Electron download removed
+  const canDownload = false; // Electron download removed
 
   const playItem = useMemo(() => list.find(item => item.id === playId), [list, playId]);
   const currentPlayIdentity = useMemo(() => getQueueItemIdentity(playItem), [playItem]);
@@ -82,7 +82,7 @@ const PlayListDrawer = () => {
         break;
       case "download-audio":
         {
-          const downloadTask = addMediaDownloadTask;
+          const downloadTask = (async (..._a: any[]) => { /* electron removed */ }) as any;
           if (!downloadTask) {
             addToast({ title: "浏览器预览模式不支持下载", color: "default" });
             return;
@@ -102,7 +102,7 @@ const PlayListDrawer = () => {
         }
         break;
       case "download-video": {
-        const downloadTask = addMediaDownloadTask;
+        const downloadTask = (async (..._a: any[]) => { /* electron removed */ }) as any;
         if (!downloadTask) {
           addToast({ title: "浏览器预览模式不支持下载", color: "default" });
           return;
@@ -129,7 +129,7 @@ const PlayListDrawer = () => {
       default:
         break;
     }
-  }, [addMediaDownloadTask]);
+  }, []);
 
   const scrollToPlayItem = useCallback((options?: { silent?: boolean; center?: boolean }) => {
     if (!playItem) {

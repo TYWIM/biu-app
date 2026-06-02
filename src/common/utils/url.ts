@@ -33,10 +33,6 @@ export const openBiliVideoLink = (data: {
 }) => {
   const url = getBiliVideoLink(data);
 
-  if (window.electron?.openExternal) {
-    window.electron.openExternal(url);
-    return;
-  }
-
+  
   window.open(url, "_blank", "noopener,noreferrer");
 };

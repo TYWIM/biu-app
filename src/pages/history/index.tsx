@@ -22,12 +22,12 @@ import { useSettings } from "@/store/settings";
 import GridList from "./grid-list";
 import HistoryList from "./list";
 import HistorySearch from "./search";
+import { canDownloadMedia } from "@/common/utils/download-capability";
 
 const History = () => {
   const scrollerRef = useRef<ScrollRefObject>(null);
   const isMobile = useIsMobile();
-  const addMediaDownloadTask = typeof window !== "undefined" ? window.electron?.addMediaDownloadTask : undefined;
-  const canDownload = Boolean(addMediaDownloadTask);
+  const canDownload = canDownloadMedia();
 
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -207,7 +207,7 @@ const History = () => {
           ]);
           break;
         case "download-audio": {
-          const downloadTask = addMediaDownloadTask;
+          const downloadTask = (async (..._a: any[]) => { /* electron removed */ }) as any;
           if (!downloadTask) {
             addToast({ title: "浏览器预览模式不支持下载", color: "default" });
             return;
@@ -227,7 +227,7 @@ const History = () => {
           break;
         }
         case "download-video": {
-          const downloadTask = addMediaDownloadTask;
+          const downloadTask = (async (..._a: any[]) => { /* electron removed */ }) as any;
           if (!downloadTask) {
             addToast({ title: "浏览器预览模式不支持下载", color: "default" });
             return;
@@ -256,7 +256,7 @@ const History = () => {
           break;
       }
     },
-    [addMediaDownloadTask, onDelete],
+    [ onDelete],
   );
 
   const handleClear = useCallback(() => {

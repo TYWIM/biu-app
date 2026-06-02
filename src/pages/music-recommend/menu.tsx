@@ -6,9 +6,10 @@ import {
   RiPlayListAddLine,
   RiStarLine,
 } from "@remixicon/react";
+import { canDownloadMedia } from "@/common/utils/download-capability";
 
 export const getContextMenus = ({ isLogin, canDownload }: { isLogin?: boolean; canDownload?: boolean }) => {
-  const resolvedCanDownload = canDownload ?? (typeof window !== "undefined" && Boolean(window.electron?.addMediaDownloadTask));
+  const resolvedCanDownload = canDownload ?? canDownloadMedia();
 
   return [
     {

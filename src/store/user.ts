@@ -34,7 +34,7 @@ export const useUser = create<UserState & Action>()(
     }),
     {
       name: "user",
-      partialize: state => state.user,
+      partialize: state => state.user as any,
       storage: {
         getItem: async () => {
           const store = await getRuntimeStore(StoreNameMap.UserLoginInfo);

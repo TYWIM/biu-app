@@ -25,7 +25,7 @@ const Menu = ({ type, isCreatedBySelf, mediaCount, attr, onClearInvalid }: MenuP
   const { id } = useParams();
   const navigate = useNavigate();
   const [outputFileType, setOutputFileType] = useState<MediaDownloadOutputFileType>("audio");
-  const canDownloadAll = typeof window !== "undefined" && Boolean(window.electron?.addMediaDownloadTaskList);
+  const canDownloadAll = false; // TODO: implement batch download for mobile
 
   const onOpenConfirmModal = useModalStore(s => s.onOpenConfirmModal);
 

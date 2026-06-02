@@ -5,14 +5,13 @@ import { Button, Drawer, DrawerBody, DrawerContent, DrawerHeader, useDisclosure 
 import {
   RiCompass3Line,
   RiDiscLine,
-  RiFileDownloadLine,
-  RiFolderMusicLine,
   RiHistoryLine,
   RiMenuLine,
   RiMusic2Line,
   RiPauseCircleFill,
   RiPlayCircleFill,
   RiSearchLine,
+  RiFolderMusicLine,
   RiSettings3Line,
   RiSkipForwardFill,
   RiTimeLine,
@@ -28,7 +27,6 @@ import { formatUrlProtocol } from "@/common/utils/url";
 import IconButton from "@/components/icon-button";
 import MusicPlayProgress from "@/components/music-play-progress";
 import { useTheme } from "@/components/theme/use-theme";
-import UserCard from "@/layout/navbar/user";
 import { useFavoritesStore } from "@/store/favorite";
 import { useModalStore } from "@/store/modal";
 import { usePlayList } from "@/store/play-list";
@@ -56,16 +54,6 @@ const bottomNavItems: NavItem[] = [
     href: "/search",
     title: "搜索",
     icon: RiSearchLine,
-  },
-  {
-    href: "/local-music",
-    title: "本地",
-    icon: RiFolderMusicLine,
-  },
-  {
-    href: "/download-list",
-    title: "下载",
-    icon: RiFileDownloadLine,
   },
   {
     href: "/settings",
@@ -320,7 +308,7 @@ const MobileShell = ({ children }: Props) => {
                 <div className={clsx("mt-1 truncate text-sm", shellMutedTextClassName)}>{subtitle}</div>
               </div>
               <div className={clsx("flex flex-none items-center justify-end rounded-full border p-1", shellChipClassName)}>
-                <UserCard />
+                {/* UserCard removed */}
               </div>
             </div>
 
@@ -377,7 +365,7 @@ const MobileShell = ({ children }: Props) => {
               timeClassName="hidden"
             />
 
-            <nav className="grid flex-none grid-cols-5 gap-1 px-2 py-1.5">
+            <nav className="grid flex-none grid-cols-3 gap-1 px-2 py-1.5">
               {bottomNavItems.map(item => {
                 const active = isPathActive(location.pathname, item.href);
                 const Icon = item.icon;

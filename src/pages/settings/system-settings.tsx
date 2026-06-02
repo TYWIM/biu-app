@@ -56,8 +56,8 @@ export const SystemSettingsTab = ({
   const isMobile = useIsMobile();
   const showDesktopOnlyPaths = !isCapacitorNative();
   const supportsSystemVolumeFollow = shouldUseNativePlayer();
-  const selectDirectory = typeof window !== "undefined" ? window.electron?.selectDirectory : undefined;
-  const selectFile = typeof window !== "undefined" ? window.electron?.selectFile : undefined;
+  const selectDirectory = undefined;
+  const selectFile = undefined;
   const settingRowClass = isMobile ? "flex w-full flex-col gap-3 items-start" : "flex w-full items-center justify-between";
   const labelClass = isMobile ? "w-full space-y-1" : "mr-6 space-y-1";
   const compactControlClass = isMobile ? "w-full" : "w-[180px]";
@@ -314,79 +314,6 @@ export const SystemSettingsTab = ({
           render={({ field }) => <Switch disableAnimation isSelected={field.value} onValueChange={field.onChange} />}
         />
       </div>
-
-      <Divider />
-      {showDesktopOnlyPaths && (
-        <>
-          <h2>下载</h2>
-          <div className={settingRowClass}>
-            <div className={labelClass}>
-              <div className="text-medium font-medium">下载目录</div>
-              <div className="text-sm text-zinc-500">选择音视频保存的位置</div>
-            </div>
-            <div className={wideControlClass}>
-              <Controller
-                control={control}
-                name="downloadPath"
-                render={({ field }) => (
-                  <div className={isMobile ? "flex flex-col gap-2" : "flex items-center space-x-1"}>
-                    <Input isDisabled placeholder="选择文件夹" value={field.value} onValueChange={field.onChange} />
-                    <Button
-                      variant="flat"
-                      isDisabled={!selectDirectory}
-                      onPress={async () => {
-                        if (!selectDirectory) {
-                          addToast({ title: getUnsupportedFeatureMessage("选择目录"), color: "default" });
-                          return;
-                        }
-
-                        const path = await selectDirectory();
-                        if (path) setValue("downloadPath", path, { shouldDirty: true, shouldTouch: true });
-                      }}
-                    >
-                      选择
-                    </Button>
-                  </div>
-                )}
-              />
-            </div>
-          </div>
-
-          <div className={settingRowClass}>
-            <div className={labelClass}>
-              <div className="text-medium font-medium">FFmpeg 路径</div>
-              <div className="text-sm text-zinc-500">手动指定 FFmpeg 可执行文件路径</div>
-            </div>
-            <div className={wideControlClass}>
-              <Controller
-                control={control}
-                name="ffmpegPath"
-                render={({ field }) => (
-                  <div className={isMobile ? "flex flex-col gap-2" : "flex items-center space-x-1"}>
-                    <Input isDisabled placeholder="自动检测" value={field.value} onValueChange={field.onChange} />
-                    <Button
-                      variant="flat"
-                      isDisabled={!selectFile}
-                      onPress={async () => {
-                        if (!selectFile) {
-                          addToast({ title: getUnsupportedFeatureMessage("选择文件"), color: "default" });
-                          return;
-                        }
-
-                        const path = await selectFile();
-                        if (path) setValue("ffmpegPath", path, { shouldDirty: true, shouldTouch: true });
-                      }}
-                    >
-                      选择
-                    </Button>
-                  </div>
-                )}
-              />
-            </div>
-          </div>
-          <Divider />
-        </>
-      )}
       <h2>搜索</h2>
       {/* 显示搜索历史 */}
       <div className={settingRowClass}>
@@ -400,42 +327,6 @@ export const SystemSettingsTab = ({
           render={({ field }) => <Switch disableAnimation isSelected={field.value} onValueChange={field.onChange} />}
         />
       </div>
-
-      <Divider />
-      <h2>系统</h2>
-      {/* 窗口关闭选项 */}
-      <div className={settingRowClass}>
-        <div className={labelClass}>
-          <div className="text-medium font-medium">窗口关闭</div>
-          <div className="text-sm text-zinc-500">选择窗口关闭时的行为</div>
-        </div>
-        <Controller
-          control={control}
-          name="closeWindowOption"
-          render={({ field }) => (
-            <RadioGroup orientation={isMobile ? "vertical" : "horizontal"} value={field.value} onValueChange={field.onChange}>
-              <Radio value="hide">隐藏到托盘</Radio>
-              <Radio value="exit">直接退出</Radio>
-            </RadioGroup>
-          )}
-        />
-      </div>
-
-      {/* 开机自启动开关 */}
-      <div className={settingRowClass}>
-        <div className={labelClass}>
-          <div className="text-medium font-medium">开机自启动</div>
-          <div className="text-sm text-zinc-500">系统登录后自动启动应用</div>
-        </div>
-        <div className={trailingWideControlClass}>
-          <Controller
-            control={control}
-            name="autoStart"
-            render={({ field }) => <Switch disableAnimation isSelected={field.value} onValueChange={field.onChange} />}
-          />
-        </div>
-      </div>
-
       <Divider />
       <h2>关于应用</h2>
       <div className={settingRowClass}>

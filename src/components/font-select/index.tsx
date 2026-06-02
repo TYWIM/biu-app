@@ -10,13 +10,17 @@ export interface FontSelectProps {
   className?: string;
 }
 
+interface FontItem {
+  name: string;
+  familyName: string;
+}
+
 export default function FontSelect({ value = defaultAppSettings.fontFamily, onChange, className }: FontSelectProps) {
-  const [fonts, setFonts] = useState<Partial<IFontInfo>[]>([]);
+  const [fonts, setFonts] = useState<FontItem[]>([]);
 
   const getFonts = async () => {
-    const systemFont = [{ name: "系统默认", familyName: defaultAppSettings.fontFamily }];
-    const fonts = await window.electron?.getFonts?.();
-    setFonts(fonts ? [...systemFont, ...fonts] : systemFont);
+    const systemFont: FontItem[] = [{ name: "系统默认", familyName: defaultAppSettings.fontFamily }];
+    setFonts(systemFont);
   };
 
   useEffect(() => {

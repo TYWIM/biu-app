@@ -11,11 +11,7 @@ const Fallback = ({ resetErrorBoundary }: FallbackProps) => {
   const openIssuePage = () => {
     const url = "https://github.com/TYWIM/biu-app/issues";
 
-    if (window.electron?.openExternal) {
-      window.electron.openExternal(url);
-      return;
-    }
-
+    
     window.open(url, "_blank", "noopener,noreferrer");
   };
 

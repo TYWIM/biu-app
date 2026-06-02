@@ -32,7 +32,7 @@ const CACHE_EXPIRY_DAYS = 30;
 
 async function getCacheMetadata(): Promise<CacheMetadata> {
   try {
-    const store = await getRuntimeStore(CACHE_METADATA_KEY);
+    const store = await getRuntimeStore<CacheMetadata>(CACHE_METADATA_KEY);
     if (store && typeof store === "object") {
       return {
         entries: (store.entries as Record<string, CacheEntry>) || {},

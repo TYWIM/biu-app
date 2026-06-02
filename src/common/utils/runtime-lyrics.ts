@@ -40,39 +40,22 @@ neteaseRequest.interceptors.response.use(
 
 lrclibRequest.interceptors.response.use(res => res.data);
 
-const getElectronLyricsApi = () => {
-  if (typeof window === "undefined") {
-    return undefined;
-  }
 
-  return (window as Window & { electron?: Partial<ElectronAPI> }).electron;
-};
+export const canSearchNeteaseLyrics = () => useNativeHttp;
 
-export const canSearchNeteaseLyrics = () => Boolean(getElectronLyricsApi()?.searchNeteaseSongs) || useNativeHttp;
+export const canGetNeteaseLyrics = () => useNativeHttp;
 
-export const canGetNeteaseLyrics = () => Boolean(getElectronLyricsApi()?.getNeteaseLyrics) || useNativeHttp;
-
-export const canSearchLrclibLyrics = () => Boolean(getElectronLyricsApi()?.searchLrclibLyrics) || useNativeHttp;
+export const canSearchLrclibLyrics = () => useNativeHttp;
 
 export const searchNeteaseSongsRuntime = async (params: SearchSongByNeteaseParams) => {
-  const electron = getElectronLyricsApi();
-  if (electron?.searchNeteaseSongs) {
-    return electron.searchNeteaseSongs(params);
-  }
-
-  const response = await neteaseRequest.get("https://interface.music.163.com/api/search/get", {
+    const response = await neteaseRequest.get("https://interface.music.163.com/api/search/get", {
     params,
   });
   return response as SearchSongByNeteaseResponse;
 };
 
 export const getNeteaseLyricsRuntime = async (params: GetLyricsByNeteaseParams) => {
-  const electron = getElectronLyricsApi();
-  if (electron?.getNeteaseLyrics) {
-    return electron.getNeteaseLyrics(params);
-  }
-
-  const response = await neteaseRequest.get("https://interface.music.163.com/api/song/lyric", {
+    const response = await neteaseRequest.get("https://interface.music.163.com/api/song/lyric", {
     params: {
       ...params,
       tv: -1,
@@ -86,12 +69,7 @@ export const getNeteaseLyricsRuntime = async (params: GetLyricsByNeteaseParams) 
 };
 
 export const searchLrclibLyricsRuntime = async (params: SearchSongByLrclibParams) => {
-  const electron = getElectronLyricsApi();
-  if (electron?.searchLrclibLyrics) {
-    return electron.searchLrclibLyrics(params);
-  }
-
-  const response = await lrclibRequest.get("https://lrclib.net/api/search", {
+    const response = await lrclibRequest.get("https://lrclib.net/api/search", {
     params,
   });
   return response as SearchSongByLrclibResponse[];

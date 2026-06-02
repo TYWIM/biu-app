@@ -13,26 +13,12 @@ const MusicDownloadButton = () => {
   const list = usePlayList(s => s.list);
   const playId = usePlayList(s => s.playId);
   const playItem = list.find(item => item.id === playId);
-  const addMediaDownloadTask = typeof window !== "undefined" ? window.electron?.addMediaDownloadTask : undefined;
+  // Electron download removed - mobile only
   const isNative = isCapacitorNative();
-  const canDownloadMedia = Boolean(addMediaDownloadTask) || isNative;
+  const canDownloadMedia = isNative;
   const [isTooltipOpen, setIsTooltipOpen] = useState(false);
 
   const downloadAudio = async () => {
-    // 优先使用桌面端下载
-    if (addMediaDownloadTask) {
-      await addMediaDownloadTask({
-        outputFileType: "audio",
-        title: playItem?.pageTitle || playItem?.title || `audio-${Date.now()}`,
-        cover: playItem?.pageCover || playItem?.cover,
-        bvid: playItem?.bvid,
-        cid: playItem?.cid,
-        sid: playItem?.type === "audio" ? playItem?.sid : undefined,
-      });
-      addToast({ title: "已添加下载任务", color: "success" });
-      return;
-    }
-
     // 移动端原生下载
     if (isNative) {
       const result = await addDownloadTask({
@@ -55,18 +41,6 @@ const MusicDownloadButton = () => {
   };
 
   const downloadVideo = async () => {
-    if (addMediaDownloadTask) {
-      await addMediaDownloadTask({
-        outputFileType: "video",
-        title: playItem?.pageTitle || playItem?.title || `video-${Date.now()}`,
-        cover: playItem?.pageCover || playItem?.cover,
-        bvid: playItem?.bvid,
-        cid: playItem?.cid,
-      });
-      addToast({ title: "已添加下载任务", color: "success" });
-      return;
-    }
-
     if (isNative) {
       const result = await addDownloadTask({
         outputFileType: "video",

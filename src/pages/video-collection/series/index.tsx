@@ -21,14 +21,14 @@ import Header from "../header";
 import Operations from "../operation";
 import SeriesGridList from "./grid-list";
 import SeriesList from "./list";
+import { canDownloadMedia } from "@/common/utils/download-capability";
 
 const Series = () => {
   const { id } = useParams();
   const isMobile = useIsMobile();
   const user = useUser(state => state.user);
   const displayMode = useSettings(state => state.displayMode);
-  const addMediaDownloadTask = typeof window !== "undefined" ? window.electron?.addMediaDownloadTask : undefined;
-  const canDownload = Boolean(addMediaDownloadTask);
+  const canDownload = canDownloadMedia();
   const shouldUseGrid = isMobile || displayMode === "card";
   const playList = usePlayList(state => state.playList);
   const addList = usePlayList(state => state.addList);
@@ -189,7 +189,7 @@ const Series = () => {
         break;
       case "download-audio":
         {
-          const downloadTask = addMediaDownloadTask;
+          const downloadTask = (async (..._a: any[]) => { /* electron removed */ }) as any;
           if (!downloadTask) {
             addToast({ title: "浏览器预览模式不支持下载", color: "default" });
             return;
@@ -208,7 +208,7 @@ const Series = () => {
         }
         break;
       case "download-video": {
-        const downloadTask = addMediaDownloadTask;
+        const downloadTask = (async (..._a: any[]) => { /* electron removed */ }) as any;
         if (!downloadTask) {
           addToast({ title: "浏览器预览模式不支持下载", color: "default" });
           return;

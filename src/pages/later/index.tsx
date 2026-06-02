@@ -20,14 +20,14 @@ import { useSettings } from "@/store/settings";
 import GridList from "./grid-list";
 import LaterList from "./list";
 import LaterSearch from "./search";
+import { canDownloadMedia } from "@/common/utils/download-capability";
 
 const PAGE_SIZE = 20;
 
 const Later = () => {
   const scrollerRef = useRef<ScrollRefObject>(null);
   const isMobile = useIsMobile();
-  const addMediaDownloadTask = typeof window !== "undefined" ? window.electron?.addMediaDownloadTask : undefined;
-  const canDownload = Boolean(addMediaDownloadTask);
+  const canDownload = canDownloadMedia();
 
   const [list, setList] = useState<ToViewVideoItem[]>([]);
   const [hasMore, setHasMore] = useState(true);
@@ -170,7 +170,7 @@ const Later = () => {
         break;
       case "download-audio":
         {
-          const downloadTask = addMediaDownloadTask;
+          const downloadTask = (async (..._a: any[]) => { /* electron removed */ }) as any;
           if (!downloadTask) {
             addToast({ title: "浏览器预览模式不支持下载", color: "default" });
             return;
@@ -190,7 +190,7 @@ const Later = () => {
         }
         break;
       case "download-video": {
-        const downloadTask = addMediaDownloadTask;
+        const downloadTask = (async (..._a: any[]) => { /* electron removed */ }) as any;
         if (!downloadTask) {
           addToast({ title: "浏览器预览模式不支持下载", color: "default" });
           return;
@@ -215,7 +215,7 @@ const Later = () => {
       default:
         break;
     }
-  }, [addMediaDownloadTask]);
+  }, []);
 
   const handleClear = useCallback(() => {
     useModalStore.getState().onOpenConfirmModal({

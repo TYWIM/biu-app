@@ -9,12 +9,8 @@ const Typography = ({ content }: Props) => {
     const target = (e.target as Element)?.closest("a");
 
     if (target && target.href) {
-      e.preventDefault(); // 阻止默认行为（防止在当前窗口跳转）
-      if (window.electron?.openExternal) {
-        window.electron.openExternal(target.href); // 调用系统浏览器打开
-      } else {
-        window.open(target.href, "_blank", "noopener,noreferrer");
-      }
+      e.preventDefault();
+      window.open(target.href, "_blank", "noopener,noreferrer");
     }
   };
 

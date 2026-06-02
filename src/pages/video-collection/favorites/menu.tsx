@@ -7,6 +7,7 @@ import {
   RiStarLine,
   RiStarOffLine,
 } from "@remixicon/react";
+import { canDownloadMedia } from "@/common/utils/download-capability";
 
 interface Props {
   /** 2:视频稿件 12:音频 21:视频合集 24:电影 */
@@ -18,7 +19,7 @@ interface Props {
 export const getContextMenus = ({ type, isCreatedBySelf, canDownload }: Props) => {
   const isAudio = type === 12;
   const canNotPlay = ![2, 12].includes(type);
-  const resolvedCanDownload = canDownload ?? (typeof window !== "undefined" && Boolean(window.electron?.addMediaDownloadTask));
+  const resolvedCanDownload = canDownload ?? canDownloadMedia();
 
   return [
     {

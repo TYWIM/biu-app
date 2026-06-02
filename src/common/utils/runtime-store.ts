@@ -1,109 +1,31 @@
-type RuntimeElectronStoreApi = {
-  getStore?: ElectronAPI["getStore"];
-  setStore?: ElectronAPI["setStore"];
-  clearStore?: ElectronAPI["clearStore"];
-};
+const PREFIX = "biu:";
 
-const getElectronStoreApi = (): RuntimeElectronStoreApi => {
-  if (typeof window === "undefined") {
-    return {
-      getStore: undefined,
-      setStore: undefined,
-      clearStore: undefined,
-    };
-  }
-
-  const electron = (window as Window & { electron?: Partial<ElectronAPI> }).electron;
-
-  return {
-    getStore: electron?.getStore,
-    setStore: electron?.setStore,
-    clearStore: electron?.clearStore,
-  };
-};
-
-const isLocalStorageAvailable = () => {
-  if (typeof window === "undefined") return false;
-
+const getRuntimeStore = async <T = unknown>(name: string): Promise<T | null> => {
   try {
-    return typeof window.localStorage !== "undefined";
+    const raw = window.localStorage.getItem(PREFIX + name);
+    if (raw === null) return null;
+    return JSON.parse(raw) as T;
   } catch {
-    return false;
+    return null;
   }
 };
 
-const getLocalStorageKey = (name: StoreName) => `biu:${name}`;
-
-const readLocalStorageStore = <N extends StoreName>(name: N): StoreDataMap[N] | undefined => {
-  if (!isLocalStorageAvailable()) return undefined;
-
+const setRuntimeStore = async <T = unknown>(name: string, value: T): Promise<void> => {
   try {
-    const raw = window.localStorage.getItem(getLocalStorageKey(name));
-    if (!raw) return undefined;
-    return JSON.parse(raw) as StoreDataMap[N];
+    window.localStorage.setItem(PREFIX + name, JSON.stringify(value));
   } catch {
-    return undefined;
+    // ignore
   }
 };
 
-const writeLocalStorageStore = <N extends StoreName>(name: N, value: StoreDataMap[N]) => {
-  if (!isLocalStorageAvailable()) return;
-
+const clearRuntimeStore = async (name: string): Promise<void> => {
   try {
-    window.localStorage.setItem(getLocalStorageKey(name), JSON.stringify(value));
+    window.localStorage.removeItem(PREFIX + name);
   } catch {
-    return;
+    // ignore
   }
 };
 
-const removeLocalStorageStore = (name: StoreName) => {
-  if (!isLocalStorageAvailable()) return;
+const canUseRuntimeStore = (): boolean => true;
 
-  try {
-    window.localStorage.removeItem(getLocalStorageKey(name));
-  } catch {
-    return;
-  }
-};
-
-export const canUseRuntimeStore = () => {
-  const { getStore, setStore } = getElectronStoreApi();
-
-  if (typeof getStore === "function" && typeof setStore === "function") {
-    return true;
-  }
-
-  return isLocalStorageAvailable();
-};
-
-export const getRuntimeStore = async <N extends StoreName>(name: N): Promise<StoreDataMap[N] | undefined> => {
-  const { getStore } = getElectronStoreApi();
-
-  if (typeof getStore === "function") {
-    return getStore(name);
-  }
-
-  return readLocalStorageStore(name);
-};
-
-export const setRuntimeStore = async <N extends StoreName>(name: N, value: StoreDataMap[N]) => {
-  const { setStore } = getElectronStoreApi();
-
-  if (typeof setStore === "function") {
-    await setStore(name, value);
-    return;
-  }
-
-  writeLocalStorageStore(name, value);
-};
-
-export const clearRuntimeStore = async (name: StoreName) => {
-  const { clearStore } = getElectronStoreApi();
-
-  if (typeof clearStore === "function") {
-    await clearStore(name);
-    return;
-  }
-
-  removeLocalStorageStore(name);
-};
+export { getRuntimeStore, setRuntimeStore, clearRuntimeStore, canUseRuntimeStore };

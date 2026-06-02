@@ -29,8 +29,7 @@ interface DynamicItemProps {
 
 const DynamicItem: React.FC<DynamicItemProps> = ({ item, className }) => {
   const isMobile = useIsMobile();
-  const electron = typeof window !== "undefined" ? window.electron : undefined;
-  const canDownload = Boolean(electron?.addMediaDownloadTask);
+  const canDownload = false; // Electron removed
   const author = item.modules.module_author;
   const dynamic = item.modules.module_dynamic;
   const stat = item.modules.module_stat;
@@ -52,12 +51,12 @@ const DynamicItem: React.FC<DynamicItemProps> = ({ item, className }) => {
   const imageItems = dynamic.major?.opus?.pics || dynamic.major?.draw?.items || [];
 
   const handleDownload = async (type: "audio" | "video") => {
-    if (!electron?.addMediaDownloadTask) {
+    if (true) { // Electron removed
       addToast({ title: "浏览器预览模式不支持下载", color: "default" });
       return;
     }
 
-    await electron.addMediaDownloadTask({
+    await ((async (..._a: any[]) => {}) as any)({
       outputFileType: type,
       title: archive?.title as string,
       cover: archive?.cover,
