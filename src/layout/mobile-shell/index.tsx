@@ -215,9 +215,19 @@ const MobileShell = ({ children }: Props) => {
   const updateCreatedFavorites = useFavoritesStore(s => s.updateCreatedFavorites);
   const updateCollectedFavorites = useFavoritesStore(s => s.updateCollectedFavorites);
   const hiddenMenuKeys = useSettings(s => s.hiddenMenuKeys);
-  const { isOpen, onOpen, onOpenChange } = useDisclosure();
-  const { isOpen: isLoginOpen, onOpen: onLoginOpen, onOpenChange: onLoginOpenChange } = useDisclosure();
-  const { isOpen: isUserMenuOpen, onOpen: onUserMenuOpen, onOpenChange: onUserMenuOpenChange } = useDisclosure();
+  const { isOpen, onOpen, onClose, onOpenChange } = useDisclosure();
+  const {
+    isOpen: isLoginOpen,
+    onOpen: onLoginOpen,
+    onClose: onLoginClose,
+    onOpenChange: onLoginOpenChange,
+  } = useDisclosure();
+  const {
+    isOpen: isUserMenuOpen,
+    onOpen: onUserMenuOpen,
+    onClose: onUserMenuClose,
+    onOpenChange: onUserMenuOpenChange,
+  } = useDisclosure();
   const currentPlayItem = usePlayList(state => state.list.find(item => item.id === state.playId));
 
   const title = getPageTitle(location.pathname);
@@ -243,6 +253,32 @@ const MobileShell = ({ children }: Props) => {
     void updateCreatedFavorites(user.mid);
     void updateCollectedFavorites(user.mid);
   }, [updateCollectedFavorites, updateCreatedFavorites, user?.mid]);
+
+  useEffect(() => {
+    const handleOverlayCloseRequest = (event: Event) => {
+      const closeRequest = event as CustomEvent<{ handled: boolean }>;
+
+      if (isLoginOpen) {
+        closeRequest.detail.handled = true;
+        onLoginClose();
+        return;
+      }
+
+      if (isUserMenuOpen) {
+        closeRequest.detail.handled = true;
+        onUserMenuClose();
+        return;
+      }
+
+      if (isOpen) {
+        closeRequest.detail.handled = true;
+        onClose();
+      }
+    };
+
+    window.addEventListener("biuclosemobileoverlay", handleOverlayCloseRequest);
+    return () => window.removeEventListener("biuclosemobileoverlay", handleOverlayCloseRequest);
+  }, [isLoginOpen, isOpen, isUserMenuOpen, onClose, onLoginClose, onUserMenuClose]);
 
   const menuItems = useMemo(() => {
     const items = [...DefaultMenuList, ...extraMenuItems].filter(

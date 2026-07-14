@@ -34,6 +34,19 @@ test("drawer contains only reachable mobile routes", async ({ page }) => {
   await expect(dialog.getByText("下载记录", { exact: true })).toHaveCount(0);
 });
 
+test("Android back closes the drawer before changing routes", async ({ page }) => {
+  await page.goto("/#/search");
+  await page.locator("header button").first().click();
+
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+
+  await page.evaluate(() => window.dispatchEvent(new Event("biuandroidbackbutton")));
+
+  await expect(dialog).toBeHidden();
+  await expect(page).toHaveURL(/#\/search$/);
+});
+
 test("shell controls meet mobile touch target requirements", async ({ page }) => {
   await page.goto("/#/settings");
 

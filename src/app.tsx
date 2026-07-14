@@ -35,6 +35,12 @@ export function App() {
 
   useEffect(() => {
     const handleAndroidBack = () => {
+      const overlayCloseRequest = new CustomEvent<{ handled: boolean }>("biuclosemobileoverlay", {
+        detail: { handled: false },
+      });
+      window.dispatchEvent(overlayCloseRequest);
+      if (overlayCloseRequest.detail.handled) return;
+
       const modalStore = useModalStore.getState();
 
       if (modalStore.isConfirmModalOpen) {
