@@ -79,6 +79,9 @@ jspm_packages/
 # Nuxt.js build / generate output
 .nuxt
 dist
+playwright-report/
+test-results/
+output/playwright/
 
 # Gatsby files
 .cache/
