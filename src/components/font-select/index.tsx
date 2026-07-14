@@ -32,6 +32,7 @@ export default function FontSelect({ value = defaultAppSettings.fontFamily, onCh
   return (
     <Autocomplete
       aria-label="选择字体"
+      size="lg"
       placeholder="选择字体"
       selectedKey={selectedValue}
       onSelectionChange={key => {

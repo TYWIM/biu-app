@@ -111,9 +111,17 @@ public class BiuDownloadPlugin extends Plugin {
             return;
         }
 
-        if (activeDownloads.size() >= MAX_CONCURRENT_DOWNLOADS) {
-            call.reject("too many concurrent downloads");
-            return;
+        synchronized (activeDownloads) {
+            int activeCount = 0;
+            for (DownloadTask task : activeDownloads.values()) {
+                if (!task.status.equals("completed") && !task.status.equals("failed")) {
+                    activeCount++;
+                }
+            }
+            if (activeCount >= MAX_CONCURRENT_DOWNLOADS) {
+                call.reject("too many concurrent downloads");
+                return;
+            }
         }
 
         String finalFileName = fileName != null ? fileName : generateFileName(title, outputFileType);
@@ -312,6 +320,7 @@ public class BiuDownloadPlugin extends Plugin {
                         break;
                     }
 
+                    boolean hasActiveDownload = false;
                     for (Map.Entry<Long, DownloadTask> entry : activeDownloads.entrySet()) {
                         long downloadId = entry.getKey();
                         DownloadTask task = entry.getValue();
@@ -319,6 +328,7 @@ public class BiuDownloadPlugin extends Plugin {
                         if (task.status.equals("completed") || task.status.equals("failed")) {
                             continue;
                         }
+                        hasActiveDownload = true;
 
                         DownloadManager.Query query = new DownloadManager.Query();
                         query.setFilterById(downloadId);
@@ -350,6 +360,11 @@ public class BiuDownloadPlugin extends Plugin {
 
                             cursor.close();
                         }
+                    }
+
+                    if (!hasActiveDownload) {
+                        isProgressTracking = false;
+                        break;
                     }
                 }
             }

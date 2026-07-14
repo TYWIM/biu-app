@@ -1,22 +1,8 @@
 import React from "react";
 import { Controller } from "react-hook-form";
-import type { Control, UseFormSetValue } from "react-hook-form";
+import type { Control } from "react-hook-form";
 
-import {
-  addToast,
-  Button,
-  Divider,
-  Form,
-  Input,
-  Radio,
-  RadioGroup,
-  Select,
-  SelectItem,
-  Slider,
-  Switch,
-  Tab,
-  Tabs,
-} from "@heroui/react";
+import { Divider, Form, Select, SelectItem, Slider, Switch, Tab, Tabs } from "@heroui/react";
 import {
   RiArrowRightLongLine,
   RiComputerLine,
@@ -27,7 +13,6 @@ import {
   RiSunLine,
 } from "@remixicon/react";
 
-import { getUnsupportedFeatureMessage, isCapacitorNative } from "@/common/utils/runtime-platform";
 import useIsMobile from "@/common/hooks/use-is-mobile";
 import { shouldUseNativePlayer } from "@/common/utils/native-player";
 import FontSelect from "@/components/font-select";
@@ -42,7 +27,6 @@ type SystemSettingsTabProps = {
   control: Control<AppSettings>;
   isUpdateAvailable: boolean;
   latestVersion?: string;
-  setValue: UseFormSetValue<AppSettings>;
 };
 
 export const SystemSettingsTab = ({
@@ -51,19 +35,15 @@ export const SystemSettingsTab = ({
   control,
   isUpdateAvailable,
   latestVersion,
-  setValue,
 }: SystemSettingsTabProps) => {
   const isMobile = useIsMobile();
-  const showDesktopOnlyPaths = !isCapacitorNative();
   const supportsSystemVolumeFollow = shouldUseNativePlayer();
-  const selectDirectory = undefined;
-  const selectFile = undefined;
-  const settingRowClass = isMobile ? "flex w-full flex-col gap-3 items-start" : "flex w-full items-center justify-between";
+  const settingRowClass = isMobile
+    ? "flex w-full flex-col gap-3 items-start"
+    : "flex w-full items-center justify-between";
   const labelClass = isMobile ? "w-full space-y-1" : "mr-6 space-y-1";
   const compactControlClass = isMobile ? "w-full" : "w-[180px]";
   const wideControlClass = isMobile ? "w-full" : "w-[360px]";
-  const trailingWideControlClass = isMobile ? "flex w-full" : "flex w-[360px] justify-end";
-
   return (
     <Form className="space-y-6">
       <h2>外观</h2>
@@ -84,6 +64,7 @@ export const SystemSettingsTab = ({
               classNames={{
                 cursor: "rounded-medium",
                 tabList: "max-w-full overflow-x-auto no-scrollbar",
+                tab: isMobile ? "h-11 px-3" : undefined,
               }}
               selectedKey={field.value}
               onSelectionChange={key => field.onChange(key)}
@@ -136,6 +117,7 @@ export const SystemSettingsTab = ({
               classNames={{
                 cursor: "rounded-medium",
                 tabList: "max-w-full overflow-x-auto no-scrollbar",
+                tab: isMobile ? "h-11 px-3" : undefined,
               }}
               selectedKey={field.value}
               onSelectionChange={key => field.onChange(key)}
@@ -271,6 +253,7 @@ export const SystemSettingsTab = ({
               <Select
                 disallowEmptySelection
                 aria-label="音质偏好"
+                size={isMobile ? "lg" : "md"}
                 selectedKeys={field.value ? new Set([field.value]) : new Set()}
                 onSelectionChange={keys => {
                   const value = Array.from(keys)[0] as AudioQuality;
@@ -299,7 +282,15 @@ export const SystemSettingsTab = ({
         <Controller
           control={control}
           name="followSystemVolume"
-          render={({ field }) => <Switch disableAnimation isSelected={field.value} onValueChange={field.onChange} />}
+          render={({ field }) => (
+            <Switch
+              aria-label="跟随系统音量"
+              className={isMobile ? "min-h-11" : undefined}
+              disableAnimation
+              isSelected={field.value}
+              onValueChange={field.onChange}
+            />
+          )}
         />
       </div>
       {/* 播放记录上报 */}
@@ -311,7 +302,15 @@ export const SystemSettingsTab = ({
         <Controller
           control={control}
           name="reportPlayHistory"
-          render={({ field }) => <Switch disableAnimation isSelected={field.value} onValueChange={field.onChange} />}
+          render={({ field }) => (
+            <Switch
+              aria-label="上报本机播放记录"
+              className={isMobile ? "min-h-11" : undefined}
+              disableAnimation
+              isSelected={field.value}
+              onValueChange={field.onChange}
+            />
+          )}
         />
       </div>
       <h2>搜索</h2>
@@ -324,7 +323,15 @@ export const SystemSettingsTab = ({
         <Controller
           control={control}
           name="showSearchHistory"
-          render={({ field }) => <Switch disableAnimation isSelected={field.value} onValueChange={field.onChange} />}
+          render={({ field }) => (
+            <Switch
+              aria-label="显示搜索历史"
+              className={isMobile ? "min-h-11" : undefined}
+              disableAnimation
+              isSelected={field.value}
+              onValueChange={field.onChange}
+            />
+          )}
         />
       </div>
       <Divider />

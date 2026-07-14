@@ -2,6 +2,8 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 import { clearRuntimeStore, getRuntimeStore, setRuntimeStore } from "@/common/utils/runtime-store";
+import { saveCsrfToken, clearCsrfToken } from "@/common/utils/csrf-token";
+import { getRuntimeCookie } from "@/common/utils/runtime-cookie";
 import { getUserInfo, type UserInfo } from "@/service/user-info";
 import { StoreNameMap } from "@shared/store";
 
@@ -22,14 +24,19 @@ export const useUser = create<UserState & Action>()(
 
         if (res.code === 0 && res.data?.isLogin) {
           set(() => ({ user: res.data }));
+          // Persist CSRF token when we know user is logged in
+          const jct = await getRuntimeCookie("bili_jct");
+          if (jct) saveCsrfToken(jct);
         } else {
           set(() => ({ user: null }));
+          clearCsrfToken();
         }
       },
       clear: () => {
         set(() => ({
           user: null,
         }));
+        clearCsrfToken();
       },
     }),
     {

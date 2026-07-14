@@ -5,6 +5,8 @@ import { addToast, Spinner } from "@heroui/react";
 import { RiPlayFill } from "@remixicon/react";
 
 import useIsMobile from "@/common/hooks/use-is-mobile";
+import { queueDownloadTask } from "@/common/utils/download-actions";
+import { canDownloadMedia } from "@/common/utils/download-capability";
 import AsyncButton from "@/components/async-button";
 import SearchWithSort from "@/components/search-with-sort";
 import { getSpaceWbiArcSearch, type SpaceArcVListItem } from "@/service/space-wbi-arc-search";
@@ -14,7 +16,6 @@ import { useSettings } from "@/store/settings";
 
 import PostGridList from "./grid-list";
 import PostList from "./list";
-import { canDownloadMedia } from "@/common/utils/download-capability";
 
 interface VideoPostProps {
   getScrollElement: () => HTMLElement | null;
@@ -25,7 +26,7 @@ const VideoPost: React.FC<VideoPostProps> = ({ getScrollElement }) => {
   const isMobile = useIsMobile();
   const displayMode = useSettings(state => state.displayMode);
   const canDownload = canDownloadMedia();
-  const shouldUseGrid = isMobile || displayMode === "card";
+  const shouldUseGrid = displayMode === "card";
 
   const [keyword, setKeyword] = useState("");
   const [order, setOrder] = useState("pubdate");
@@ -100,7 +101,7 @@ const VideoPost: React.FC<VideoPostProps> = ({ getScrollElement }) => {
     }
   }, [loadingMore, hasMore, fetchData]);
 
-  const handleMenuAction = useCallback((key: string, item: SpaceArcVListItem) => {
+  const handleMenuAction = useCallback(async (key: string, item: SpaceArcVListItem) => {
     switch (key) {
       case "play-next":
         usePlayList.getState().addToNext({
@@ -126,40 +127,20 @@ const VideoPost: React.FC<VideoPostProps> = ({ getScrollElement }) => {
         break;
       case "download-audio":
         {
-          const downloadTask = (async (..._a: any[]) => { /* electron removed */ }) as any;
-          if (!downloadTask) {
-            addToast({ title: "浏览器预览模式不支持下载", color: "default" });
-            return;
-          }
-
-          void downloadTask({
+          await queueDownloadTask({
             outputFileType: "audio",
             title: item.title,
             cover: item.pic,
             bvid: item.bvid,
           });
-          addToast({
-            title: "已添加下载任务",
-            color: "success",
-          });
         }
         break;
       case "download-video": {
-        const downloadTask = (async (..._a: any[]) => { /* electron removed */ }) as any;
-        if (!downloadTask) {
-          addToast({ title: "浏览器预览模式不支持下载", color: "default" });
-          return;
-        }
-
-        void downloadTask({
+        await queueDownloadTask({
           outputFileType: "video",
           title: item.title,
           cover: item.pic,
           bvid: item.bvid,
-        });
-        addToast({
-          title: "已添加下载任务",
-          color: "success",
         });
         break;
       }
@@ -253,7 +234,13 @@ const VideoPost: React.FC<VideoPostProps> = ({ getScrollElement }) => {
 
   return (
     <div className="h-full w-full">
-      <div className={isMobile ? "mb-4 flex flex-col gap-3" : "mb-4 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center"}>
+      <div
+        className={
+          isMobile
+            ? "mb-4 flex flex-col gap-3"
+            : "mb-4 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center"
+        }
+      >
         <div className={isMobile ? "flex w-full flex-col gap-2" : "flex items-center"}>
           <AsyncButton
             color="primary"

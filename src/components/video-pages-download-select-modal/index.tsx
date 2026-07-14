@@ -1,9 +1,10 @@
 import { useState } from "react";
 
-import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Checkbox, Spinner, addToast } from "@heroui/react";
+import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Checkbox, Spinner } from "@heroui/react";
 import { useRequest } from "ahooks";
 import { useShallow } from "zustand/react/shallow";
 
+import { queueDownloadTask, queueDownloadTasks } from "@/common/utils/download-actions";
 import { getPlayerPagelist } from "@/service/player-pagelist";
 import { useModalStore } from "@/store/modal";
 
@@ -21,10 +22,6 @@ const VideoPagesDownloadSelectModal = () => {
     );
 
   const { outputFileType, title, cover, bvid } = videoPageDownloadModalData || {};
-  // Electron download removed - mobile only
-  // Electron batch download removed
-  const canDownload = false; // mobile only
-  const canBatchDownload = false; // mobile only
 
   const [selectedCids, setSelectedCids] = useState<string[]>([]);
 
@@ -37,27 +34,16 @@ const VideoPagesDownloadSelectModal = () => {
 
       if (res?.data?.length > 1) {
         setSelectedCids(res?.data?.map(item => String(item.cid)) || []);
-      } else if (res?.data?.[0]?.cid) {
-        const downloadTask = (async (..._a: any[]) => { /* electron removed */ }) as any;
-        if (!downloadTask) {
-          addToast({ title: "浏览器预览模式不支持下载分集", color: "default" });
-          onVideoPageDownloadModalOpenChange(false);
-          return res?.data || [];
-        }
-
+      } else if (res?.data?.[0]?.cid && outputFileType && title) {
         const cid = String(res.data[0].cid);
-        await downloadTask({
-          outputFileType: outputFileType!,
+        await queueDownloadTask({
+          outputFileType,
           cover,
-          title: title!,
+          title,
           bvid,
           cid,
         });
         onVideoPageDownloadModalOpenChange(false);
-        addToast({
-          title: "已添加到下载队列",
-          color: "success",
-        });
       }
 
       return res?.data || [];
@@ -69,29 +55,22 @@ const VideoPagesDownloadSelectModal = () => {
   );
 
   const downloadSelected = async () => {
-    const downloadTaskList = (async (..._a: any[]) => { /* electron removed */ }) as any;
-    if (!downloadTaskList) {
-      addToast({ title: "浏览器预览模式不支持批量下载分集", color: "default" });
-      onVideoPageDownloadModalOpenChange(false);
+    if (!data || !outputFileType || !title || !bvid) {
       return;
     }
 
-    await downloadTaskList(
-      data!
+    await queueDownloadTasks(
+      data
         .filter(item => selectedCids.includes(String(item.cid)))
         .map(item => ({
-          outputFileType: outputFileType!,
-          title: item.part || title!,
-          bvid: bvid!,
+          outputFileType,
+          title: item.part || title,
+          bvid,
           cover: item.first_frame || cover,
           cid: String(item.cid),
         })),
     );
     onVideoPageDownloadModalOpenChange(false);
-    addToast({
-      title: "已添加到下载队列",
-      color: "success",
-    });
   };
 
   return (

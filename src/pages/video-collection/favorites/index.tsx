@@ -6,6 +6,8 @@ import { useRequest } from "ahooks";
 
 import { CollectionType } from "@/common/constants/collection";
 import useIsMobile from "@/common/hooks/use-is-mobile";
+import { queueDownloadTask } from "@/common/utils/download-actions";
+import { canDownloadMedia } from "@/common/utils/download-capability";
 import { getAllFavMedia } from "@/common/utils/fav";
 import { openBiliVideoLink } from "@/common/utils/url";
 import FavoritesEditModal from "@/components/favorites-edit-modal";
@@ -28,7 +30,6 @@ import Header from "../header";
 import Operations from "../operation";
 import FavoriteGridList from "./grid-list";
 import FavoriteList from "./list";
-import { canDownloadMedia } from "@/common/utils/download-capability";
 
 /** 收藏夹详情 TODO:加上创建的视频合集 */
 const Favorites = () => {
@@ -39,7 +40,7 @@ const Favorites = () => {
   const rmCollectedFavorite = useFavoritesStore(state => state.rmCollectedFavorite);
   const displayMode = useSettings(state => state.displayMode);
   const canDownload = canDownloadMedia();
-  const shouldUseGrid = isMobile || displayMode === "card";
+  const shouldUseGrid = displayMode === "card";
 
   const playList = usePlayList(state => state.playList);
   const addToPlayList = usePlayList(state => state.addList);
@@ -400,41 +401,21 @@ const Favorites = () => {
           break;
         case "download-audio":
           {
-            const downloadTask = (async (..._a: any[]) => { /* electron removed */ }) as any;
-            if (!downloadTask) {
-              addToast({ title: "浏览器预览模式不支持下载", color: "default" });
-              return;
-            }
-
-            await downloadTask({
+            await queueDownloadTask({
               outputFileType: "audio",
               title: item.title,
               cover: item.cover,
               bvid: item.bvid,
               sid: item.type === 12 ? item.id : undefined,
             });
-            addToast({
-              title: "已添加下载任务",
-              color: "success",
-            });
           }
           break;
         case "download-video": {
-          const downloadTask = (async (..._a: any[]) => { /* electron removed */ }) as any;
-          if (!downloadTask) {
-            addToast({ title: "浏览器预览模式不支持下载", color: "default" });
-            return;
-          }
-
-          await downloadTask({
+          await queueDownloadTask({
             outputFileType: "video",
             title: item.title,
             cover: item.cover,
             bvid: item.bvid,
-          });
-          addToast({
-            title: "已添加下载任务",
-            color: "success",
           });
           break;
         }
@@ -449,11 +430,16 @@ const Favorites = () => {
           break;
       }
     },
-    [ favFolderId, isCreatedBySelf, handleRemoveItem, refreshInfo],
+    [favFolderId, isCreatedBySelf, handleRemoveItem, refreshInfo],
   );
 
   return (
-    <ScrollContainer enableBackToTop ref={scrollRef} resetOnChange={favFolderId} className={isMobile ? "h-full w-full px-4 py-3 pb-6" : "h-full w-full px-4 pb-6"}>
+    <ScrollContainer
+      enableBackToTop
+      ref={scrollRef}
+      resetOnChange={favFolderId}
+      className={isMobile ? "h-full w-full px-4 py-3 pb-6" : "h-full w-full px-4 pb-6"}
+    >
       <Header
         loading={loading}
         type={CollectionType.Favorite}

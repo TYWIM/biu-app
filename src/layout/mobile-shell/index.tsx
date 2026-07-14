@@ -1,4 +1,4 @@
-import React, { memo, useEffect, useMemo } from "react";
+import React, { memo, Suspense, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router";
 
 import { Button, Drawer, DrawerBody, DrawerContent, DrawerHeader, useDisclosure } from "@heroui/react";
@@ -16,22 +16,28 @@ import {
   RiSkipForwardFill,
   RiTimeLine,
   RiUserFollowLine,
+  RiUserLine,
+  RiLogoutBoxRLine,
 } from "@remixicon/react";
 import clsx from "classnames";
-import { motion } from "framer-motion";
 import { useShallow } from "zustand/shallow";
 
 import { ReactComponent as LogoIcon } from "@/assets/icons/logo.svg";
 import { DefaultMenuList } from "@/common/constants/menus";
+import { clearRuntimeLoginCookies } from "@/common/utils/runtime-cookie";
+import { getRuntimeCookie } from "@/common/utils/runtime-cookie";
 import { formatUrlProtocol } from "@/common/utils/url";
 import IconButton from "@/components/icon-button";
 import MusicPlayProgress from "@/components/music-play-progress";
 import { useTheme } from "@/components/theme/use-theme";
+import { postPassportLoginExit } from "@/service/passport-login-exit";
 import { useFavoritesStore } from "@/store/favorite";
 import { useModalStore } from "@/store/modal";
 import { usePlayList } from "@/store/play-list";
 import { useSettings } from "@/store/settings";
 import { useUser } from "@/store/user";
+
+const Login = React.lazy(() => import("@/layout/navbar/login"));
 
 interface Props {
   children?: React.ReactNode;
@@ -104,8 +110,6 @@ const getPageTitle = (pathname: string) => {
   if (pathname.startsWith("/follow")) return "我的关注";
   if (pathname.startsWith("/later")) return "稍后再看";
   if (pathname.startsWith("/history")) return "历史记录";
-  if (pathname.startsWith("/local-music")) return "本地音乐";
-  if (pathname.startsWith("/download-list")) return "下载记录";
   if (pathname.startsWith("/dynamic-feed")) return "动态";
   if (pathname.startsWith("/collection/")) return "收藏夹";
   if (pathname.startsWith("/user/")) return "用户";
@@ -119,8 +123,6 @@ const getPageSubtitle = (pathname: string, hasPlayingItem: boolean) => {
   if (pathname.startsWith("/follow")) return "查看关注更新和新内容";
   if (pathname.startsWith("/later")) return "管理稍后播放与待整理内容";
   if (pathname.startsWith("/history")) return "快速回到最近播放记录";
-  if (pathname.startsWith("/local-music")) return "浏览设备里的本地音乐";
-  if (pathname.startsWith("/download-list")) return "管理下载任务与离线资源";
   if (pathname.startsWith("/dynamic-feed")) return "集中查看动态与更新";
   if (pathname.startsWith("/collection/")) return "整理收藏夹与播放队列";
   if (pathname.startsWith("/user/")) return "用户主页与投稿信息";
@@ -156,40 +158,47 @@ const MobileMiniPlayer = memo(({ isDark }: { isDark: boolean }) => {
   const displayTitle = playItem.pageTitle || playItem.title;
   const displaySubtitle = playItem.source === "local" ? "本地音乐" : playItem.ownerName || "未知作者";
   const btnClass = clsx(
-    "size-8 min-w-8 rounded-full transition-transform duration-150 active:scale-90",
-    isDark
-      ? "bg-white/10 text-white hover:bg-white/16"
-      : "bg-slate-900/6 text-slate-700 hover:bg-slate-900/10",
+    "size-11 min-w-11 rounded-full transition-transform duration-150 active:scale-95",
+    isDark ? "bg-white/10 text-white hover:bg-white/16" : "bg-slate-900/6 text-slate-700 hover:bg-slate-900/10",
   );
 
   return (
-    <div className="flex items-center gap-1.5 px-3 py-1.5">
+    <div className="flex min-h-16 items-center gap-2 px-3 py-2">
       <button
         type="button"
+        aria-label={`打开播放器：${displayTitle}`}
         onClick={openFullScreenPlayer}
-        className="flex min-w-0 flex-1 items-center gap-2.5 text-left transition-transform duration-150 active:scale-[0.97]"
+        className="active:bg-default-100/60 flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded-lg text-left transition-colors"
       >
-        <div className={clsx(
-          "flex h-8 w-8 flex-none items-center justify-center overflow-hidden rounded-lg",
-          isDark ? "bg-white/10" : "bg-slate-900/6",
-        )}>
+        <div
+          className={clsx(
+            "flex h-11 w-11 flex-none items-center justify-center overflow-hidden rounded-lg",
+            isDark ? "bg-white/10" : "bg-slate-900/6",
+          )}
+        >
           {cover ? (
-            <img src={cover} alt={displayTitle} className="h-full w-full object-cover" />
+            <img src={cover} alt="" className="h-full w-full object-cover" decoding="async" />
           ) : (
-            <RiMusic2Line size={14} className={isDark ? "text-white/60" : "text-slate-500"} />
+            <RiMusic2Line size={18} className={isDark ? "text-white/60" : "text-slate-500"} />
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <div className={clsx("truncate text-[12px] font-semibold leading-tight", isDark ? "text-white" : "text-slate-900")}>{displayTitle}</div>
-          <div className={clsx("truncate text-[10px] leading-tight", isDark ? "text-white/55" : "text-slate-600/70")}>{displaySubtitle}</div>
+          <div
+            className={clsx("truncate text-sm leading-tight font-semibold", isDark ? "text-white" : "text-slate-900")}
+          >
+            {displayTitle}
+          </div>
+          <div className={clsx("mt-1 truncate text-xs leading-tight", isDark ? "text-white/55" : "text-slate-600/70")}>
+            {displaySubtitle}
+          </div>
         </div>
       </button>
       <div className="flex items-center gap-1">
-        <IconButton onPress={togglePlay} className={btnClass}>
-          {isPlaying ? <RiPauseCircleFill size={22} /> : <RiPlayCircleFill size={22} />}
+        <IconButton aria-label={isPlaying ? "暂停" : "播放"} onPress={togglePlay} className={btnClass}>
+          {isPlaying ? <RiPauseCircleFill size={24} /> : <RiPlayCircleFill size={24} />}
         </IconButton>
-        <IconButton onPress={next} className={btnClass}>
-          <RiSkipForwardFill size={15} />
+        <IconButton aria-label="下一首" onPress={next} className={btnClass}>
+          <RiSkipForwardFill size={18} />
         </IconButton>
       </div>
     </div>
@@ -207,25 +216,24 @@ const MobileShell = ({ children }: Props) => {
   const updateCollectedFavorites = useFavoritesStore(s => s.updateCollectedFavorites);
   const hiddenMenuKeys = useSettings(s => s.hiddenMenuKeys);
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
+  const { isOpen: isLoginOpen, onOpen: onLoginOpen, onOpenChange: onLoginOpenChange } = useDisclosure();
+  const { isOpen: isUserMenuOpen, onOpen: onUserMenuOpen, onOpenChange: onUserMenuOpenChange } = useDisclosure();
   const currentPlayItem = usePlayList(state => state.list.find(item => item.id === state.playId));
 
   const title = getPageTitle(location.pathname);
   const isHome = location.pathname === "/";
-  const currentCover = formatUrlProtocol(currentPlayItem?.pageCover || currentPlayItem?.cover);
   const subtitle = getPageSubtitle(location.pathname, Boolean(currentPlayItem));
   const isDarkTheme = theme === "dark";
-  const shellCardClassName = isDarkTheme
-    ? "border-white/10 bg-white/8 text-white shadow-[0_18px_60px_rgb(2_6_23_/_0.24)]"
-    : "border-slate-900/8 bg-white/82 text-slate-900 shadow-[0_18px_54px_rgb(148_163_184_/_0.16)]";
   const shellMutedTextClassName = isDarkTheme ? "text-white/62" : "text-slate-700/72";
-  const shellSubtleLabelClassName = isDarkTheme ? "text-white/58" : "text-slate-700/56";
   const shellChromeButtonClassName = isDarkTheme
     ? "bg-white/8 text-white hover:bg-white/14"
     : "bg-slate-900/6 text-slate-700 hover:bg-slate-900/10 hover:text-slate-950";
   const shellChipClassName = isDarkTheme
-    ? "border-white/10 bg-white/8 text-white/72"
-    : "border-slate-900/8 bg-slate-900/4 text-slate-700/72";
-  const shellSeparatorClassName = isDarkTheme ? "bg-white/8" : "bg-slate-900/6";
+    ? "text-white/72 hover:bg-white/8 hover:text-white"
+    : "text-slate-600 hover:bg-slate-900/6 hover:text-slate-950";
+  const shellSurfaceClassName = isDarkTheme
+    ? "border-white/8 bg-[color:var(--mobile-shell-bg)] text-white"
+    : "border-slate-900/8 bg-[color:var(--mobile-shell-bg)] text-slate-900";
 
   useEffect(() => {
     if (!user?.mid) {
@@ -244,6 +252,20 @@ const MobileShell = ({ children }: Props) => {
     return items.filter(item => (item.needLogin ? Boolean(user?.isLogin) : true));
   }, [hiddenMenuKeys, user?.isLogin]);
 
+  const handleLogout = async () => {
+    try {
+      const biliJct = await getRuntimeCookie("bili_jct");
+      if (biliJct) {
+        await postPassportLoginExit({ biliCSRF: biliJct }).catch(() => {});
+      }
+    } catch {
+      // ignore API errors
+    }
+    await clearRuntimeLoginCookies();
+    useUser.getState().clear();
+    onOpenChange();
+  };
+
   const visibleCreatedFavorites = useMemo(
     () => createdFavorites.filter(item => !hiddenMenuKeys.includes(String(item.id))),
     [createdFavorites, hiddenMenuKeys],
@@ -255,108 +277,93 @@ const MobileShell = ({ children }: Props) => {
   );
 
   return (
-    <div className="relative flex h-full min-h-0 flex-col overflow-hidden bg-[var(--mobile-shell-bg)]">
-      <div className="mobile-shell-backdrop">
-        {currentCover ? (
-          <img
-            src={currentCover}
-            alt={currentPlayItem?.pageTitle || currentPlayItem?.title || "cover"}
-            className="absolute inset-0 h-full w-full scale-110 object-cover opacity-24 blur-3xl saturate-125"
-          />
-        ) : null}
-        <div className="mobile-shell-ambient mobile-shell-ambient-a" />
-        <div className="mobile-shell-ambient mobile-shell-ambient-b" />
-        <div className="mobile-shell-ambient mobile-shell-ambient-c" />
-        <div className="mobile-shell-noise" />
-      </div>
-
-      <div className="relative z-10 flex min-h-0 flex-1 flex-col">
-        <header className="px-3 pb-3" style={{ paddingTop: "calc(var(--safe-area-top) + 0.75rem)" }}>
-          <motion.div
-            initial={{ opacity: 0, y: -12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.32, ease: "easeOut" }}
-            className={clsx("rounded-[28px] border px-3 py-3 backdrop-blur-2xl", shellCardClassName)}
+    <div
+      className="text-foreground flex h-full min-h-0 flex-col overflow-hidden bg-[var(--mobile-shell-bg)]"
+      style={{ paddingLeft: "var(--safe-area-left)", paddingRight: "var(--safe-area-right)" }}
+    >
+      <header
+        className={clsx("flex-none border-b px-4", shellSurfaceClassName)}
+        style={{ paddingTop: "var(--safe-area-top)" }}
+      >
+        <div className="flex min-h-[68px] items-center gap-3">
+          <Button
+            isIconOnly
+            aria-label="打开导航"
+            variant="light"
+            radius="full"
+            onPress={onOpen}
+            className={clsx("size-11 min-w-11", shellChromeButtonClassName)}
           >
-            <div className="flex items-start gap-3">
-              <div className="flex flex-none items-center justify-start">
-                <Button
-                  isIconOnly
-                  variant="light"
-                  radius="full"
-                  onPress={onOpen}
-                  className={shellChromeButtonClassName}
-                >
-                  <RiMenuLine size={20} />
-                </Button>
-              </div>
-              <div className="min-w-0 flex-1">
-                {isHome ? (
-                  <>
-                    <div className={clsx("mb-1 inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[10px] font-medium tracking-[0.24em] uppercase", shellChipClassName)}>
-                      <LogoIcon className="text-primary h-4 w-4" />
-                      <span>Biu Mobile</span>
-                    </div>
-                    <div className="text-2xl font-semibold tracking-tight">推荐</div>
-                  </>
-                ) : (
-                  <>
-                    <div className={clsx("text-[10px] font-medium tracking-[0.26em] uppercase", shellSubtleLabelClassName)}>Workspace</div>
-                    <div className="truncate text-xl font-semibold tracking-tight">{title}</div>
-                  </>
-                )}
-                <div className={clsx("mt-1 truncate text-sm", shellMutedTextClassName)}>{subtitle}</div>
-              </div>
-              <div className={clsx("flex flex-none items-center justify-end rounded-full border p-1", shellChipClassName)}>
-                {/* UserCard removed */}
-              </div>
+            <RiMenuLine size={22} />
+          </Button>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              {isHome ? <LogoIcon className="text-primary h-5 w-5 flex-none" aria-hidden="true" /> : null}
+              <h1 className="truncate text-xl font-semibold">{title}</h1>
             </div>
+            <p className={clsx("mt-0.5 truncate text-xs", shellMutedTextClassName)}>{subtitle}</p>
+          </div>
 
-            {isHome && (
-              <div className="no-scrollbar mt-3 flex gap-2 overflow-x-auto pb-1">
-                {homeShortcutItems.map(item => {
-                  const Icon = item.icon;
+          {user?.isLogin && user.face ? (
+            <button
+              type="button"
+              aria-label={`打开${user.uname || "用户"}菜单`}
+              onClick={onUserMenuOpen}
+              className="border-primary/25 size-11 flex-none overflow-hidden rounded-full border-2 transition-transform duration-150 active:scale-95"
+            >
+              <img
+                src={user.face.replace(/^http:/, "https:")}
+                alt=""
+                className="h-full w-full object-cover"
+                decoding="async"
+                referrerPolicy="no-referrer"
+              />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onLoginOpen}
+              className={clsx(
+                "flex min-h-11 flex-none items-center justify-center gap-1.5 rounded-full px-3 text-sm font-medium transition-transform duration-150 active:scale-95",
+                shellChipClassName,
+              )}
+            >
+              <RiUserLine size={18} />
+              <span>登录</span>
+            </button>
+          )}
+        </div>
 
-                  return (
-                    <button
-                      key={item.href}
-                      type="button"
-                      onClick={() => navigate(item.href)}
-                      className={clsx(
-                        "flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-sm transition-all duration-200 active:scale-95",
-                        shellChipClassName,
-                        isDarkTheme ? "hover:bg-white/10 hover:text-white" : "hover:bg-slate-900/8 hover:text-slate-950",
-                      )}
-                    >
-                      <Icon size={16} />
-                      <span>{item.title}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </motion.div>
-        </header>
+        {isHome ? (
+          <nav aria-label="快捷入口" className="grid grid-cols-4 gap-1 pb-3">
+            {homeShortcutItems.map(item => {
+              const Icon = item.icon;
 
-        <div
-          className="flex min-h-0 flex-1 flex-col px-2"
-          style={{ paddingBottom: "calc(0.5rem + var(--safe-area-bottom))" }}
-        >
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, ease: "easeOut", delay: 0.06 }}
-            className={clsx(
-              "flex min-h-0 flex-1 flex-col overflow-hidden rounded-[26px] border backdrop-blur-2xl",
-              isDarkTheme
-                ? "bg-background/78 border-white/10 shadow-[0_26px_70px_rgb(2_6_23_/_0.24)]"
-                : "bg-white/76 border-[color:var(--mobile-shell-border)] shadow-[0_22px_54px_rgb(148_163_184_/_0.16)]",
-            )}
-          >
-            <div className={clsx("pointer-events-none absolute inset-x-0 top-0 z-10 h-16 rounded-t-[26px] bg-linear-to-b", isDarkTheme ? "from-white/8 to-transparent" : "from-white/55 to-transparent")} />
-            <div className="relative min-h-0 flex-1 overflow-hidden">{children}</div>
+              return (
+                <button
+                  key={item.href}
+                  type="button"
+                  onClick={() => navigate(item.href)}
+                  className={clsx(
+                    "active:bg-primary/15 flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-lg px-1 text-xs font-medium transition-colors",
+                    shellChipClassName,
+                  )}
+                >
+                  <Icon size={17} className="flex-none" />
+                  <span className="truncate">{item.title}</span>
+                </button>
+              );
+            })}
+          </nav>
+        ) : null}
+      </header>
 
-            <div className={clsx("mx-3 h-px flex-none", shellSeparatorClassName)} />
+      <div className="relative min-h-0 flex-1 overflow-hidden">{children}</div>
+
+      <div className={clsx("flex-none border-t", shellSurfaceClassName)}>
+        {currentPlayItem ? (
+          <>
             <MobileMiniPlayer isDark={isDarkTheme} />
             <MusicPlayProgress
               className="w-full flex-none"
@@ -364,36 +371,39 @@ const MobileShell = ({ children }: Props) => {
               thumbClassName="h-0 w-0"
               timeClassName="hidden"
             />
+          </>
+        ) : null}
 
-            <nav className="grid flex-none grid-cols-3 gap-1 px-2 py-1.5">
-              {bottomNavItems.map(item => {
-                const active = isPathActive(location.pathname, item.href);
-                const Icon = item.icon;
+        <nav
+          aria-label="主要导航"
+          className="grid grid-cols-3 gap-1 px-2 pt-1.5"
+          style={{ paddingBottom: "calc(var(--safe-area-bottom) + 0.375rem)" }}
+        >
+          {bottomNavItems.map(item => {
+            const active = isPathActive(location.pathname, item.href);
+            const Icon = item.icon;
 
-                return (
-                  <button
-                    key={item.href}
-                    type="button"
-                    onClick={() => navigate(item.href)}
-                    className={clsx(
-                      "flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-[14px] px-1 py-1.5 text-[10px] transition-all duration-200 active:scale-90",
-                      active
-                        ? isDarkTheme
-                          ? "bg-white text-slate-950 shadow-[0_8px_20px_rgb(255_255_255_/_0.16)]"
-                          : "bg-slate-950 text-white shadow-[0_8px_20px_rgb(15_23_42_/_0.16)]"
-                        : isDarkTheme
-                          ? "text-white/55 hover:bg-white/6 hover:text-white"
-                          : "text-slate-500 hover:bg-slate-900/4 hover:text-slate-950",
-                    )}
-                  >
-                    <Icon size={17} />
-                    <span className="truncate font-medium">{item.title}</span>
-                  </button>
-                );
-              })}
-            </nav>
-          </motion.div>
-        </div>
+            return (
+              <button
+                key={item.href}
+                type="button"
+                aria-current={active ? "page" : undefined}
+                onClick={() => navigate(item.href)}
+                className={clsx(
+                  "active:bg-primary/15 flex min-h-12 min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-1 text-[11px] transition-colors",
+                  active
+                    ? "bg-primary/12 text-primary"
+                    : isDarkTheme
+                      ? "text-white/58 hover:bg-white/6 hover:text-white"
+                      : "text-slate-500 hover:bg-slate-900/4 hover:text-slate-950",
+                )}
+              >
+                <Icon size={20} />
+                <span className="truncate font-medium">{item.title}</span>
+              </button>
+            );
+          })}
+        </nav>
       </div>
 
       <Drawer isOpen={isOpen} onOpenChange={onOpenChange} placement="left" size="xs" shouldBlockScroll={false}>
@@ -479,6 +489,62 @@ const MobileShell = ({ children }: Props) => {
                 </div>
               )}
             </div>
+          </DrawerBody>
+        </DrawerContent>
+      </Drawer>
+
+      {isLoginOpen ? (
+        <Suspense fallback={null}>
+          <Login isOpen={isLoginOpen} onOpenChange={onLoginOpenChange} />
+        </Suspense>
+      ) : null}
+
+      {/* User Menu Drawer */}
+      <Drawer
+        isOpen={isUserMenuOpen}
+        onOpenChange={onUserMenuOpenChange}
+        placement="bottom"
+        size="sm"
+        shouldBlockScroll={false}
+      >
+        <DrawerContent>
+          <DrawerBody className="px-4 py-4">
+            {user && (
+              <div className="flex flex-col gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onUserMenuOpenChange();
+                    navigate(`/user/${user.mid}`);
+                  }}
+                  className="hover:bg-default-100 active:bg-default-200 flex items-center gap-3 rounded-xl p-3 transition-colors"
+                >
+                  <img
+                    src={user.face?.replace(/^http:/, "https:")}
+                    alt={user.uname || "avatar"}
+                    className="h-12 w-12 rounded-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                  <div className="min-w-0 flex-1 text-left">
+                    <div className="truncate text-base font-semibold">{user.uname}</div>
+                    <div className="text-foreground-500 text-sm">UID: {user.mid}</div>
+                  </div>
+                </button>
+                <div className="bg-divider h-px" />
+                <Button
+                  variant="light"
+                  color="danger"
+                  startContent={<RiLogoutBoxRLine size={18} />}
+                  className="w-full justify-start"
+                  onPress={() => {
+                    handleLogout();
+                    onUserMenuOpenChange();
+                  }}
+                >
+                  退出登录
+                </Button>
+              </div>
+            )}
           </DrawerBody>
         </DrawerContent>
       </Drawer>

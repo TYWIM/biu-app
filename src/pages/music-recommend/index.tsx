@@ -4,6 +4,8 @@ import { addToast, Spinner, Tab, Tabs } from "@heroui/react";
 import { RiPlayFill } from "@remixicon/react";
 
 import useIsMobile from "@/common/hooks/use-is-mobile";
+import { canDownloadMedia } from "@/common/utils/download-capability";
+import { addDownloadTask } from "@/common/utils/native-download";
 import { isBrowserPreview as checkIsBrowserPreview } from "@/common/utils/runtime-platform";
 import { openBiliVideoLink } from "@/common/utils/url";
 import AsyncButton from "@/components/async-button";
@@ -22,7 +24,6 @@ import type { RecommendItem } from "./types";
 import MusicRecommendGridList from "./grid-list";
 import MusicRecommendList from "./list";
 import NewMusicTop from "./new-music-top";
-import { canDownloadMedia } from "@/common/utils/download-capability";
 
 const PAGE_SIZE = 20;
 const REGION_PAGE_SIZE = 15;
@@ -179,7 +180,7 @@ const MusicRecommend = () => {
   const scrollerRef = useRef<ScrollRefObject>(null);
   const isMobile = useIsMobile();
   const isBrowserPreview = checkIsBrowserPreview();
-    const canDownload = canDownloadMedia();
+  const canDownload = canDownloadMedia();
   const user = useUser(state => state.user);
   const playQueue = usePlayList(state => state.list);
 
@@ -195,7 +196,7 @@ const MusicRecommend = () => {
   const [popLayoutVersion, setPopLayoutVersion] = useState(0);
 
   const displayMode = useSettings(state => state.displayMode);
-  const shouldUseGrid = isMobile || displayMode === "card";
+  const shouldUseGrid = displayMode === "card";
   const listKey = `${activeTab}-${shouldUseGrid ? "card" : displayMode}-${activeTab === "pop" ? popLayoutVersion : 0}`;
 
   const preference = useMemo(() => {
@@ -208,13 +209,16 @@ const MusicRecommend = () => {
       weight: 2.2 - Math.min(index, 40) * 0.025,
     }));
 
-    const queueSources: PreferenceSource[] = playQueue.slice(-80).reverse().map((item, index) => ({
-      title: item.pageTitle || item.title,
-      author: item.ownerName,
-      authorMid: item.ownerMid,
-      bvid: item.bvid,
-      weight: 1.4 - Math.min(index, 40) * 0.02,
-    }));
+    const queueSources: PreferenceSource[] = playQueue
+      .slice(-80)
+      .reverse()
+      .map((item, index) => ({
+        title: item.pageTitle || item.title,
+        author: item.ownerName,
+        authorMid: item.ownerMid,
+        bvid: item.bvid,
+        weight: 1.4 - Math.min(index, 40) * 0.02,
+      }));
 
     return buildRecommendationPreference([...historySources, ...queueSources]);
   }, [historyItems, playQueue]);
@@ -385,125 +389,108 @@ const MusicRecommend = () => {
     addToast({ title: `已添加 ${items.length} 首到播放列表`, color: "success" });
   }, [displayList]);
 
-  const handleMenuAction = useCallback(
-    async (key: string, item: RecommendItem) => {
-      if (!item.bvid && key !== "favorite") {
-        addToast({ title: "暂无可播放内容", color: "warning" });
-        return;
-      }
-      switch (key) {
-        case "favorite":
-          if (!item.aid) {
-            addToast({ title: "该项目无法收藏", color: "warning" });
-            return;
-          }
-          useModalStore.getState().onOpenFavSelectModal({
-            rid: Number(item.aid),
-            type: 2,
-            title: item.title,
-          });
-          break;
-        case "play-next":
-          usePlayList.getState().addToNext({
+  const handleMenuAction = useCallback(async (key: string, item: RecommendItem) => {
+    if (!item.bvid && key !== "favorite") {
+      addToast({ title: "暂无可播放内容", color: "warning" });
+      return;
+    }
+    switch (key) {
+      case "favorite":
+        if (!item.aid) {
+          addToast({ title: "该项目无法收藏", color: "warning" });
+          return;
+        }
+        useModalStore.getState().onOpenFavSelectModal({
+          rid: Number(item.aid),
+          type: 2,
+          title: item.title,
+        });
+        break;
+      case "play-next":
+        usePlayList.getState().addToNext({
+          type: "mv",
+          title: item.title,
+          cover: item.cover,
+          bvid: item.bvid,
+          sid: Number(item.id) || undefined,
+          ownerName: item.author,
+        });
+        break;
+      case "add-to-playlist":
+        usePlayList.getState().addList([
+          {
             type: "mv",
             title: item.title,
             cover: item.cover,
             bvid: item.bvid,
             sid: Number(item.id) || undefined,
             ownerName: item.author,
-          });
-          break;
-        case "add-to-playlist":
-          usePlayList.getState().addList([
-            {
-              type: "mv",
-              title: item.title,
-              cover: item.cover,
-              bvid: item.bvid,
-              sid: Number(item.id) || undefined,
-              ownerName: item.author,
-            },
-          ]);
-          break;
-        case "download-audio":
-          {
-            const downloadTask = (async (..._a: any[]) => { /* electron removed */ }) as any;
-            if (!downloadTask) {
-              addToast({ title: "浏览器预览模式不支持下载", color: "default" });
-              return;
-            }
-
-            await downloadTask({
-              outputFileType: "audio",
-              title: item.title,
-              cover: item.cover,
-              bvid: item.bvid,
-            });
-            addToast({
-              title: "已添加下载任务",
-              color: "success",
-            });
-          }
-          break;
-        case "download-video": {
-          const downloadTask = (async (..._a: any[]) => { /* electron removed */ }) as any;
-          if (!downloadTask) {
-            addToast({ title: "浏览器预览模式不支持下载", color: "default" });
-            return;
-          }
-
-          await downloadTask({
-            outputFileType: "video",
+          },
+        ]);
+        break;
+      case "download-audio":
+        {
+          const result = await addDownloadTask({
+            outputFileType: "audio",
             title: item.title,
             cover: item.cover,
             bvid: item.bvid,
+            sid: Number(item.id) || undefined,
           });
           addToast({
-            title: "已添加下载任务",
-            color: "success",
+            title: result ? "已添加下载任务" : "下载失败，请稍后重试",
+            color: result ? "success" : "danger",
           });
-          break;
         }
-        case "bililink":
-          if (item.bvid) {
-            openBiliVideoLink({ type: "mv", bvid: item.bvid });
-          }
-          break;
-        default:
-          break;
+        break;
+      case "download-video": {
+        const result = await addDownloadTask({
+          outputFileType: "video",
+          title: item.title,
+          cover: item.cover,
+          bvid: item.bvid,
+        });
+        addToast({
+          title: result ? "已添加下载任务" : "下载失败，请稍后重试",
+          color: result ? "success" : "danger",
+        });
+        break;
       }
-    },
-    [],
-  );
+      case "bililink":
+        if (item.bvid) {
+          openBiliVideoLink({ type: "mv", bvid: item.bvid });
+        }
+        break;
+      default:
+        break;
+    }
+  }, []);
 
   return (
     <ScrollContainer
       enableBackToTop
       ref={scrollerRef}
-      className={isMobile ? "h-full w-full px-4 py-4" : "h-full w-full px-4"}
+      className={isMobile ? "h-full w-full px-3 py-3" : "h-full w-full px-4"}
     >
-      {isMobile && (
-        <div className="mb-4 rounded-[24px] border border-white/8 bg-white/[0.04] px-4 py-4 shadow-[0_18px_40px_rgb(2_6_23_/_0.08)] backdrop-blur-xl">
-          <div className="flex items-end justify-between gap-3">
-            <div className="min-w-0">
-              <div className="text-primary mb-1 text-[10px] font-medium tracking-[0.28em] uppercase">Recommend</div>
-              <div className="text-foreground text-[28px] leading-none font-semibold tracking-tight">发现</div>
-              <div className="text-foreground-500 mt-2 text-sm">按你的播放习惯重排推荐，并一键加入当前播放队列</div>
-            </div>
-            <AsyncButton
-              color="primary"
-              size="sm"
-              radius="full"
-              startContent={<RiPlayFill size={18} />}
-              isDisabled={initialLoading || displayList.length === 0}
-              onPress={handlePlayAll}
-              className="shrink-0 px-4 dark:text-black"
-            >
-              全部播放
-            </AsyncButton>
+      {isMobile ? (
+        <div className="mb-3 flex min-h-12 items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-base font-semibold">推荐内容</h2>
+            <p className="text-foreground-500 mt-0.5 truncate text-xs">按播放习惯排序，可直接加入当前队列</p>
           </div>
+          <AsyncButton
+            color="primary"
+            size="md"
+            radius="full"
+            startContent={<RiPlayFill size={18} />}
+            isDisabled={initialLoading || displayList.length === 0}
+            onPress={handlePlayAll}
+            className="min-h-11 shrink-0 px-4 dark:text-black"
+          >
+            播放全部
+          </AsyncButton>
         </div>
-      )}
+      ) : null}
       <div className={isMobile ? "mb-3 flex flex-col gap-3" : "mb-2 flex items-center justify-between"}>
         <Tabs
           variant="solid"
@@ -513,9 +500,9 @@ const MusicRecommend = () => {
           classNames={{
             cursor: isMobile ? "rounded-full shadow-lg" : "rounded-medium",
             tabList: isMobile
-              ? "max-w-full gap-1 overflow-x-auto rounded-full bg-white/[0.05] p-1 no-scrollbar"
+              ? "max-w-full gap-1 overflow-x-auto rounded-lg bg-default-100/70 p-1 no-scrollbar"
               : "max-w-full overflow-x-auto no-scrollbar",
-            tab: isMobile ? "h-10 px-4" : undefined,
+            tab: isMobile ? "h-11 px-4" : undefined,
             tabContent: isMobile ? "text-sm font-medium" : undefined,
           }}
           selectedKey={activeTab}
@@ -547,7 +534,11 @@ const MusicRecommend = () => {
       </div>
       {activeTab === "pop" && <NewMusicTop onLayoutChange={handlePopLayoutChange} />}
       <div className="relative">
-        {!initialLoading && displayList.length === 0 ? (
+        {initialLoading && displayList.length === 0 ? (
+          <div className="flex h-[40vh] items-center justify-center" aria-label="正在加载推荐内容">
+            <Spinner size="lg" />
+          </div>
+        ) : displayList.length === 0 ? (
           <div className="py-4">
             <Empty
               title={
@@ -588,11 +579,6 @@ const MusicRecommend = () => {
             canDownload={canDownload}
             onMenuAction={handleMenuAction}
           />
-        )}
-        {initialLoading && displayList.length === 0 && (
-          <div className="flex h-[40vh] items-center justify-center">
-            <Spinner size="lg" />
-          </div>
         )}
       </div>
     </ScrollContainer>

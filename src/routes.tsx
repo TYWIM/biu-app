@@ -1,17 +1,33 @@
+import { lazy, Suspense, type ReactElement } from "react";
 import type { RouteObject } from "react-router";
 
+import { Spinner } from "@heroui/react";
+
 import Layout from "./layout";
-import DynamicFeed from "./pages/dynamic-feed";
-import EmptyPage from "./pages/empty";
-import FollowList from "./pages/follow-list";
-import History from "./pages/history";
-import Later from "./pages/later";
-import MusicRecommend from "./pages/music-recommend";
-import NotFound from "./pages/not-found";
-import Search from "./pages/search";
-import Settings from "./pages/settings";
-import UserProfile from "./pages/user-profile";
-import Folder from "./pages/video-collection";
+
+const DynamicFeed = lazy(() => import("./pages/dynamic-feed"));
+const EmptyPage = lazy(() => import("./pages/empty"));
+const FollowList = lazy(() => import("./pages/follow-list"));
+const History = lazy(() => import("./pages/history"));
+const Later = lazy(() => import("./pages/later"));
+const MusicRecommend = lazy(() => import("./pages/music-recommend"));
+const NotFound = lazy(() => import("./pages/not-found"));
+const Search = lazy(() => import("./pages/search"));
+const Settings = lazy(() => import("./pages/settings"));
+const UserProfile = lazy(() => import("./pages/user-profile"));
+const Folder = lazy(() => import("./pages/video-collection"));
+
+const renderPage = (page: ReactElement) => (
+  <Suspense
+    fallback={
+      <div className="flex h-full min-h-48 items-center justify-center" role="status" aria-label="正在加载页面">
+        <Spinner size="lg" />
+      </div>
+    }
+  >
+    {page}
+  </Suspense>
+);
 
 const routes: RouteObject[] = [
   {
@@ -20,49 +36,49 @@ const routes: RouteObject[] = [
     children: [
       {
         index: true,
-        element: <MusicRecommend />,
+        element: renderPage(<MusicRecommend />),
       },
       {
         path: "later",
-        element: <Later />,
+        element: renderPage(<Later />),
       },
       {
         path: "history",
-        element: <History />,
+        element: renderPage(<History />),
       },
       {
         path: "follow",
-        element: <FollowList />,
+        element: renderPage(<FollowList />),
       },
       {
         path: "collection/:id",
-        element: <Folder />,
+        element: renderPage(<Folder />),
       },
       {
         path: "user/:id",
-        element: <UserProfile />,
+        element: renderPage(<UserProfile />),
       },
       {
         path: "settings",
-        element: <Settings />,
+        element: renderPage(<Settings />),
       },
       {
         path: "dynamic-feed",
-        element: <DynamicFeed />,
+        element: renderPage(<DynamicFeed />),
       },
       {
         path: "search",
-        element: <Search />,
+        element: renderPage(<Search />),
       },
       {
         path: "empty",
-        element: <EmptyPage />,
+        element: renderPage(<EmptyPage />),
       },
     ],
   },
   {
     path: "*",
-    element: <NotFound />,
+    element: renderPage(<NotFound />),
   },
 ];
 

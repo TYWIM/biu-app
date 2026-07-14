@@ -1,6 +1,7 @@
 package com.biu.wood3n;
 
 import android.os.Bundle;
+import android.content.pm.ApplicationInfo;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
@@ -23,9 +24,14 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(BiuCookiePlugin.class);
+        registerPlugin(BiuDownloadPlugin.class);
         registerPlugin(BiuHttpPlugin.class);
         registerPlugin(BiuPlayerPlugin.class);
         super.onCreate(savedInstanceState);
+
+        if ((getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
+            WebView.setWebContentsDebuggingEnabled(true);
+        }
 
         // Allow loading HTTP images inside the HTTPS localhost page
         WebSettings ws = this.bridge.getWebView().getSettings();

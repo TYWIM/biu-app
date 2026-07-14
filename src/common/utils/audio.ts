@@ -138,11 +138,17 @@ export async function getDashUrl(bvid: string, cid: string | number, audioQualit
 
     const audioList = getUrlInfoRes?.data?.dash?.audio || [];
     const selectedAudio = selectAudioByQuality(audioList, resolvedQuality);
+    const resolvedAudioUrl = selectedAudio?.baseUrl || selectedAudio?.backupUrl?.[0] || "";
+
+    if (!resolvedAudioUrl) {
+      throw new Error(`No DASH audio stream available for ${bvid}`);
+    }
+
     return {
       isLossless: false,
       audioCodecs: selectedAudio?.codecs?.toLowerCase() || "",
       audioBandwidth: selectedAudio?.bandwidth,
-      audioUrl: selectedAudio?.baseUrl || selectedAudio?.backupUrl?.[0] || "",
+      audioUrl: resolvedAudioUrl,
       videoUrl,
       videoResolution,
     };

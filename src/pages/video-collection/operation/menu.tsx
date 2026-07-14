@@ -5,6 +5,7 @@ import { Dropdown, DropdownTrigger, Button, DropdownMenu, DropdownItem, useDiscl
 import { RiDeleteBinLine, RiEraserLine, RiFileMusicLine, RiFileVideoLine, RiMoreLine } from "@remixicon/react";
 
 import { CollectionType } from "@/common/constants/collection";
+import { canDownloadMedia } from "@/common/utils/download-capability";
 import { isDefaultFav } from "@/common/utils/fav";
 import { postFavFolderDel } from "@/service/fav-folder-del";
 import { useFavoritesStore } from "@/store/favorite";
@@ -25,7 +26,7 @@ const Menu = ({ type, isCreatedBySelf, mediaCount, attr, onClearInvalid }: MenuP
   const { id } = useParams();
   const navigate = useNavigate();
   const [outputFileType, setOutputFileType] = useState<MediaDownloadOutputFileType>("audio");
-  const canDownloadAll = false; // TODO: implement batch download for mobile
+  const canDownloadAll = canDownloadMedia();
 
   const onOpenConfirmModal = useModalStore(s => s.onOpenConfirmModal);
 

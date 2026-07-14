@@ -5,6 +5,8 @@ import { RiDeleteBinLine } from "@remixicon/react";
 import { useShallow } from "zustand/react/shallow";
 
 import useIsMobile from "@/common/hooks/use-is-mobile";
+import { queueDownloadTask } from "@/common/utils/download-actions";
+import { canDownloadMedia } from "@/common/utils/download-capability";
 import { openBiliVideoLink } from "@/common/utils/url";
 import IconButton from "@/components/icon-button";
 import ScrollContainer, { type ScrollRefObject } from "@/components/scroll-container";
@@ -22,7 +24,6 @@ import { useSettings } from "@/store/settings";
 import GridList from "./grid-list";
 import HistoryList from "./list";
 import HistorySearch from "./search";
-import { canDownloadMedia } from "@/common/utils/download-capability";
 
 const History = () => {
   const scrollerRef = useRef<ScrollRefObject>(null);
@@ -207,42 +208,22 @@ const History = () => {
           ]);
           break;
         case "download-audio": {
-          const downloadTask = (async (..._a: any[]) => { /* electron removed */ }) as any;
-          if (!downloadTask) {
-            addToast({ title: "浏览器预览模式不支持下载", color: "default" });
-            return;
-          }
-
-          await downloadTask({
+          await queueDownloadTask({
             outputFileType: "audio",
             title: item.title,
             cover: item.cover,
             bvid: item.history.bvid,
             cid: item.history.cid,
           });
-          addToast({
-            title: "已添加下载任务",
-            color: "success",
-          });
           break;
         }
         case "download-video": {
-          const downloadTask = (async (..._a: any[]) => { /* electron removed */ }) as any;
-          if (!downloadTask) {
-            addToast({ title: "浏览器预览模式不支持下载", color: "default" });
-            return;
-          }
-
-          await downloadTask({
+          await queueDownloadTask({
             outputFileType: "video",
             title: item.title,
             cover: item.cover,
             bvid: item.history.bvid,
             cid: item.history.cid,
-          });
-          addToast({
-            title: "已添加下载任务",
-            color: "success",
           });
           break;
         }
@@ -256,7 +237,7 @@ const History = () => {
           break;
       }
     },
-    [ onDelete],
+    [onDelete],
   );
 
   const handleClear = useCallback(() => {
@@ -275,14 +256,22 @@ const History = () => {
   }, [refreshList]);
 
   const isEmpty = !loading && list.length === 0;
-  const shouldUseGrid = isMobile || displayMode === "card";
+  const shouldUseGrid = displayMode === "card";
 
   return (
-    <ScrollContainer enableBackToTop ref={scrollerRef} className={isMobile ? "h-full w-full px-4 py-3" : "h-full w-full px-4"}>
+    <ScrollContainer
+      enableBackToTop
+      ref={scrollerRef}
+      className={isMobile ? "h-full w-full px-4 py-3" : "h-full w-full px-4"}
+    >
       <div className="mb-2">
         <div className={isMobile ? "flex flex-col items-start gap-3" : "flex items-center justify-between"}>
           <h1>历史记录</h1>
-          <div className={isMobile ? "flex w-full flex-wrap items-center gap-2" : "flex items-center justify-end space-x-2"}>
+          <div
+            className={
+              isMobile ? "flex w-full flex-wrap items-center gap-2" : "flex items-center justify-end space-x-2"
+            }
+          >
             <Switch
               size="sm"
               isSelected={reportPlayHistory}

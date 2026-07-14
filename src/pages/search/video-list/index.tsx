@@ -2,7 +2,8 @@ import React, { useCallback, useEffect, useState } from "react";
 
 import { addToast, Spinner } from "@heroui/react";
 
-import useIsMobile from "@/common/hooks/use-is-mobile";
+import { queueDownloadTask } from "@/common/utils/download-actions";
+import { canDownloadMedia } from "@/common/utils/download-capability";
 import { openBiliVideoLink } from "@/common/utils/url";
 import { formatUrlProtocol } from "@/common/utils/url";
 import Empty from "@/components/empty";
@@ -14,7 +15,6 @@ import { useSettings } from "@/store/settings";
 import GridList from "./grid-list";
 import List from "./list";
 import SearchHeader, { type SortOrder } from "./search-header";
-import { canDownloadMedia } from "@/common/utils/download-capability";
 
 export type SearchVideoProps = {
   keyword: string;
@@ -23,7 +23,6 @@ export type SearchVideoProps = {
 
 export default function SearchVideo({ keyword, getScrollElement }: SearchVideoProps) {
   const displayMode = useSettings(state => state.displayMode);
-  const isMobile = useIsMobile();
   const canDownload = canDownloadMedia();
 
   const [musicOnly, setMusicOnly] = useState(true);
@@ -138,40 +137,20 @@ export default function SearchVideo({ keyword, getScrollElement }: SearchVideoPr
         break;
       case "download-audio":
         {
-          const downloadTask = (async (..._a: any[]) => { /* electron removed */ }) as any;
-          if (!downloadTask) {
-            addToast({ title: "浏览器预览模式不支持下载", color: "default" });
-            return;
-          }
-
-          await downloadTask({
+          await queueDownloadTask({
             outputFileType: "audio",
             title: item.title,
             cover: formatUrlProtocol(item.pic),
             bvid: item.bvid,
           });
-          addToast({
-            title: "已添加下载任务",
-            color: "success",
-          });
         }
         break;
       case "download-video": {
-        const downloadTask = (async (..._a: any[]) => { /* electron removed */ }) as any;
-        if (!downloadTask) {
-          addToast({ title: "浏览器预览模式不支持下载", color: "default" });
-          return;
-        }
-
-        await downloadTask({
+        await queueDownloadTask({
           outputFileType: "video",
           title: item.title,
           cover: formatUrlProtocol(item.pic),
           bvid: item.bvid,
-        });
-        addToast({
-          title: "已添加下载任务",
-          color: "success",
         });
         break;
       }
@@ -183,7 +162,7 @@ export default function SearchVideo({ keyword, getScrollElement }: SearchVideoPr
     }
   }, []);
 
-  const shouldUseGrid = isMobile || displayMode === "card";
+  const shouldUseGrid = displayMode === "card";
 
   return (
     <>

@@ -1,10 +1,42 @@
 import type { AxiosResponse, InternalAxiosRequestConfig } from "axios";
-import { Capacitor, CapacitorHttp } from "@capacitor/core";
+import { Capacitor, CapacitorCookies, CapacitorHttp } from "@capacitor/core";
+import { getCsrfToken } from "@/common/utils/csrf-token";
 
 /**
  * Returns true when we should use the native HTTP adapter (Android only).
  */
 export const shouldUseNativeHttp = () => Capacitor.isNativePlatform();
+
+/**
+ * Reads all Bilibili cookies from CapacitorCookies and returns a Cookie header string.
+ */
+const getNativeCookieHeader = async (url: string): Promise<string> => {
+  try {
+    const cookiesApi = CapacitorCookies as unknown as {
+      getCookies: (options: { url: string }) => Promise<Record<string, string>>;
+    };
+    const cookieUrls = [
+      url,
+      "https://www.bilibili.com",
+      "https://api.bilibili.com",
+      "https://passport.bilibili.com",
+    ];
+    const allCookies: Record<string, string> = {};
+    for (const u of cookieUrls) {
+      try {
+        const cookies = await cookiesApi.getCookies({ url: u });
+        Object.assign(allCookies, cookies);
+      } catch {
+        // ignore per-url failures
+      }
+    }
+    return Object.entries(allCookies)
+      .map(([k, v]) => `${k}=${v}`)
+      .join("; ");
+  } catch {
+    return "";
+  }
+};
 
 /**
  * Axios adapter that routes requests through the built-in CapacitorHttp API
@@ -26,6 +58,22 @@ export const nativeHttpAdapter = async (config: InternalAxiosRequestConfig): Pro
       if (value !== undefined && value !== null && typeof value !== "boolean") {
         headers[key] = String(value);
       }
+    }
+  }
+
+  // Inject cookies from CapacitorCookies (SESSDATA, bili_jct, etc.)
+  if (Capacitor.isNativePlatform()) {
+    const cookieHeader = await getNativeCookieHeader(url);
+    const storedCsrf = getCsrfToken();
+    // Ensure bili_jct is always in the cookie header
+    let finalCookie = cookieHeader;
+    if (storedCsrf && !cookieHeader.includes("bili_jct=")) {
+      finalCookie = finalCookie
+        ? finalCookie + "; bili_jct=" + storedCsrf
+        : "bili_jct=" + storedCsrf;
+    }
+    if (finalCookie) {
+      headers["Cookie"] = finalCookie;
     }
   }
 

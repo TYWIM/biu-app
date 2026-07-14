@@ -557,7 +557,8 @@ export const usePlayList = create<State & Action>()(
                 title: currentPlayItem.title,
                 mvPlayData,
               });
-              toastError("无法获取音频播放链接");
+              toastError("无法获取音频播放链接，即将跳过");
+              setTimeout(() => get().next(), 2000);
             }
           }
         }
@@ -592,7 +593,8 @@ export const usePlayList = create<State & Action>()(
                 title: currentPlayItem.title,
                 musicPlayData,
               });
-              toastError("无法获取音频播放链接");
+              toastError("无法获取音频播放链接，即将跳过");
+              setTimeout(() => get().next(), 2000);
             }
           }
         }
@@ -766,6 +768,13 @@ export const usePlayList = create<State & Action>()(
               set({ isPlaying: false, duration: undefined });
               updatePlaybackState();
               stopUrlExpiryCheck();
+              // Auto-skip to next track on playback error
+              setTimeout(() => {
+                if (!get().isPlaying) {
+                  log.warn("[play-list] playback error, skipping to next track");
+                  get().next();
+                }
+              }, 1500);
             };
 
             audio.onemptied = () => {

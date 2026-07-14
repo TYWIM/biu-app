@@ -3,6 +3,7 @@ import { memo, useMemo, type ReactNode } from "react";
 import { Link } from "@heroui/react";
 import { RiPlayFill, RiUserLine, RiYoutubeLine } from "@remixicon/react";
 
+import useIsMobile from "@/common/hooks/use-is-mobile";
 import { formatNumber } from "@/common/utils/number";
 import { formatDuration, formatSecondsToDate } from "@/common/utils/time";
 import ContextMenu, { type ContextMenuItem } from "@/components/context-menu";
@@ -23,6 +24,7 @@ export interface MusicCardProps {
 
 const MusicCard = memo(
   ({ title, cover, playCount, duration, ownerName, ownerMid, time, menus, onMenuAction, onPress }: MusicCardProps) => {
+    const isMobile = useIsMobile();
     const durationText = useMemo(() => {
       if (typeof duration === "number") return formatDuration(duration);
       if (typeof duration === "string") return duration;
@@ -30,11 +32,29 @@ const MusicCard = memo(
     }, [duration]);
 
     return (
-      <div onClick={onPress} className="rounded-medium flex h-full w-full cursor-pointer flex-col">
+      <div
+        role={onPress ? "button" : undefined}
+        tabIndex={onPress ? 0 : undefined}
+        onClick={onPress}
+        onKeyDown={event => {
+          if (onPress && (event.key === "Enter" || event.key === " ")) {
+            event.preventDefault();
+            onPress();
+          }
+        }}
+        className="rounded-medium focus-visible:outline-primary flex h-full w-full cursor-pointer flex-col focus-visible:outline-2 focus-visible:outline-offset-2"
+      >
         <ContextMenu items={menus} onAction={onMenuAction} className="grow">
           <div className="group flex h-full grow flex-col">
             <div className="rounded-medium relative overflow-hidden">
-              <Image radius="md" removeWrapper src={cover} width="100%" height={140} params="672w_378h_1c.avif" />
+              <Image
+                radius="md"
+                removeWrapper
+                src={cover}
+                width="100%"
+                params="672w_378h_1c.avif"
+                className="aspect-video w-full"
+              />
               {(playCount ?? 0) > 0 || durationText ? (
                 <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 flex items-center justify-between bg-linear-to-t from-black/90 via-black/60 to-transparent p-2 text-xs text-white">
                   {(playCount ?? 0) > 0 && (
@@ -46,7 +66,7 @@ const MusicCard = memo(
                   {durationText && <span className="tabular-nums">{durationText}</span>}
                 </div>
               ) : null}
-              {typeof onPress === "function" && (
+              {!isMobile && typeof onPress === "function" && (
                 <div className="pointer-events-none absolute right-2 bottom-8 z-40 opacity-0 transition-opacity duration-200 ease-out group-hover:opacity-100">
                   <div className="bg-primary rounded-full shadow-2xl">
                     <div className="flex h-10 w-10 items-center justify-center">

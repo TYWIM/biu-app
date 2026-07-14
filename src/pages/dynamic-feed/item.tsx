@@ -1,10 +1,22 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router";
 
-import { Button, Card, CardHeader, CardBody, Drawer, DrawerBody, DrawerContent, DrawerHeader, addToast, User } from "@heroui/react";
+import {
+  Button,
+  Card,
+  CardHeader,
+  CardBody,
+  Drawer,
+  DrawerBody,
+  DrawerContent,
+  DrawerHeader,
+  addToast,
+  User,
+} from "@heroui/react";
 import { RiChat3Line, RiPlayFill, RiShareForwardLine, RiThumbUpFill, RiThumbUpLine } from "@remixicon/react";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
+
 import "dayjs/locale/zh-cn";
 
 dayjs.extend(relativeTime);
@@ -13,6 +25,8 @@ import { twMerge } from "tailwind-merge";
 import type { WebDynamicItem } from "@/service/web-dynamic";
 
 import useIsMobile from "@/common/hooks/use-is-mobile";
+import { queueDownloadTask } from "@/common/utils/download-actions";
+import { canDownloadMedia } from "@/common/utils/download-capability";
 import { formatNumber } from "@/common/utils/number";
 import CommentList from "@/components/comment-list";
 import Image from "@/components/image";
@@ -29,7 +43,7 @@ interface DynamicItemProps {
 
 const DynamicItem: React.FC<DynamicItemProps> = ({ item, className }) => {
   const isMobile = useIsMobile();
-  const canDownload = false; // Electron removed
+  const canDownload = canDownloadMedia();
   const author = item.modules.module_author;
   const dynamic = item.modules.module_dynamic;
   const stat = item.modules.module_stat;
@@ -51,20 +65,16 @@ const DynamicItem: React.FC<DynamicItemProps> = ({ item, className }) => {
   const imageItems = dynamic.major?.opus?.pics || dynamic.major?.draw?.items || [];
 
   const handleDownload = async (type: "audio" | "video") => {
-    if (true) { // Electron removed
-      addToast({ title: "浏览器预览模式不支持下载", color: "default" });
+    if (!archive?.bvid) {
+      addToast({ title: "该动态没有可下载的视频", color: "warning" });
       return;
     }
 
-    await ((async (..._a: any[]) => {}) as any)({
+    await queueDownloadTask({
       outputFileType: type,
-      title: archive?.title as string,
+      title: archive.title,
       cover: archive?.cover,
-      bvid: archive?.bvid,
-    });
-    addToast({
-      title: "已添加到下载队列",
-      color: "success",
+      bvid: archive.bvid,
     });
   };
 
@@ -129,8 +139,18 @@ const DynamicItem: React.FC<DynamicItemProps> = ({ item, className }) => {
 
   return (
     <>
-      <Card className={twMerge("border-default-100 mb-2 w-full rounded-none border-b bg-transparent shadow-none", isMobile ? "pb-3" : "pb-4")}>
-        <CardHeader className={twMerge(isMobile ? "flex flex-col gap-3 px-0 pt-3 pb-2" : "flex items-start justify-between px-0 pt-4 pb-2", className)}>
+      <Card
+        className={twMerge(
+          "border-default-100 mb-2 w-full rounded-none border-b bg-transparent shadow-none",
+          isMobile ? "pb-3" : "pb-4",
+        )}
+      >
+        <CardHeader
+          className={twMerge(
+            isMobile ? "flex flex-col gap-3 px-0 pt-3 pb-2" : "flex items-start justify-between px-0 pt-4 pb-2",
+            className,
+          )}
+        >
           <User
             isFocusable
             avatarProps={{
@@ -173,7 +193,10 @@ const DynamicItem: React.FC<DynamicItemProps> = ({ item, className }) => {
             <Button
               variant="light"
               size="sm"
-              className={twMerge("text-default-500 data-[hover=true]:bg-default-100 gap-1", isMobile ? "min-w-0 flex-1 justify-center px-2" : undefined)}
+              className={twMerge(
+                "text-default-500 data-[hover=true]:bg-default-100 gap-1",
+                isMobile ? "min-w-0 flex-1 justify-center px-2" : undefined,
+              )}
               onPress={handleOpenComments}
               isDisabled={stat?.comment?.forbidden}
             >
@@ -183,7 +206,10 @@ const DynamicItem: React.FC<DynamicItemProps> = ({ item, className }) => {
             <Button
               variant="light"
               size="sm"
-              className={twMerge("text-default-500 data-[hover=true]:bg-default-100 gap-1", isMobile ? "min-w-0 flex-1 justify-center px-2" : undefined)}
+              className={twMerge(
+                "text-default-500 data-[hover=true]:bg-default-100 gap-1",
+                isMobile ? "min-w-0 flex-1 justify-center px-2" : undefined,
+              )}
               onPress={handleShare}
             >
               <RiShareForwardLine size={18} />
@@ -250,7 +276,11 @@ const DynamicItem: React.FC<DynamicItemProps> = ({ item, className }) => {
                     {archive.duration_text || ""}
                   </div>
                 </div>
-                <div className={isMobile ? "flex min-w-0 grow flex-col gap-2 p-3" : "flex min-w-0 grow flex-col justify-between p-3"}>
+                <div
+                  className={
+                    isMobile ? "flex min-w-0 grow flex-col gap-2 p-3" : "flex min-w-0 grow flex-col justify-between p-3"
+                  }
+                >
                   <div className="space-y-1">
                     <h3 className="line-clamp-2 text-sm font-medium" title={archive.title}>
                       {archive.title}
@@ -301,11 +331,7 @@ const DynamicItem: React.FC<DynamicItemProps> = ({ item, className }) => {
             </div>
           </DrawerHeader>
           <DrawerBody className="min-h-0 overflow-hidden p-0">
-            <CommentList
-              targetId={commentTargetId}
-              type={commentType}
-              title="评论"
-            />
+            <CommentList targetId={commentTargetId} type={commentType} title="评论" />
           </DrawerBody>
         </DrawerContent>
       </Drawer>

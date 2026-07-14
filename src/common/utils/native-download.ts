@@ -1,7 +1,11 @@
 import { Capacitor } from "@capacitor/core";
 
+import { VideoFnval, VideoQuality } from "@/common/constants/video";
 import log from "@/common/utils/logger";
+import { getPlayerPlayurl } from "@/service/player-playurl";
+import { getWebInterfaceView } from "@/service/web-interface-view";
 
+import { getAudioUrl, getDashUrl } from "./audio";
 import { isCapacitorNative } from "./runtime-platform";
 
 export interface DownloadTask {
@@ -10,7 +14,7 @@ export interface DownloadTask {
   cover?: string;
   bvid?: string;
   cid?: number | string;
-  sid?: number;
+  sid?: number | string;
   url?: string;
 }
 
@@ -25,18 +29,69 @@ export interface DownloadProgress {
   error?: string;
 }
 
-type DownloadProgressCallback = (progress: DownloadProgress) => void;
-type DownloadCompleteCallback = (progress: DownloadProgress) => void;
+const createDownloadFileName = (task: DownloadTask) => {
+  const extension = task.outputFileType === "video" ? "mp4" : "m4a";
+  const identity = task.sid
+    ? `audio-${task.sid}`
+    : task.bvid
+      ? `${task.bvid}${task.cid ? `-${task.cid}` : ""}`
+      : task.outputFileType;
+  const safeTitle = task.title.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]+/g, "_").replace(/^_+|_+$/g, "");
 
-let progressCallback: DownloadProgressCallback | null = null;
-let completeCallback: DownloadCompleteCallback | null = null;
+  return `${identity}-${safeTitle || "media"}-${Date.now()}.${extension}`;
+};
 
-export function setDownloadProgressCallback(callback: DownloadProgressCallback | null) {
-  progressCallback = callback;
-}
+export async function resolveDownloadUrl(task: DownloadTask): Promise<string> {
+  if (task.url) {
+    return task.url;
+  }
 
-export function setDownloadCompleteCallback(callback: DownloadCompleteCallback | null) {
-  completeCallback = callback;
+  if (task.outputFileType === "audio" && task.sid) {
+    const audio = await getAudioUrl(task.sid);
+    if (audio.audioUrl) {
+      return audio.audioUrl;
+    }
+  }
+
+  if (!task.bvid) {
+    throw new Error("缺少可下载的媒体标识");
+  }
+
+  let cid = task.cid;
+  if (!cid) {
+    const view = await getWebInterfaceView({ bvid: task.bvid });
+    cid = view?.data?.pages?.[0]?.cid;
+  }
+
+  if (!cid) {
+    throw new Error("无法获取视频分P信息");
+  }
+
+  if (task.outputFileType === "audio") {
+    const stream = await getDashUrl(task.bvid, cid);
+    if (stream.audioUrl) {
+      return stream.audioUrl;
+    }
+    throw new Error("无法获取音频下载地址");
+  }
+
+  const stream = await getPlayerPlayurl({
+    bvid: task.bvid,
+    cid,
+    qn: VideoQuality.Q1080P,
+    fnval: VideoFnval.MP4,
+    fnver: 0,
+    fourk: 0,
+    platform: "html5",
+    high_quality: 1,
+  });
+  const segments = stream?.data?.durl ?? [];
+
+  if (segments.length !== 1 || !segments[0]?.url) {
+    throw new Error(segments.length > 1 ? "暂不支持分段视频下载" : "无法获取视频下载地址");
+  }
+
+  return segments[0].url;
 }
 
 export async function addDownloadTask(task: DownloadTask): Promise<{ downloadId: number; status: string } | null> {
@@ -46,10 +101,12 @@ export async function addDownloadTask(task: DownloadTask): Promise<{ downloadId:
   }
 
   try {
+    const url = await resolveDownloadUrl(task);
     const { BiuDownload } = await import("@/native/biu-download");
     const result = await BiuDownload.download({
-      url: task.url || "",
+      url,
       title: task.title,
+      fileName: createDownloadFileName(task),
       outputFileType: task.outputFileType,
       headers: {
         Referer: "https://www.bilibili.com",
@@ -91,12 +148,14 @@ export async function getDownloadList(): Promise<DownloadProgress[]> {
   }
 }
 
-export async function getDownloadedFiles(outputFileType: "audio" | "video" = "audio"): Promise<Array<{
-  fileName: string;
-  filePath: string;
-  size: number;
-  lastModified: number;
-}>> {
+export async function getDownloadedFiles(outputFileType: "audio" | "video" = "audio"): Promise<
+  Array<{
+    fileName: string;
+    filePath: string;
+    size: number;
+    lastModified: number;
+  }>
+> {
   if (!isCapacitorNative() || Capacitor.getPlatform() !== "android") {
     return [];
   }

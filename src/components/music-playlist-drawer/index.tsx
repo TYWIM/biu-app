@@ -1,13 +1,23 @@
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
 
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { addToast, Drawer, DrawerBody, DrawerContent, DrawerHeader } from "@heroui/react";
 import { RiDeleteBinLine, RiFocus3Line, RiMusic2Line } from "@remixicon/react";
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
-import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import clsx from "classnames";
 import { uniqBy } from "es-toolkit/array";
 
 import useIsMobile from "@/common/hooks/use-is-mobile";
+import { queueDownloadTask } from "@/common/utils/download-actions";
+import { canDownloadMedia } from "@/common/utils/download-capability";
 import { openBiliVideoLink } from "@/common/utils/url";
 import { type ScrollRefObject } from "@/components/scroll-container";
 import ScrollContainer from "@/components/scroll-container";
@@ -39,8 +49,7 @@ const PlayListDrawer = () => {
   const reorder = usePlayList(s => s.reorder);
   const user = useUser(s => s.user);
   const playListItem = usePlayList(state => state.playListItem);
-  // Electron download removed
-  const canDownload = false; // Electron download removed
+  const canDownload = canDownloadMedia();
 
   const playItem = useMemo(() => list.find(item => item.id === playId), [list, playId]);
   const currentPlayIdentity = useMemo(() => getQueueItemIdentity(playItem), [playItem]);
@@ -56,20 +65,23 @@ const PlayListDrawer = () => {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
-  const handleDragEnd = useCallback((event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
 
-    const oldIndex = pureList.findIndex(item => item.id === active.id);
-    const newIndex = pureList.findIndex(item => item.id === over.id);
-    if (oldIndex === -1 || newIndex === -1) return;
+      const oldIndex = pureList.findIndex(item => item.id === active.id);
+      const newIndex = pureList.findIndex(item => item.id === over.id);
+      if (oldIndex === -1 || newIndex === -1) return;
 
-    const originalOldIndex = list.findIndex(item => item.id === pureList[oldIndex].id);
-    const originalNewIndex = list.findIndex(item => item.id === pureList[newIndex].id);
-    if (originalOldIndex === -1 || originalNewIndex === -1) return;
+      const originalOldIndex = list.findIndex(item => item.id === pureList[oldIndex].id);
+      const originalNewIndex = list.findIndex(item => item.id === pureList[newIndex].id);
+      if (originalOldIndex === -1 || originalNewIndex === -1) return;
 
-    reorder(originalOldIndex, originalNewIndex);
-  }, [list, pureList, reorder]);
+      reorder(originalOldIndex, originalNewIndex);
+    },
+    [list, pureList, reorder],
+  );
 
   const handleAction = useCallback(async (key: string, item: PlayData) => {
     switch (key) {
@@ -82,41 +94,23 @@ const PlayListDrawer = () => {
         break;
       case "download-audio":
         {
-          const downloadTask = (async (..._a: any[]) => { /* electron removed */ }) as any;
-          if (!downloadTask) {
-            addToast({ title: "浏览器预览模式不支持下载", color: "default" });
-            return;
-          }
-
-          await downloadTask({
+          await queueDownloadTask({
             outputFileType: "audio",
             title: item.title,
             cover: item.cover,
             bvid: item.bvid,
-            sid: item.type === "audio" ? item.id : undefined,
-          });
-          addToast({
-            title: "已添加下载任务",
-            color: "success",
+            cid: item.cid,
+            sid: item.type === "audio" ? item.sid : undefined,
           });
         }
         break;
       case "download-video": {
-        const downloadTask = (async (..._a: any[]) => { /* electron removed */ }) as any;
-        if (!downloadTask) {
-          addToast({ title: "浏览器预览模式不支持下载", color: "default" });
-          return;
-        }
-
-        await downloadTask({
+        await queueDownloadTask({
           outputFileType: "video",
           title: item.title,
           cover: item.cover,
           bvid: item.bvid,
-        });
-        addToast({
-          title: "已添加下载任务",
-          color: "success",
+          cid: item.cid,
         });
         break;
       }
@@ -131,47 +125,53 @@ const PlayListDrawer = () => {
     }
   }, []);
 
-  const scrollToPlayItem = useCallback((options?: { silent?: boolean; center?: boolean }) => {
-    if (!playItem) {
-      if (!options?.silent) {
-        addToast({ title: "当前没有正在播放的歌曲", color: "warning" });
+  const scrollToPlayItem = useCallback(
+    (options?: { silent?: boolean; center?: boolean }) => {
+      if (!playItem) {
+        if (!options?.silent) {
+          addToast({ title: "当前没有正在播放的歌曲", color: "warning" });
+        }
+        return;
       }
-      return;
-    }
 
-    const targetIndex = pureList.findIndex(item => getQueueItemIdentity(item) === currentPlayIdentity);
-    if (targetIndex < 0) {
-      if (!options?.silent) {
-        addToast({ title: "未在列表中找到当前播放的歌曲", color: "warning" });
+      const targetIndex = pureList.findIndex(item => getQueueItemIdentity(item) === currentPlayIdentity);
+      if (targetIndex < 0) {
+        if (!options?.silent) {
+          addToast({ title: "未在列表中找到当前播放的歌曲", color: "warning" });
+        }
+        return;
       }
-      return;
-    }
 
-    const viewport = scrollRef.current?.osInstance()?.elements().viewport as HTMLElement | null;
-    if (!viewport) {
-      return;
-    }
+      const viewport = scrollRef.current?.osInstance()?.elements().viewport as HTMLElement | null;
+      if (!viewport) {
+        return;
+      }
 
-    const targetTop = targetIndex * RowHeight;
-    const centeredTop = targetTop - (viewport.clientHeight - RowHeight) / 2;
-    const maxTop = Math.max(0, viewport.scrollHeight - viewport.clientHeight);
-    const nextTop = Math.max(0, Math.min(options?.center ? centeredTop : targetTop, maxTop));
+      const targetTop = targetIndex * RowHeight;
+      const centeredTop = targetTop - (viewport.clientHeight - RowHeight) / 2;
+      const maxTop = Math.max(0, viewport.scrollHeight - viewport.clientHeight);
+      const nextTop = Math.max(0, Math.min(options?.center ? centeredTop : targetTop, maxTop));
 
-    if (typeof viewport.scrollTo === "function") {
-      viewport.scrollTo({ top: nextTop, behavior: "smooth" });
-    } else {
-      viewport.scrollTop = nextTop;
-    }
-  }, [currentPlayIdentity, playItem, pureList]);
+      if (typeof viewport.scrollTo === "function") {
+        viewport.scrollTo({ top: nextTop, behavior: "smooth" });
+      } else {
+        viewport.scrollTop = nextTop;
+      }
+    },
+    [currentPlayIdentity, playItem, pureList],
+  );
 
   useEffect(() => {
     if (!isOpen || !playItem) {
       return;
     }
 
-    const timer = window.setTimeout(() => {
-      scrollToPlayItem({ silent: true, center: isMobile });
-    }, isMobile ? 220 : 80);
+    const timer = window.setTimeout(
+      () => {
+        scrollToPlayItem({ silent: true, center: isMobile });
+      },
+      isMobile ? 220 : 80,
+    );
 
     return () => window.clearTimeout(timer);
   }, [isMobile, isOpen, playItem, scrollToPlayItem]);
@@ -181,14 +181,20 @@ const PlayListDrawer = () => {
       <IconButton
         tooltip="定位当前播放"
         onPress={() => scrollToPlayItem({ center: isMobile })}
-        className={clsx(isMobile && "size-10 min-w-10 rounded-full bg-white/8 text-white hover:bg-white/14 hover:text-white")}
+        className={clsx(
+          isMobile && "size-10 min-w-10 rounded-full bg-white/8 text-white hover:bg-white/14 hover:text-white",
+        )}
       >
         <RiFocus3Line size={16} />
       </IconButton>
       <IconButton
         tooltip="清空播放列表"
         onPress={clear}
-        className={clsx(isMobile ? "size-10 min-w-10 rounded-full bg-white/8 text-white hover:bg-danger/15 hover:text-danger" : "hover:text-danger")}
+        className={clsx(
+          isMobile
+            ? "hover:bg-danger/15 hover:text-danger size-10 min-w-10 rounded-full bg-white/8 text-white"
+            : "hover:text-danger",
+        )}
       >
         <RiDeleteBinLine size={16} />
       </IconButton>
@@ -207,8 +213,8 @@ const PlayListDrawer = () => {
       isOpen={isOpen}
       onOpenChange={setOpen}
       classNames={{
-        backdrop: clsx("z-200 window-no-drag", isMobile && "bg-black/36 backdrop-blur-sm"),
-        wrapper: "z-200 window-no-drag",
+        backdrop: clsx("z-200", isMobile && "bg-black/36 backdrop-blur-sm"),
+        wrapper: "z-200",
         base: clsx(
           isMobile
             ? "data-[placement=bottom]:mt-auto data-[placement=bottom]:h-[min(78vh,720px)] data-[placement=bottom]:max-h-[min(78vh,720px)] data-[placement=bottom]:rounded-t-[28px]"
@@ -217,7 +223,13 @@ const PlayListDrawer = () => {
       }}
     >
       <DrawerContent className={clsx(isMobile && "overflow-hidden bg-black/72 text-white backdrop-blur-2xl")}>
-        <DrawerHeader className={isMobile ? "border-b border-white/10 px-4 pb-3 pt-2" : "border-divider/40 flex flex-row items-center justify-between space-x-2 border-b px-4 py-3"}>
+        <DrawerHeader
+          className={
+            isMobile
+              ? "border-b border-white/10 px-4 pt-2 pb-3"
+              : "border-divider/40 flex flex-row items-center justify-between space-x-2 border-b px-4 py-3"
+          }
+        >
           {isMobile ? (
             <div className="flex w-full flex-col gap-3">
               <div className="mx-auto h-1.5 w-10 rounded-full bg-white/16" />
@@ -226,7 +238,9 @@ const PlayListDrawer = () => {
                   <div className="text-base font-semibold text-white">
                     播放列表<span className="ml-1 text-sm font-normal text-white/55">({pureList?.length || 0})</span>
                   </div>
-                  <div className="mt-1 text-xs text-white/58">{playItem ? "从当前队列继续播放" : "当前还没有正在播放的内容"}</div>
+                  <div className="mt-1 text-xs text-white/58">
+                    {playItem ? "从当前队列继续播放" : "当前还没有正在播放的内容"}
+                  </div>
                 </div>
                 <div className="flex items-center gap-1">{actionButtons}</div>
               </div>
@@ -241,8 +255,8 @@ const PlayListDrawer = () => {
           )}
         </DrawerHeader>
         {list.length ? (
-          <DrawerBody className={isMobile ? "overflow-hidden px-3 pb-3 pt-3" : "overflow-hidden px-0"}>
-            <div className={clsx("flex h-full min-h-0 flex-col", isMobile && "gap-3") }>
+          <DrawerBody className={isMobile ? "overflow-hidden px-3 pt-3 pb-3" : "overflow-hidden px-0"}>
+            <div className={clsx("flex h-full min-h-0 flex-col", isMobile && "gap-3")}>
               {isMobile && playItem && (
                 <button
                   type="button"
@@ -262,8 +276,12 @@ const PlayListDrawer = () => {
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="mb-1 flex items-center gap-2">
-                      <span className="text-[10px] font-medium tracking-[0.22em] text-white/52 uppercase">Now Playing</span>
-                      <span className="rounded-full border border-white/10 bg-white/10 px-2 py-0.5 text-[10px] font-medium text-white/72">当前队列</span>
+                      <span className="text-[10px] font-medium tracking-[0.22em] text-white/52 uppercase">
+                        Now Playing
+                      </span>
+                      <span className="rounded-full border border-white/10 bg-white/10 px-2 py-0.5 text-[10px] font-medium text-white/72">
+                        当前队列
+                      </span>
                     </div>
                     <div className="truncate text-sm font-semibold text-white">{currentTitle}</div>
                     <div className="mt-0.5 truncate text-xs text-white/62">{currentSubtitle}</div>
@@ -273,7 +291,10 @@ const PlayListDrawer = () => {
                   </div>
                 </button>
               )}
-              <ScrollContainer className={isMobile ? "h-full min-h-0 w-full flex-1 px-1" : "h-full w-full px-2"} ref={scrollRef}>
+              <ScrollContainer
+                className={isMobile ? "h-full min-h-0 w-full flex-1 px-1" : "h-full w-full px-2"}
+                ref={scrollRef}
+              >
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                   <SortableContext items={pureList.map(item => item.id)} strategy={verticalListSortingStrategy}>
                     <div className="flex flex-col gap-1">

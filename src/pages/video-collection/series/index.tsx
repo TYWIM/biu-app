@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router";
 
-import { addToast } from "@heroui/react";
 import { useRequest } from "ahooks";
 
 import type { Media } from "@/service/user-video-archives-list";
 
 import { CollectionType } from "@/common/constants/collection";
 import useIsMobile from "@/common/hooks/use-is-mobile";
+import { queueDownloadTask } from "@/common/utils/download-actions";
+import { canDownloadMedia } from "@/common/utils/download-capability";
 import { openBiliVideoLink } from "@/common/utils/url";
 import ScrollContainer, { type ScrollRefObject } from "@/components/scroll-container";
 import { getSeriesArchives } from "@/service/series-archives";
@@ -21,7 +22,6 @@ import Header from "../header";
 import Operations from "../operation";
 import SeriesGridList from "./grid-list";
 import SeriesList from "./list";
-import { canDownloadMedia } from "@/common/utils/download-capability";
 
 const Series = () => {
   const { id } = useParams();
@@ -29,7 +29,7 @@ const Series = () => {
   const user = useUser(state => state.user);
   const displayMode = useSettings(state => state.displayMode);
   const canDownload = canDownloadMedia();
-  const shouldUseGrid = isMobile || displayMode === "card";
+  const shouldUseGrid = displayMode === "card";
   const playList = usePlayList(state => state.playList);
   const addList = usePlayList(state => state.addList);
 
@@ -189,40 +189,20 @@ const Series = () => {
         break;
       case "download-audio":
         {
-          const downloadTask = (async (..._a: any[]) => { /* electron removed */ }) as any;
-          if (!downloadTask) {
-            addToast({ title: "浏览器预览模式不支持下载", color: "default" });
-            return;
-          }
-
-          await downloadTask({
+          await queueDownloadTask({
             outputFileType: "audio",
             title: item.title,
             cover: item.cover,
             bvid: item.bvid,
           });
-          addToast({
-            title: "已添加下载任务",
-            color: "success",
-          });
         }
         break;
       case "download-video": {
-        const downloadTask = (async (..._a: any[]) => { /* electron removed */ }) as any;
-        if (!downloadTask) {
-          addToast({ title: "浏览器预览模式不支持下载", color: "default" });
-          return;
-        }
-
-        await downloadTask({
+        await queueDownloadTask({
           outputFileType: "video",
           title: item.title,
           cover: item.cover,
           bvid: item.bvid,
-        });
-        addToast({
-          title: "已添加下载任务",
-          color: "success",
         });
         break;
       }
@@ -246,7 +226,12 @@ const Series = () => {
   const initialLoading = infoLoading || (medias.length === 0 && loadingMore);
 
   return (
-    <ScrollContainer enableBackToTop ref={scrollRef} resetOnChange={id} className={isMobile ? "h-full w-full px-4 py-3 pb-6" : "h-full w-full px-4 pb-6"}>
+    <ScrollContainer
+      enableBackToTop
+      ref={scrollRef}
+      resetOnChange={id}
+      className={isMobile ? "h-full w-full px-4 py-3 pb-6" : "h-full w-full px-4 pb-6"}
+    >
       <Header
         type={CollectionType.VideoSeries}
         cover={medias?.[0]?.cover}

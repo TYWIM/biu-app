@@ -9,6 +9,7 @@ import {
   RiVolumeDownLine,
   RiVolumeMuteLine,
   RiVolumeUpLine,
+  RiMessage3Line,
 } from "@remixicon/react";
 import { useClickAway } from "ahooks";
 import clsx from "classnames";
@@ -163,6 +164,7 @@ const FullScreenPlayer = () => {
   const [isPageListOpen, setIsPageListOpen] = useState(false);
   const [isUiVisible, setIsUiVisible] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isCommentDrawerOpen, setIsCommentDrawerOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"lyrics" | "comments">("lyrics");
   const controlsRef = useRef<HTMLDivElement>(null);
   const [controlsHeight, setControlsHeight] = useState(80);
@@ -471,7 +473,7 @@ const FullScreenPlayer = () => {
                   isMobile ? mobileHeaderStateClassName : isUiVisible ? "opacity-100 translate-y-0 blur-0" : "pointer-events-none opacity-0 translate-y-0 blur-0",
                 )}
               >
-                <div className={clsx("window-no-drag top-0 right-0 left-0 flex items-center space-x-2", isMobile ? "min-w-0 flex-1" : "w-full max-w-2/5")}>
+                <div className={clsx("top-0 right-0 left-0 flex items-center space-x-2", isMobile ? "min-w-0 flex-1" : "w-full max-w-2/5")}>
                   <IconButton
                     title="关闭弹窗"
                     onPress={onClose}
@@ -541,7 +543,7 @@ const FullScreenPlayer = () => {
                     </IconButton>
                   )}
                 </div>
-                <div className="window-no-drag top-0 right-0">
+                <div className="top-0 right-0">
                   
                 </div>
               </div>
@@ -591,26 +593,21 @@ const FullScreenPlayer = () => {
 
                   {!isLocal && showLyrics && (
                     <div className="min-h-0 flex-1 overflow-hidden">
-                      <Tabs
-                        size="sm"
-                        selectedKey={activeTab}
-                        onSelectionChange={key => setActiveTab(key as "lyrics" | "comments")}
-                        className="w-full"
-                        classNames={{
-                          base: "px-4 pt-2",
-                          tabList: "gap-2",
-                          cursor: "bg-primary/20",
-                        }}
-                      >
-                        <Tab key="lyrics" title="歌词" />
-                        <Tab key="comments" title="评论" />
-                      </Tabs>
-                      <div className="h-[calc(100%-40px)] overflow-hidden px-4 pb-4">
-                        {activeTab === "lyrics" ? (
-                          <Lyrics color={lyricsColor} centered={!showCover} showControls={true} />
-                        ) : (
-                          <CommentList avid={Number(playItem?.aid) || 0} />
+                      <div className="flex items-center justify-between px-4 pt-2 pb-1">
+                        <span className="text-sm font-medium opacity-60">歌词</span>
+                        {playItem?.aid && (
+                          <button
+                            type="button"
+                            onClick={() => setIsCommentDrawerOpen(true)}
+                            className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/8 px-3 py-1 text-xs font-medium text-white/70 active:bg-white/14"
+                          >
+                            <RiMessage3Line size={14} />
+                            <span>评论</span>
+                          </button>
                         )}
+                      </div>
+                      <div className="h-[calc(100%-40px)] overflow-hidden px-4 pb-4">
+                        <Lyrics color={lyricsColor} centered={!showCover} showControls={true} />
                       </div>
                     </div>
                   )}
@@ -770,6 +767,41 @@ const FullScreenPlayer = () => {
               </div>
 
               
+
+
+              {/* Comment Drawer */}
+              <Drawer
+                isOpen={isCommentDrawerOpen}
+                onClose={() => setIsCommentDrawerOpen(false)}
+                placement="bottom"
+                size="full"
+                radius="none"
+                hideCloseButton
+                shouldBlockScroll
+              >
+                <DrawerContent className={clsx(
+                  "bg-background text-foreground",
+                  isPlayerDark ? "dark" : "light",
+                )}>
+                  <DrawerBody className="flex flex-col gap-0 p-0">
+                    <div className={clsx(
+                      "flex items-center gap-3 border-b px-4 py-3",
+                      isPlayerDark ? "border-white/10" : "border-slate-900/8",
+                    )} style={{ paddingTop: "calc(var(--safe-area-top) + 12px)" }}>
+                      <IconButton
+                        onPress={() => setIsCommentDrawerOpen(false)}
+                        className={mobileHeaderButtonClassName}
+                      >
+                        <RiArrowDownSLine size={24} />
+                      </IconButton>
+                      <h3 className="text-base font-semibold">评论</h3>
+                    </div>
+                    <div className="min-h-0 flex-1 overflow-hidden">
+                      <CommentList avid={Number(playItem?.aid) || 0} />
+                    </div>
+                  </DrawerBody>
+                </DrawerContent>
+              </Drawer>
 
               <PageList
                 ref={pageListRef}

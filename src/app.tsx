@@ -1,8 +1,8 @@
 import { useEffect } from "react";
 import { useHref, useLocation, useNavigate, useRoutes } from "react-router";
 
-import { HeroUIProvider, ToastProvider } from "@heroui/react";
 import { App as CapApp } from "@capacitor/app";
+import { HeroUIProvider, ToastProvider } from "@heroui/react";
 import dayjs from "dayjs";
 
 import { getCookitFromBSite } from "./common/utils/cookie";
@@ -52,15 +52,18 @@ export function App() {
         return;
       }
 
+      if (location.pathname === "/") {
+        void CapApp.exitApp();
+        return;
+      }
+
       const canGoBack = (window.history?.state?.idx ?? 0) > 0;
       if (canGoBack) {
         navigate(-1);
         return;
       }
 
-      if (location.pathname !== "/") {
-        navigate("/");
-      }
+      navigate("/");
     };
 
     window.addEventListener("biuandroidbackbutton", handleAndroidBack);
@@ -82,14 +85,18 @@ export function App() {
     let capPauseListener: (() => void) | null = null;
 
     try {
-      CapApp.addListener("appStateChange", (state) => {
+      CapApp.addListener("appStateChange", state => {
         if (!state.isActive) {
           handleBeforeUnload();
         }
-      }).then((listener) => {
-        capPauseListener = () => listener.remove();
-      }).catch(() => {});
-    } catch {}
+      })
+        .then(listener => {
+          capPauseListener = () => listener.remove();
+        })
+        .catch(() => {});
+    } catch {
+      // Browser preview does not expose the Capacitor app lifecycle.
+    }
 
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
@@ -100,9 +107,9 @@ export function App() {
   return (
     <HeroUIProvider navigate={navigate} useHref={useHref} locale="zh-CN">
       <ToastProvider
-        placement="bottom-right"
-        toastOffset={90}
-        maxVisibleToasts={3}
+        placement="top-center"
+        toastOffset={12}
+        maxVisibleToasts={2}
         toastProps={{ timeout: 2000, color: "primary" }}
         regionProps={{
           classNames: {

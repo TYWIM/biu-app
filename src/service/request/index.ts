@@ -1,6 +1,7 @@
 import axios, { type AxiosRequestConfig, type CreateAxiosDefaults } from "axios";
 
 import { nativeHttpAdapter, shouldUseNativeHttp } from "@/common/utils/native-http-adapter";
+import { saveCsrfToken } from "@/common/utils/csrf-token";
 
 import { requestInterceptors } from "./request-interceptors";
 import { retryInterceptor } from "./retry-interceptor";
@@ -67,8 +68,35 @@ apiRequest.interceptors.response.use(geetestInterceptors);
 
 axiosInstance.interceptors.response.use(res => res.data);
 biliRequest.interceptors.response.use(res => res.data);
-apiRequest.interceptors.response.use(res => res.data);
-passportRequest.interceptors.response.use(res => res.data);
+// Capture bili_jct from any response that includes it (login, cookie refresh, etc.)
+const captureCsrfInterceptor = (res: any) => {
+  try {
+    // Check response headers for set-cookie containing bili_jct
+    const setCookieHeader = res.headers?.["set-cookie"] || res.headers?.["Set-Cookie"];
+    if (setCookieHeader) {
+      const cookies = Array.isArray(setCookieHeader) ? setCookieHeader : [setCookieHeader];
+      for (const cookie of cookies) {
+        const match = String(cookie).match(/bili_jct=([^;]+)/);
+        if (match?.[1]) {
+          saveCsrfToken(decodeURIComponent(match[1]));
+        }
+      }
+    }
+    // Also check if the response data contains bili_jct (some APIs return it)
+    if (res.data?.data?.url) {
+      const urlMatch = String(res.data.data.url).match(/bili_jct=([^&]+)/);
+      if (urlMatch?.[1]) {
+        saveCsrfToken(decodeURIComponent(urlMatch[1]));
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return res;
+};
+
+apiRequest.interceptors.response.use(res => { captureCsrfInterceptor(res); return res.data; });
+passportRequest.interceptors.response.use(res => { captureCsrfInterceptor(res); return res.data; });
 searchRequest.interceptors.response.use(res => res.data);
 memberRequest.interceptors.response.use(res => res.data);
 

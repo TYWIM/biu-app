@@ -68,7 +68,12 @@ export interface EqualizerInfo {
 }
 
 interface NativePlayerPlugin {
-  configure(options: { volume: number; muted: boolean; playbackRate: number; loop: boolean }): Promise<NativePlayerState>;
+  configure(options: {
+    volume: number;
+    muted: boolean;
+    playbackRate: number;
+    loop: boolean;
+  }): Promise<NativePlayerState>;
   setSource(options: { url: string }): Promise<NativePlayerState>;
   updateMetadata(options: { title?: string; artist?: string; cover?: string }): Promise<void>;
   play(): Promise<NativePlayerState>;
@@ -91,7 +96,10 @@ export const shouldUseNativePlayer = () => isCapacitorNative() && Capacitor.getP
 
 const noop = () => {};
 
-const callMediaHandler = (handler: ((this: GlobalEventHandlers, ev: Event) => any) | null | undefined, type: string) => {
+const callMediaHandler = (
+  handler: ((this: GlobalEventHandlers, ev: Event) => any) | null | undefined,
+  type: string,
+) => {
   handler?.call(window as unknown as GlobalEventHandlers, new Event(type));
 };
 
@@ -233,15 +241,29 @@ class NativeAudioAdapter implements PlaybackAudio {
     const result = this.commandQueue.then(() => {
       let timeoutId: ReturnType<typeof setTimeout> | undefined;
       const timeout = new Promise<never>((_, reject) => {
-        timeoutId = setTimeout(() => reject(new Error("NativePlayer command timeout")), NativeAudioAdapter.COMMAND_TIMEOUT_MS);
+        timeoutId = setTimeout(
+          () => reject(new Error("NativePlayer command timeout")),
+          NativeAudioAdapter.COMMAND_TIMEOUT_MS,
+        );
       });
       const taskResult = task();
-      taskResult.then(() => { if (timeoutId) clearTimeout(timeoutId); }, () => { if (timeoutId) clearTimeout(timeoutId); });
+      taskResult.then(
+        () => {
+          if (timeoutId) clearTimeout(timeoutId);
+        },
+        () => {
+          if (timeoutId) clearTimeout(timeoutId);
+        },
+      );
       return Promise.race([taskResult, timeout]);
     });
     this.commandQueue = result.then(
-      () => { this.pendingCount--; },
-      () => { this.pendingCount--; },
+      () => {
+        this.pendingCount--;
+      },
+      () => {
+        this.pendingCount--;
+      },
     );
     return result;
   };
@@ -329,14 +351,20 @@ class NativeAudioAdapter implements PlaybackAudio {
     const reason = next.reason;
 
     if (!prev.ready && this.ready) {
-      callMediaHandler(this.onloadedmetadata as ((this: GlobalEventHandlers, ev: Event) => any) | null, "loadedmetadata");
+      callMediaHandler(
+        this.onloadedmetadata as ((this: GlobalEventHandlers, ev: Event) => any) | null,
+        "loadedmetadata",
+      );
       this.emit("loadedmetadata");
       callMediaHandler(this.oncanplay as ((this: GlobalEventHandlers, ev: Event) => any) | null, "canplay");
       this.emit("canplay");
     }
 
     if (prev.duration !== this.duration) {
-      callMediaHandler(this.ondurationchange as ((this: GlobalEventHandlers, ev: Event) => any) | null, "durationchange");
+      callMediaHandler(
+        this.ondurationchange as ((this: GlobalEventHandlers, ev: Event) => any) | null,
+        "durationchange",
+      );
       this.emit("durationchange");
     }
 
@@ -432,7 +460,7 @@ class NativeAudioAdapter implements PlaybackAudio {
     noop();
   }
 
-  addEventListener(type: string, listener: EventListenerOrEventListenerObject | null, _options?: boolean | AddEventListenerOptions) {
+  addEventListener(type: string, listener: EventListenerOrEventListenerObject | null) {
     if (!listener) {
       return;
     }
@@ -442,7 +470,7 @@ class NativeAudioAdapter implements PlaybackAudio {
     this.listeners.set(type, listeners);
   }
 
-  removeEventListener(type: string, listener: EventListenerOrEventListenerObject | null, _options?: boolean | EventListenerOptions) {
+  removeEventListener(type: string, listener: EventListenerOrEventListenerObject | null) {
     if (!listener) {
       return;
     }
@@ -518,15 +546,14 @@ export const createPlaybackAudio = (): PlaybackAudio => {
     const audio = new Audio();
     audio.preload = "metadata";
     audio.controls = false;
-    if (typeof window !== "undefined" && (window as Window & { electron?: unknown }).electron) {
-      audio.crossOrigin = "anonymous";
-    }
     // 附加 Web Audio 均衡器
-    import("./web-equalizer").then(({ attachEqualizer }) => {
-      attachEqualizer(audio);
-    }).catch(() => {
-      // 均衡器加载失败不影响播放
-    });
+    import("./web-equalizer")
+      .then(({ attachEqualizer }) => {
+        attachEqualizer(audio);
+      })
+      .catch(() => {
+        // 均衡器加载失败不影响播放
+      });
     return audio;
   }
 

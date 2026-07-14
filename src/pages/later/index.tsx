@@ -4,6 +4,8 @@ import { addToast, Button, Spinner } from "@heroui/react";
 import { RiDeleteBinLine } from "@remixicon/react";
 
 import useIsMobile from "@/common/hooks/use-is-mobile";
+import { queueDownloadTask } from "@/common/utils/download-actions";
+import { canDownloadMedia } from "@/common/utils/download-capability";
 import { openBiliVideoLink } from "@/common/utils/url";
 import Empty from "@/components/empty";
 import ScrollContainer, { type ScrollRefObject } from "@/components/scroll-container";
@@ -20,7 +22,6 @@ import { useSettings } from "@/store/settings";
 import GridList from "./grid-list";
 import LaterList from "./list";
 import LaterSearch from "./search";
-import { canDownloadMedia } from "@/common/utils/download-capability";
 
 const PAGE_SIZE = 20;
 
@@ -39,7 +40,7 @@ const Later = () => {
   const dateRangeRef = useRef<{ start?: number; end?: number } | null>(null);
 
   const displayMode = useSettings(state => state.displayMode);
-  const shouldUseGrid = isMobile || displayMode === "card";
+  const shouldUseGrid = displayMode === "card";
 
   const fetchPage = useCallback(async (pn: number = 1) => {
     const params: HistoryToViewListParams = {
@@ -170,42 +171,22 @@ const Later = () => {
         break;
       case "download-audio":
         {
-          const downloadTask = (async (..._a: any[]) => { /* electron removed */ }) as any;
-          if (!downloadTask) {
-            addToast({ title: "浏览器预览模式不支持下载", color: "default" });
-            return;
-          }
-
-          await downloadTask({
+          await queueDownloadTask({
             outputFileType: "audio",
             title: item.title,
             cover: item.pic,
             bvid: item.bvid,
             cid: item.cid,
           });
-          addToast({
-            title: "已添加下载任务",
-            color: "success",
-          });
         }
         break;
       case "download-video": {
-        const downloadTask = (async (..._a: any[]) => { /* electron removed */ }) as any;
-        if (!downloadTask) {
-          addToast({ title: "浏览器预览模式不支持下载", color: "default" });
-          return;
-        }
-
-        await downloadTask({
+        await queueDownloadTask({
           outputFileType: "video",
           title: item.title,
           cover: item.pic,
           bvid: item.bvid,
           cid: item.cid,
-        });
-        addToast({
-          title: "已添加下载任务",
-          color: "success",
         });
         break;
       }
@@ -236,11 +217,21 @@ const Later = () => {
   const isEmpty = useMemo(() => !initialLoading && list.length === 0, [initialLoading, list]);
 
   return (
-    <ScrollContainer enableBackToTop ref={scrollerRef} className={isMobile ? "h-full w-full px-4 py-3" : "h-full w-full px-4"}>
+    <ScrollContainer
+      enableBackToTop
+      ref={scrollerRef}
+      className={isMobile ? "h-full w-full px-4 py-3" : "h-full w-full px-4"}
+    >
       <div className="mb-2">
         <div className={isMobile ? "flex flex-col gap-3" : "flex items-center justify-between"}>
           <h1>稍后再看</h1>
-          <Button variant="flat" size="sm" startContent={<RiDeleteBinLine size={18} />} onPress={handleClear} className={isMobile ? "w-full" : undefined}>
+          <Button
+            variant="flat"
+            size="sm"
+            startContent={<RiDeleteBinLine size={18} />}
+            onPress={handleClear}
+            className={isMobile ? "w-full" : undefined}
+          >
             清除已看完
           </Button>
         </div>

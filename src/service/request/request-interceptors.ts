@@ -3,6 +3,7 @@ import dayjs from "dayjs";
 
 import { refreshCookie } from "@/common/utils/cookie";
 import { getRuntimeCookie } from "@/common/utils/runtime-cookie";
+import { getCsrfToken, saveCsrfToken } from "@/common/utils/csrf-token";
 import { useToken } from "@/store/token";
 
 import { encodeParamsWbi } from "./wbi-sign";
@@ -25,7 +26,14 @@ export const requestInterceptors = async (config: InternalAxiosRequestConfig) =>
   }
 
   if (config.useCSRF) {
-    const csrfToken = await getRuntimeCookie("bili_jct");
+    // Try stored CSRF first (more reliable on native), fallback to cookie
+    let csrfToken = getCsrfToken();
+    if (!csrfToken) {
+      csrfToken = await getRuntimeCookie("bili_jct");
+      if (csrfToken) {
+        saveCsrfToken(csrfToken);
+      }
+    }
     if (csrfToken) {
       if (config.method === "post") {
         config.data ??= {};

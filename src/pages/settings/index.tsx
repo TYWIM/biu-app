@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 
-import { Tab, Tabs } from "@heroui/react";
 import { App as CapApp } from "@capacitor/app";
+import { Tab, Tabs } from "@heroui/react";
 import { useShallow } from "zustand/react/shallow";
 
 import useIsMobile from "@/common/hooks/use-is-mobile";
@@ -52,7 +52,7 @@ const useSystemSettingsForm = () => {
     })),
   );
 
-  const { control, watch, setValue } = useForm<AppSettings>({
+  const { control, watch } = useForm<AppSettings>({
     defaultValues: {
       fontFamily,
       primaryColor,
@@ -79,7 +79,9 @@ const useSystemSettingsForm = () => {
   }, [watch, updateSettings]);
 
   useEffect(() => {
-    CapApp.getInfo().then(info => setAppVersion(info.version)).catch(() => {});
+    CapApp.getInfo()
+      .then(info => setAppVersion(info.version))
+      .catch(() => {});
   }, []);
 
   return {
@@ -88,7 +90,6 @@ const useSystemSettingsForm = () => {
     control,
     isUpdateAvailable,
     latestVersion,
-    setValue,
   };
 };
 
@@ -99,16 +100,17 @@ const SettingsPage = () => {
   return (
     <ScrollContainer enableBackToTop className="h-full w-full">
       <div className={isMobile ? "m-auto mb-6 max-w-[900px] px-4 py-3" : "m-auto mb-6 max-w-[900px] px-8 py-4"}>
-        <div className="space-y-6">
-          <h1>设置</h1>
+        <div className={isMobile ? "space-y-4" : "space-y-6"}>
+          {!isMobile ? <h1>设置</h1> : null}
           <Tabs
             aria-label="设置选项"
-            size={isMobile ? "sm" : "md"}
+            size="md"
             className="w-full"
             classNames={{
               panel: isMobile ? "px-0 py-0" : "px-1 py-0",
               cursor: "rounded-medium",
               tabList: "max-w-full overflow-x-auto no-scrollbar",
+              tab: isMobile ? "h-11 px-4" : undefined,
             }}
           >
             <Tab key="system" title="常规设置">

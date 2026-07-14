@@ -10,18 +10,19 @@ const Fallback = ({ resetErrorBoundary }: FallbackProps) => {
 
   const openIssuePage = () => {
     const url = "https://github.com/TYWIM/biu-app/issues";
-
-    
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
   return (
-    <div className="window-drag bg-content1 flex h-screen w-screen flex-col items-center justify-center space-y-4">
-      <ErrorIllustration style={{ width: 480 }} />
-      <div className="window-no-drag flex items-center space-x-2">
-        <Button onPress={openIssuePage}>反馈</Button>
+    <div className="bg-content1 flex h-full w-full flex-col items-center justify-center gap-5 px-6 text-center">
+      <ErrorIllustration className="h-auto w-full max-w-70" aria-hidden="true" />
+      <div className="flex items-center gap-2">
+        <Button className="min-h-11" onPress={openIssuePage}>
+          反馈
+        </Button>
         <Button
           color="primary"
+          className="min-h-11"
           onPress={() => {
             navigate("/");
             resetErrorBoundary();
