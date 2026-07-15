@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useState } from "react";
 
-import { addToast, Spinner } from "@heroui/react";
+import { addToast, Button, Spinner } from "@heroui/react";
 
 import { queueDownloadTask } from "@/common/utils/download-actions";
 import { canDownloadMedia } from "@/common/utils/download-capability";
+import { getNetworkErrorMessage } from "@/common/utils/network-error";
 import { openBiliVideoLink } from "@/common/utils/url";
 import { formatUrlProtocol } from "@/common/utils/url";
 import Empty from "@/components/empty";
@@ -31,6 +32,7 @@ export default function SearchVideo({ keyword, getScrollElement }: SearchVideoPr
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [initialLoading, setInitialLoading] = useState(false);
+  const [initialError, setInitialError] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
 
   const fetchPage = useCallback(
@@ -62,8 +64,8 @@ export default function SearchVideo({ keyword, getScrollElement }: SearchVideoPr
         return newList;
       });
       setPage(nextPage);
-    } catch {
-      addToast({ title: "加载更多失败", color: "danger" });
+    } catch (error) {
+      addToast({ title: getNetworkErrorMessage(error, "加载更多失败"), color: "danger" });
     } finally {
       setLoadingMore(false);
     }
@@ -72,6 +74,7 @@ export default function SearchVideo({ keyword, getScrollElement }: SearchVideoPr
   const retryInitial = useCallback(async () => {
     if (!keyword) return;
     setInitialLoading(true);
+    setInitialError(null);
     setList([]);
     setPage(1);
     setHasMore(true);
@@ -79,8 +82,8 @@ export default function SearchVideo({ keyword, getScrollElement }: SearchVideoPr
       const { items, total } = await fetchPage(1);
       setList(items);
       setHasMore(items.length < total);
-    } catch {
-      addToast({ title: "加载失败", color: "danger" });
+    } catch (error) {
+      setInitialError(getNetworkErrorMessage(error));
     } finally {
       setInitialLoading(false);
     }
@@ -179,7 +182,17 @@ export default function SearchVideo({ keyword, getScrollElement }: SearchVideoPr
           <Spinner label="加载中" />
         </div>
       )}
-      {!initialLoading && !list?.length && <Empty className="min-h-[280px]" />}
+      {!initialLoading && initialError && list.length === 0 && (
+        <div data-testid="search-video-error" className="min-h-[280px] py-4">
+          <Empty title={initialError} />
+          <div className="flex justify-center">
+            <Button variant="flat" onPress={() => void retryInitial()}>
+              重试
+            </Button>
+          </div>
+        </div>
+      )}
+      {!initialLoading && !initialError && !list?.length && <Empty className="min-h-[280px]" />}
       {!initialLoading && list?.length > 0 && (
         <>
           {shouldUseGrid ? (

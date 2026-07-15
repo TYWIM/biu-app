@@ -1,5 +1,7 @@
 import type { AxiosError, AxiosRequestConfig, AxiosInstance } from "axios";
 
+import { isDeviceOffline } from "@/common/utils/network-error";
+
 const DEFAULT_RETRY_COUNT = 2;
 const DEFAULT_RETRY_DELAY_MS = 1000;
 const MAX_RETRY_DELAY_MS = 10000;
@@ -15,6 +17,7 @@ interface RetryAxiosRequestConfig extends AxiosRequestConfig {
 
 const shouldRetry = (error: AxiosError<unknown>): boolean => {
   if (!error.config) return false;
+  if (isDeviceOffline()) return false;
   const config = error.config as RetryAxiosRequestConfig;
   const retryCount = config.__retryCount ?? 0;
   const maxRetry = config.__maxRetry ?? DEFAULT_RETRY_COUNT;

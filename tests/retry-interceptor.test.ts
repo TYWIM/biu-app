@@ -72,6 +72,19 @@ describe("retryInterceptor", () => {
     expect(result).toEqual({ data: "ok" });
   });
 
+  it("should fail fast when the device is offline", async () => {
+    const onlineSpy = vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(false);
+    const mockAxios = createMockAxios();
+    const error = createAxiosError({
+      code: "ERR_NETWORK",
+      config: { __axiosInstance: mockAxios },
+    } as any);
+
+    await expect(retryInterceptor(error)).rejects.toBe(error);
+    expect(mockAxios).not.toHaveBeenCalled();
+    onlineSpy.mockRestore();
+  });
+
   it("should retry on 429 with exponential backoff", async () => {
     const mockAxios = createMockAxios();
     const error = createAxiosError({

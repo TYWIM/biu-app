@@ -26,7 +26,13 @@ const mockArchives = [
   },
 ];
 
-export async function mockBilibili(page: Page) {
+interface MockBilibiliOptions {
+  offline?: boolean;
+  failRecommendation?: boolean;
+  failSearch?: boolean;
+}
+
+export async function mockBilibili(page: Page, options: MockBilibiliOptions = {}) {
   await page.addInitScript(() => {
     window.localStorage.setItem(
       "user-token",
@@ -39,6 +45,12 @@ export async function mockBilibili(page: Page) {
       }),
     );
   });
+
+  if (options.offline) {
+    await page.addInitScript(() => {
+      Object.defineProperty(window.navigator, "onLine", { configurable: true, get: () => false });
+    });
+  }
 
   await page.route("https://i0.hdslb.com/**", route =>
     route.fulfill({ status: 200, contentType: "image/png", body: transparentPng }),
@@ -66,6 +78,14 @@ export async function mockBilibili(page: Page) {
 
   await page.route("https://api.bilibili.com/**", route => {
     const url = new URL(route.request().url());
+
+    if (options.failRecommendation && url.pathname === "/x/web-interface/region/feed/rcmd") {
+      return route.abort("internetdisconnected");
+    }
+
+    if (options.failSearch && url.pathname === "/x/web-interface/wbi/search/type") {
+      return route.abort("internetdisconnected");
+    }
 
     if (url.pathname === "/x/web-interface/nav") {
       return route.fulfill({

@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useState } from "react";
 
-import { Spinner, addToast } from "@heroui/react";
+import { Button, Spinner, addToast } from "@heroui/react";
 
+import { getNetworkErrorMessage } from "@/common/utils/network-error";
+import Empty from "@/components/empty";
 import VirtualGridPageList from "@/components/virtual-grid-page-list";
 import { getRelationRelations } from "@/service/relation-relations";
 import { getWebInterfaceWbiSearchType, type SearchUserItem } from "@/service/web-interface-search-type";
@@ -21,6 +23,7 @@ export default function UserList({ keyword, getScrollElement }: UserListProps) {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [initialLoading, setInitialLoading] = useState(false);
+  const [initialError, setInitialError] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
 
   const fetchPage = useCallback(
@@ -74,8 +77,8 @@ export default function UserList({ keyword, getScrollElement }: UserListProps) {
         return newList;
       });
       setPage(nextPage);
-    } catch {
-      addToast({ title: "加载更多失败", color: "danger" });
+    } catch (error) {
+      addToast({ title: getNetworkErrorMessage(error, "加载更多失败"), color: "danger" });
     } finally {
       setLoadingMore(false);
     }
@@ -84,6 +87,7 @@ export default function UserList({ keyword, getScrollElement }: UserListProps) {
   const retryInitial = useCallback(async () => {
     if (!keyword) return;
     setInitialLoading(true);
+    setInitialError(null);
     setList([]);
     setPage(1);
     setHasMore(true);
@@ -91,8 +95,8 @@ export default function UserList({ keyword, getScrollElement }: UserListProps) {
       const { items, total } = await fetchPage(1);
       setList(items);
       setHasMore(items.length < total);
-    } catch {
-      addToast({ title: "加载失败", color: "danger" });
+    } catch (error) {
+      setInitialError(getNetworkErrorMessage(error));
     } finally {
       setInitialLoading(false);
     }
@@ -106,6 +110,19 @@ export default function UserList({ keyword, getScrollElement }: UserListProps) {
     return (
       <div className="flex min-h-[280px] items-center justify-center">
         <Spinner label="加载中" />
+      </div>
+    );
+  }
+
+  if (initialError && list.length === 0) {
+    return (
+      <div data-testid="search-user-error" className="min-h-[280px] py-4">
+        <Empty title={initialError} />
+        <div className="flex justify-center">
+          <Button variant="flat" onPress={() => void retryInitial()}>
+            重试
+          </Button>
+        </div>
       </div>
     );
   }

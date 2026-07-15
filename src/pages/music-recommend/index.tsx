@@ -6,6 +6,7 @@ import { RiPlayFill } from "@remixicon/react";
 import useIsMobile from "@/common/hooks/use-is-mobile";
 import { canDownloadMedia } from "@/common/utils/download-capability";
 import { addDownloadTask } from "@/common/utils/native-download";
+import { getNetworkErrorMessage } from "@/common/utils/network-error";
 import { isBrowserPreview as checkIsBrowserPreview } from "@/common/utils/runtime-platform";
 import { openBiliVideoLink } from "@/common/utils/url";
 import AsyncButton from "@/components/async-button";
@@ -189,7 +190,7 @@ const MusicRecommend = () => {
   const [hasMore, setHasMore] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [loadFailed, setLoadFailed] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const pageRef = useRef(1);
   const [activeTab, setActiveTab] = useState<RecommendTabKey>("daily");
   const scrollRestoreRef = useRef<{ tab: RecommendTabKey; top: number } | null>(null);
@@ -279,12 +280,12 @@ const MusicRecommend = () => {
             setList(prev => (pn === 1 ? normalized : [...prev, ...normalized]));
             setHasMore(items.length === PAGE_SIZE);
             if (pn === 1) {
-              setLoadFailed(false);
+              setLoadError(null);
             }
           } else {
             if (pn === 1) {
               setList([]);
-              setLoadFailed(true);
+              setLoadError("推荐内容加载失败，请重试");
             }
             setHasMore(false);
           }
@@ -305,19 +306,19 @@ const MusicRecommend = () => {
           setList(prev => (pn === 1 ? normalized : [...prev, ...normalized]));
           setHasMore(items.length === REGION_PAGE_SIZE);
           if (pn === 1) {
-            setLoadFailed(false);
+            setLoadError(null);
           }
         } else {
           if (pn === 1) {
             setList([]);
-            setLoadFailed(true);
+            setLoadError("推荐内容加载失败，请重试");
           }
           setHasMore(false);
         }
-      } catch {
+      } catch (error) {
         if (pn === 1) {
           setList([]);
-          setLoadFailed(true);
+          setLoadError(getNetworkErrorMessage(error, "推荐内容加载失败，请重试"));
         }
         setHasMore(false);
       }
@@ -341,7 +342,7 @@ const MusicRecommend = () => {
       pageRef.current = 1;
       setHasMore(true);
       setLoadingMore(false);
-      setLoadFailed(false);
+      setLoadError(null);
       await fetchPage(1);
     } finally {
       setInitialLoading(false);
@@ -539,17 +540,13 @@ const MusicRecommend = () => {
             <Spinner size="lg" />
           </div>
         ) : displayList.length === 0 ? (
-          <div className="py-4">
+          <div data-testid={loadError ? "recommendation-error" : undefined} className="py-4">
             <Empty
               title={
-                loadFailed
-                  ? isBrowserPreview
-                    ? "浏览器预览模式下无法直接加载首页推荐数据"
-                    : "推荐内容加载失败"
-                  : "暂无推荐内容"
+                loadError ? (isBrowserPreview ? "浏览器预览模式下无法直接加载首页推荐数据" : loadError) : "暂无推荐内容"
               }
             />
-            {loadFailed && (
+            {loadError && (
               <div className="flex justify-center">
                 <AsyncButton variant="flat" onPress={init}>
                   重试
