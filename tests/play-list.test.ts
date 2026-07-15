@@ -126,6 +126,51 @@ describe("play-list store", () => {
     expect(usePlayList.getState().playId).toBe(firstId);
   });
 
+  test("offline playback errors preserve the current track", async () => {
+    const s = usePlayList.getState();
+    await s.init();
+    await s.playList([
+      { type: "audio", sid: 1, title: "a1" },
+      { type: "audio", sid: 2, title: "a2" },
+    ]);
+    const currentId = usePlayList.getState().playId;
+    usePlayList.setState({ isOnline: false, isPlaying: false });
+
+    vi.useFakeTimers();
+    try {
+      s.getAudio().onerror?.call(s.getAudio() as any, new Event("error"));
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(usePlayList.getState().playId).toBe(currentId);
+    } finally {
+      vi.useRealTimers();
+      usePlayList.setState({ isOnline: true });
+    }
+  });
+
+  test("online playback errors retry the same track", async () => {
+    const s = usePlayList.getState();
+    await s.init();
+    await s.playList([
+      { type: "audio", sid: 1, title: "a1" },
+      { type: "audio", sid: 2, title: "a2" },
+    ]);
+    const currentId = usePlayList.getState().playId;
+    const audio = s.getAudio();
+    audio.currentTime = 42;
+    usePlayList.setState({ isOnline: true, isPlaying: true });
+
+    vi.useFakeTimers();
+    try {
+      audio.onerror?.call(audio as any, new Event("error"));
+      await vi.advanceTimersByTimeAsync(3100);
+      await Promise.resolve();
+      expect(usePlayList.getState().playId).toBe(currentId);
+      expect(audio.currentTime).toBe(42);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   test("random mode keeps pages order", async () => {
     const s = usePlayList.getState();
     await s.init();

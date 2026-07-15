@@ -16,6 +16,7 @@ import {
   shouldUseNativePlayer,
   updateNativePlayerMetadata,
 } from "@/common/utils/native-player";
+import { isDeviceOffline } from "@/common/utils/network-error";
 import { getOfflineAudioUrl } from "@/common/utils/offline-playback";
 import { beginPlayReport, bindDurationGetter, endPlayReport, reportHeartbeat } from "@/common/utils/play-report";
 import { getRuntimeStore, setRuntimeStore } from "@/common/utils/runtime-store";
@@ -280,6 +281,10 @@ const updateMediaSession = ({ title, artist, cover }: { title: string; artist?: 
 const createAudio = (): PlaybackAudio => createPlaybackAudio();
 
 export const audio = createAudio();
+
+let reconnectPlaybackPosition: number | null = null;
+let shouldResumeAfterReconnect = false;
+let playbackRecoveryTimer: ReturnType<typeof setTimeout> | undefined;
 
 // 每首歌的播放速度缓存
 const getRateCacheKey = (item: PlayData | undefined): string | null => {
@@ -773,16 +778,44 @@ export const usePlayList = create<State & Action>()(
             };
 
             audio.onerror = () => {
+              const failedPlayId = get().playId;
+              const resumePosition = Math.max(audio.currentTime, usePlayProgress.getState().currentTime ?? 0);
+              const shouldResume = get().isPlaying || !audio.paused;
+              reconnectPlaybackPosition = Math.max(reconnectPlaybackPosition ?? 0, resumePosition);
+              shouldResumeAfterReconnect = shouldResumeAfterReconnect || shouldResume;
               set({ isPlaying: false, duration: undefined });
               updatePlaybackState();
               stopUrlExpiryCheck();
-              // Auto-skip to next track on playback error
-              setTimeout(() => {
-                if (!get().isPlaying) {
-                  log.warn("[play-list] playback error, skipping to next track");
-                  get().next();
+              syncCurrentTimeState(true);
+              if (playbackRecoveryTimer) {
+                clearTimeout(playbackRecoveryTimer);
+                playbackRecoveryTimer = undefined;
+              }
+              if (!get().isOnline || isDeviceOffline()) {
+                log.warn("[play-list] playback error while offline, preserving current track");
+                return;
+              }
+
+              playbackRecoveryTimer = setTimeout(() => {
+                playbackRecoveryTimer = undefined;
+                if (get().playId !== failedPlayId || get().isPlaying || !get().isOnline || isDeviceOffline()) {
+                  return;
                 }
-              }, 1500);
+
+                void refreshCurrentAudioSource().then(refreshed => {
+                  if (!refreshed || get().playId !== failedPlayId) {
+                    return;
+                  }
+                  if (resumePosition > 0) {
+                    audio.currentTime = resumePosition;
+                  }
+                  if (shouldResume) {
+                    void playAudioSafely();
+                  }
+                  reconnectPlaybackPosition = null;
+                  shouldResumeAfterReconnect = false;
+                });
+              }, 3000);
             };
 
             audio.onemptied = () => {
@@ -815,8 +848,25 @@ export const usePlayList = create<State & Action>()(
             const handleOffline = async () => {
               log.warn("[play-list] network offline");
               set({ isOnline: false });
+              if (playbackRecoveryTimer) {
+                clearTimeout(playbackRecoveryTimer);
+                playbackRecoveryTimer = undefined;
+              }
               const currentItem = get().list.find(i => i.id === get().playId);
-              if (currentItem && currentItem.source !== "local") {
+              reconnectPlaybackPosition = Math.max(
+                reconnectPlaybackPosition ?? 0,
+                audio.currentTime,
+                usePlayProgress.getState().currentTime ?? 0,
+              );
+              shouldResumeAfterReconnect = shouldResumeAfterReconnect || !audio.paused || get().isPlaying;
+
+              if (currentItem?.source === "local") {
+                reconnectPlaybackPosition = null;
+                shouldResumeAfterReconnect = false;
+                return;
+              }
+
+              if (currentItem) {
                 const offlineUrl = await getOfflineAudioUrl(currentItem.bvid, undefined, currentItem.sid);
                 if (offlineUrl) {
                   log.info("[offline] 断网，切换到离线缓存播放");
@@ -824,6 +874,8 @@ export const usePlayList = create<State & Action>()(
                   audio.src = offlineUrl;
                   audio.currentTime = currentTime;
                   void audio.play();
+                  reconnectPlaybackPosition = null;
+                  shouldResumeAfterReconnect = false;
                   addToast({ title: "网络已断开，使用离线缓存播放", color: "default" });
                   return;
                 }
@@ -841,12 +893,31 @@ export const usePlayList = create<State & Action>()(
             const handleOnline = () => {
               log.info("[play-list] network online");
               set({ isOnline: true });
-              if (get().playId && audio.paused && !get().isPlaying) {
-                void ensureAudioSrcValid().then(() => {
-                  if (audio.src) {
-                    void audio.play();
+              if (playbackRecoveryTimer) {
+                clearTimeout(playbackRecoveryTimer);
+                playbackRecoveryTimer = undefined;
+              }
+              const resumePosition = reconnectPlaybackPosition;
+              const shouldResume = shouldResumeAfterReconnect;
+
+              if (get().playId && shouldResume) {
+                void (async () => {
+                  const refreshed = await refreshCurrentAudioSource();
+                  if (!refreshed) {
+                    await ensureAudioSrcValid();
                   }
-                });
+                  if (audio.src && resumePosition !== null && resumePosition > 0) {
+                    audio.currentTime = resumePosition;
+                  }
+                  if (audio.src) {
+                    await playAudioSafely();
+                    reconnectPlaybackPosition = null;
+                    shouldResumeAfterReconnect = false;
+                  }
+                })();
+              } else {
+                reconnectPlaybackPosition = null;
+                shouldResumeAfterReconnect = false;
               }
             };
 
