@@ -13,6 +13,7 @@ import UserList from "./user-list";
 import VideoList from "./video-list";
 
 const MobileSearchBar = () => {
+  const inputRef = useRef<HTMLInputElement>(null);
   const addSearchHistory = useSearchHistory(s => s.add);
   const deleteSearchHistory = useSearchHistory(s => s.delete);
   const clearSearchHistory = useSearchHistory(s => s.clear);
@@ -23,11 +24,13 @@ const MobileSearchBar = () => {
     if (!value.trim()) return;
     addSearchHistory(value.trim());
     setValue("");
+    inputRef.current?.blur();
   };
 
   return (
     <div className="px-4 pt-3 pb-2">
       <Input
+        ref={inputRef}
         value={value}
         onValueChange={setValue}
         onKeyDown={e => {
@@ -45,10 +48,7 @@ const MobileSearchBar = () => {
         <div className="mt-3">
           <div className="mb-2 flex items-center justify-between">
             <span className="text-foreground-500 text-xs">搜索历史</span>
-            <span
-              className="text-foreground-400 cursor-pointer text-xs"
-              onClick={clearSearchHistory}
-            >
+            <span className="text-foreground-400 cursor-pointer text-xs" onClick={clearSearchHistory}>
               清除
             </span>
           </div>

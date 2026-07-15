@@ -257,6 +257,7 @@ const MobileShell = ({ children }: Props) => {
   useEffect(() => {
     const handleOverlayCloseRequest = (event: Event) => {
       const closeRequest = event as CustomEvent<{ handled: boolean }>;
+      if (closeRequest.detail.handled) return;
 
       if (isLoginOpen) {
         closeRequest.detail.handled = true;

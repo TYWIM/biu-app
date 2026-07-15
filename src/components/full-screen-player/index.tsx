@@ -1,9 +1,21 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 
-import { addToast, Button, Drawer, DrawerBody, DrawerContent, Image, Popover, PopoverContent, PopoverTrigger, Slider, Tab, Tabs } from "@heroui/react";
+import {
+  addToast,
+  Button,
+  Drawer,
+  DrawerBody,
+  DrawerContent,
+  Image,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  Slider,
+  Tab,
+  Tabs,
+} from "@heroui/react";
 import {
   RiArrowDownSLine,
-  RiArrowLeftSLine,
   RiSettings3Line,
   RiShareForwardLine,
   RiVolumeDownLine,
@@ -16,8 +28,8 @@ import clsx from "classnames";
 import { readableColor } from "color2k";
 import { useShallow } from "zustand/shallow";
 
-import useIsMobile from "@/common/hooks/use-is-mobile";
 import { Themes } from "@/common/constants/theme";
+import useIsMobile from "@/common/hooks/use-is-mobile";
 import { hexToHsl, resolveTheme, isHex } from "@/common/utils/color";
 import { shouldUseNativePlayer } from "@/common/utils/native-player";
 import CommentList from "@/components/comment-list";
@@ -68,9 +80,7 @@ const MobileVolumeControl = memo(({ isDark }: { isDark: boolean }) => {
   const surfaceClassName = isDark
     ? "rounded-2xl border border-white/10 bg-white/6 px-3 py-2"
     : "rounded-2xl border border-slate-900/6 bg-white/70 px-3 py-2";
-  const iconClassName = isDark
-    ? "text-white/70 active:text-white"
-    : "text-slate-600 active:text-slate-900";
+  const iconClassName = isDark ? "text-white/70 active:text-white" : "text-slate-600 active:text-slate-900";
   const helperTextClassName = isDark ? "text-white/46" : "text-slate-500/70";
   const switchPillClassName = isDark
     ? "rounded-full border border-white/10 bg-white/8 px-2.5 py-0.5 text-[10px] font-medium text-white/60 active:bg-white/14"
@@ -81,7 +91,11 @@ const MobileVolumeControl = memo(({ isDark }: { isDark: boolean }) => {
       <div className={clsx("flex w-full items-center gap-2.5", surfaceClassName)}>
         <RiVolumeUpLine size={16} className={iconClassName} />
         <span className={clsx("flex-1 text-xs", helperTextClassName)}>跟随系统音量</span>
-        <button type="button" onClick={() => updateSettings({ followSystemVolume: false })} className={switchPillClassName}>
+        <button
+          type="button"
+          onClick={() => updateSettings({ followSystemVolume: false })}
+          className={switchPillClassName}
+        >
           切换应用音量
         </button>
       </div>
@@ -103,7 +117,8 @@ const MobileVolumeControl = memo(({ isDark }: { isDark: boolean }) => {
     toggleMute();
   };
 
-  const VolumeIcon = isMuted || effectiveVolume === 0 ? RiVolumeMuteLine : effectiveVolume > 0.5 ? RiVolumeUpLine : RiVolumeDownLine;
+  const VolumeIcon =
+    isMuted || effectiveVolume === 0 ? RiVolumeMuteLine : effectiveVolume > 0.5 ? RiVolumeUpLine : RiVolumeDownLine;
 
   return (
     <div className={clsx("w-full space-y-1.5", surfaceClassName)}>
@@ -127,11 +142,17 @@ const MobileVolumeControl = memo(({ isDark }: { isDark: boolean }) => {
             thumb: "h-3 w-3 bg-primary after:hidden",
           }}
         />
-        <span className={clsx("w-8 text-right text-[10px] tabular-nums", helperTextClassName)}>{Math.round(effectiveVolume * 100)}%</span>
+        <span className={clsx("w-8 text-right text-[10px] tabular-nums", helperTextClassName)}>
+          {Math.round(effectiveVolume * 100)}%
+        </span>
       </div>
       {canFollowSystemVolume && (
         <div className="flex items-center justify-end">
-          <button type="button" onClick={() => updateSettings({ followSystemVolume: true })} className={switchPillClassName}>
+          <button
+            type="button"
+            onClick={() => updateSettings({ followSystemVolume: true })}
+            className={switchPillClassName}
+          >
             切换系统音量
           </button>
         </div>
@@ -147,16 +168,15 @@ const FullScreenPlayer = () => {
   const playItem = usePlayList(state => state.list.find(item => item.id === state.playId));
   const primaryColor = useSettings(s => s.primaryColor);
   const themeMode = useSettings(s => s.themeMode);
-  const { showLyrics, showCover, showBlurredBackground, backgroundColor, lyricsColor } =
-    useFullScreenPlayerSettings(
-      useShallow(s => ({
-        showLyrics: s.showLyrics,
-        showCover: s.showCover,
-        showBlurredBackground: s.showBlurredBackground,
-        backgroundColor: s.backgroundColor,
-        lyricsColor: s.lyricsColor,
-      })),
-    );
+  const { showLyrics, showCover, showBlurredBackground, backgroundColor, lyricsColor } = useFullScreenPlayerSettings(
+    useShallow(s => ({
+      showLyrics: s.showLyrics,
+      showCover: s.showCover,
+      showBlurredBackground: s.showBlurredBackground,
+      backgroundColor: s.backgroundColor,
+      lyricsColor: s.lyricsColor,
+    })),
+  );
   const isLocal = playItem?.source === "local";
 
   const [windowWidth, setWindowWidth] = useState(typeof window !== "undefined" ? window.innerWidth : 1000);
@@ -209,41 +229,37 @@ const FullScreenPlayer = () => {
   }, [isOpen]);
 
   useEffect(() => {
+    const handleOverlayCloseRequest = (event: Event) => {
+      const closeRequest = event as CustomEvent<{ handled: boolean }>;
+      if (closeRequest.detail.handled) return;
+
+      if (isCommentDrawerOpen) {
+        closeRequest.detail.handled = true;
+        setIsCommentDrawerOpen(false);
+        return;
+      }
+
+      if (isSettingsOpen) {
+        closeRequest.detail.handled = true;
+        setIsSettingsOpen(false);
+        return;
+      }
+
+      if (isPageListOpen) {
+        closeRequest.detail.handled = true;
+        setIsPageListOpen(false);
+      }
+    };
+
+    window.addEventListener("biuclosemobileoverlay", handleOverlayCloseRequest);
+    return () => window.removeEventListener("biuclosemobileoverlay", handleOverlayCloseRequest);
+  }, [isCommentDrawerOpen, isPageListOpen, isSettingsOpen]);
+
+  useEffect(() => {
     if (!isUiVisible && isSettingsOpen) {
       setIsSettingsOpen(false);
     }
   }, [isUiVisible, isSettingsOpen]);
-
-  const handleMouseEnter = () => {
-    if (isMobile) {
-      return;
-    }
-    if (hideUiTimeoutRef.current) {
-      window.clearTimeout(hideUiTimeoutRef.current);
-      hideUiTimeoutRef.current = null;
-    }
-    if (!isUiVisible) {
-      setIsUiVisible(true);
-    }
-  };
-
-  const scheduleHideUi = (delay: number) => {
-    if (isMobile) return;
-    if (isSettingsOpen) return;
-    if (hideUiTimeoutRef.current) {
-      window.clearTimeout(hideUiTimeoutRef.current);
-    }
-    hideUiTimeoutRef.current = window.setTimeout(() => {
-      setIsUiVisible(false);
-    }, delay);
-  };
-
-  const handleMouseLeave = () => {
-    if (isMobile) {
-      return;
-    }
-    scheduleHideUi(3000);
-  };
 
   const coverSrc = playItem?.pageCover || playItem?.cover;
   const { effectsProfile, bgLayerA, bgLayerB, activeBgLayer, cssVars } = useGlassmorphism(
@@ -332,9 +348,6 @@ const FullScreenPlayer = () => {
   const mobileContentStateClassName = isMobilePageListVisible
     ? "scale-[0.985] -translate-y-2 opacity-70"
     : "scale-100 translate-y-0 opacity-100";
-  const mobileControlsStateClassName = isMobilePageListVisible
-    ? "pointer-events-auto translate-y-1 scale-[0.99] opacity-72"
-    : "pointer-events-auto translate-y-0 scale-100 opacity-100";
   const mobileBackgroundLayer = activeBgLayer === "a" ? bgLayerA : bgLayerB;
 
   const coverWidth = isMobile
@@ -369,8 +382,11 @@ const FullScreenPlayer = () => {
             <Empty />
           ) : (
             <DrawerBody
-              className={clsx("group/player relative gap-0 overflow-hidden bg-transparent p-0", isMobile ? "flex flex-col" : "flex flex-row")}
-              onTouchStart={e => {
+              className={clsx(
+                "group/player relative gap-0 overflow-hidden bg-transparent p-0",
+                isMobile ? "flex flex-col" : "flex flex-row",
+              )}
+              onTouchStart={() => {
                 // 移动端始终显示 UI，不需要切换
                 if (isMobile) {
                   return;
@@ -383,14 +399,17 @@ const FullScreenPlayer = () => {
                   aria-hidden
                   className="absolute inset-0 -z-10"
                   style={{
-                    backgroundColor: backgroundColor && isHex(backgroundColor)
-                      ? backgroundColor
-                      : appTheme === "dark" ? "#0b1220" : "#f8fafc",
+                    backgroundColor:
+                      backgroundColor && isHex(backgroundColor)
+                        ? backgroundColor
+                        : appTheme === "dark"
+                          ? "#0b1220"
+                          : "#f8fafc",
                   }}
                 />
               )}
-              {showBlurredBackground && (
-                isMobile ? (
+              {showBlurredBackground &&
+                (isMobile ? (
                   <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
                     {mobileBackgroundLayer.coverSrc && (
                       <div
@@ -402,7 +421,10 @@ const FullScreenPlayer = () => {
                         }}
                       />
                     )}
-                    <div className="absolute inset-0" style={{ background: mobileBackgroundLayer.gradientBackground }} />
+                    <div
+                      className="absolute inset-0"
+                      style={{ background: mobileBackgroundLayer.gradientBackground }}
+                    />
                     <div className={clsx("absolute inset-0", mobileOverlayTintClassName)} />
                   </div>
                 ) : (
@@ -464,16 +486,24 @@ const FullScreenPlayer = () => {
                       />
                     </div>
                   </div>
-                )
-              )}
+                ))}
               <div
                 className={clsx(
                   "absolute top-0 right-0 z-20 flex w-full justify-between transition-[opacity,transform,filter] duration-300 ease-out",
                   isMobile ? "px-4 py-[calc(var(--safe-area-top)+12px)]" : "px-6 py-4",
-                  isMobile ? mobileHeaderStateClassName : isUiVisible ? "opacity-100 translate-y-0 blur-0" : "pointer-events-none opacity-0 translate-y-0 blur-0",
+                  isMobile
+                    ? mobileHeaderStateClassName
+                    : isUiVisible
+                      ? "blur-0 translate-y-0 opacity-100"
+                      : "blur-0 pointer-events-none translate-y-0 opacity-0",
                 )}
               >
-                <div className={clsx("top-0 right-0 left-0 flex items-center space-x-2", isMobile ? "min-w-0 flex-1" : "w-full max-w-2/5")}>
+                <div
+                  className={clsx(
+                    "top-0 right-0 left-0 flex items-center space-x-2",
+                    isMobile ? "min-w-0 flex-1" : "w-full max-w-2/5",
+                  )}
+                >
                   <IconButton
                     title="关闭弹窗"
                     onPress={onClose}
@@ -502,11 +532,7 @@ const FullScreenPlayer = () => {
                     placement="bottom-start"
                   >
                     <PopoverTrigger>
-                      <IconButton
-                        title="设置"
-                        tooltip="设置"
-                        className={isMobile ? mobileHeaderButtonClassName : ""}
-                      >
+                      <IconButton title="设置" tooltip="设置" className={isMobile ? mobileHeaderButtonClassName : ""}>
                         <RiSettings3Line size={22} />
                       </IconButton>
                     </PopoverTrigger>
@@ -543,9 +569,7 @@ const FullScreenPlayer = () => {
                     </IconButton>
                   )}
                 </div>
-                <div className="top-0 right-0">
-                  
-                </div>
+                <div className="top-0 right-0"></div>
               </div>
 
               {isMobile ? (
@@ -559,7 +583,12 @@ const FullScreenPlayer = () => {
                   }}
                 >
                   {!isLocal && showCover && (
-                    <div className={clsx("flex flex-none justify-center px-6", showLyrics ? "pt-2" : "flex-1 items-center pb-6") }>
+                    <div
+                      className={clsx(
+                        "flex flex-none justify-center px-6",
+                        showLyrics ? "pt-2" : "flex-1 items-center pb-6",
+                      )}
+                    >
                       <Image
                         src={coverSrc}
                         radius="lg"
@@ -579,9 +608,16 @@ const FullScreenPlayer = () => {
                     </div>
                   )}
 
-                  <div className={clsx("flex flex-none flex-col items-center px-6 text-center", showLyrics ? "pb-3" : "pb-6")}>
-                    <div className="max-w-full text-[clamp(1.25rem,5.2vw,1.75rem)] font-semibold leading-tight tracking-tight">{displayTitle}</div>
-                    <div className="mt-2 max-w-full truncate text-sm text-foreground-500">{displaySubtitle}</div>
+                  <div
+                    className={clsx(
+                      "flex flex-none flex-col items-center px-6 text-center",
+                      showLyrics ? "pb-3" : "pb-6",
+                    )}
+                  >
+                    <div className="max-w-full text-[clamp(1.25rem,5.2vw,1.75rem)] leading-tight font-semibold tracking-tight">
+                      {displayTitle}
+                    </div>
+                    <div className="text-foreground-500 mt-2 max-w-full truncate text-sm">{displaySubtitle}</div>
                     <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
                       {mobileMetaBadges.map(label => (
                         <span key={label} className={mobileMetaBadgeClassName}>
@@ -717,7 +753,11 @@ const FullScreenPlayer = () => {
                       />
                       <div className="flex w-full items-center justify-between gap-3">
                         <div className="flex items-center gap-2">
-                          <MusicPlayMode className={mobileSecondaryControlClassName} iconSize={18} tooltipPlacement="top-start" />
+                          <MusicPlayMode
+                            className={mobileSecondaryControlClassName}
+                            iconSize={18}
+                            tooltipPlacement="top-start"
+                          />
                           {playItem.hasMultiPart && (
                             <Button
                               radius="full"
@@ -747,7 +787,11 @@ const FullScreenPlayer = () => {
                           primaryIconSize={52}
                         />
                         <div className="flex items-center gap-1">
-                          <OpenPlaylistDrawerButton className={mobileSecondaryControlClassName} iconSize={18} tooltip="播放列表" />
+                          <OpenPlaylistDrawerButton
+                            className={mobileSecondaryControlClassName}
+                            iconSize={18}
+                            tooltip="播放列表"
+                          />
                           <Equalizer />
                         </div>
                       </div>
@@ -766,9 +810,6 @@ const FullScreenPlayer = () => {
                 </div>
               </div>
 
-              
-
-
               {/* Comment Drawer */}
               <Drawer
                 isOpen={isCommentDrawerOpen}
@@ -779,19 +820,16 @@ const FullScreenPlayer = () => {
                 hideCloseButton
                 shouldBlockScroll
               >
-                <DrawerContent className={clsx(
-                  "bg-background text-foreground",
-                  isPlayerDark ? "dark" : "light",
-                )}>
+                <DrawerContent className={clsx("bg-background text-foreground", isPlayerDark ? "dark" : "light")}>
                   <DrawerBody className="flex flex-col gap-0 p-0">
-                    <div className={clsx(
-                      "flex items-center gap-3 border-b px-4 py-3",
-                      isPlayerDark ? "border-white/10" : "border-slate-900/8",
-                    )} style={{ paddingTop: "calc(var(--safe-area-top) + 12px)" }}>
-                      <IconButton
-                        onPress={() => setIsCommentDrawerOpen(false)}
-                        className={mobileHeaderButtonClassName}
-                      >
+                    <div
+                      className={clsx(
+                        "flex items-center gap-3 border-b px-4 py-3",
+                        isPlayerDark ? "border-white/10" : "border-slate-900/8",
+                      )}
+                      style={{ paddingTop: "calc(var(--safe-area-top) + 12px)" }}
+                    >
+                      <IconButton onPress={() => setIsCommentDrawerOpen(false)} className={mobileHeaderButtonClassName}>
                         <RiArrowDownSLine size={24} />
                       </IconButton>
                       <h3 className="text-base font-semibold">评论</h3>

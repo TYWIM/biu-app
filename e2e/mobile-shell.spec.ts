@@ -47,6 +47,17 @@ test("Android back closes the drawer before changing routes", async ({ page }) =
   await expect(page).toHaveURL(/#\/search$/);
 });
 
+test("submitting a mobile search releases the keyboard focus", async ({ page }) => {
+  await page.goto("/#/search");
+
+  const searchInput = page.locator("input").first();
+  await searchInput.fill("music");
+  await searchInput.press("Enter");
+
+  await expect(searchInput).not.toBeFocused();
+  await expect(page.getByText("music", { exact: true })).toBeVisible();
+});
+
 test("shell controls meet mobile touch target requirements", async ({ page }) => {
   await page.goto("/#/settings");
 
