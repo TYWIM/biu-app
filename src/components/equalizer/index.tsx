@@ -14,11 +14,7 @@ import {
 
 import IconButton from "../icon-button";
 
-interface EqualizerProps {
-  audio?: HTMLAudioElement | null;
-}
-
-const Equalizer = memo(({ audio }: EqualizerProps) => {
+const Equalizer = memo(() => {
   const [eqInfo, setEqInfo] = useState<EqualizerInfo | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [currentPreset, setCurrentPreset] = useState("off");
@@ -62,19 +58,19 @@ const Equalizer = memo(({ audio }: EqualizerProps) => {
   );
 
   // 处理预设切换
-  const handlePresetChange = useCallback(
-    async (preset: string) => {
-      const result = await setEqualizerPreset(preset);
-      if (result) {
-        setEqInfo(result);
-        setCurrentPreset(preset);
-        if (preset !== "off") {
-          addToast({ title: `已应用 ${EQUALIZER_PRESETS.find(p => p.key === preset)?.label || preset} 音效`, color: "success" });
-        }
+  const handlePresetChange = useCallback(async (preset: string) => {
+    const result = await setEqualizerPreset(preset);
+    if (result) {
+      setEqInfo(result);
+      setCurrentPreset(preset);
+      if (preset !== "off") {
+        addToast({
+          title: `已应用 ${EQUALIZER_PRESETS.find(p => p.key === preset)?.label || preset} 音效`,
+          color: "success",
+        });
       }
-    },
-    [],
-  );
+    }
+  }, []);
 
   // 处理频段拖动
   const handleMouseDown = useCallback(
@@ -103,9 +99,7 @@ const Equalizer = memo(({ audio }: EqualizerProps) => {
       const percent = Math.max(0, Math.min(100, ((rect.height - relativeY) / rect.height) * 100));
       const newLevel = getLevelFromPercent(percent);
 
-      const newBands = (eqInfo.bands ?? []).map((band, i) =>
-        i === bandIndex ? { ...band, level: newLevel } : band,
-      );
+      const newBands = (eqInfo.bands ?? []).map((band, i) => (i === bandIndex ? { ...band, level: newLevel } : band));
 
       setEqInfo(prev => (prev ? { ...prev, bands: newBands } : null));
     };
@@ -163,7 +157,7 @@ const Equalizer = memo(({ audio }: EqualizerProps) => {
         onPress={() => setIsOpen(prev => !prev)}
         className={`min-w-0 rounded-full text-xs font-semibold transition-colors ${
           currentPreset !== "off"
-            ? "bg-primary/80 text-white hover:bg-primary"
+            ? "bg-primary/80 hover:bg-primary text-white"
             : "bg-foreground/20 text-foreground hover:bg-foreground/30"
         }`}
       >
@@ -188,11 +182,7 @@ const Equalizer = memo(({ audio }: EqualizerProps) => {
           </div>
 
           {/* 频段滑块 */}
-          <div
-            ref={containerRef}
-            className="mb-4 flex h-32 items-end justify-around"
-            style={{ touchAction: "none" }}
-          >
+          <div ref={containerRef} className="mb-4 flex h-32 items-end justify-around" style={{ touchAction: "none" }}>
             {bands.map((band, index) => (
               <div key={band.index} className="flex flex-col items-center gap-1">
                 <div

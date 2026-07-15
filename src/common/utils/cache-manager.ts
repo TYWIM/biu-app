@@ -1,6 +1,5 @@
-import { StoreNameMap } from "@shared/store";
-
 import log from "@/common/utils/logger";
+import { StoreNameMap } from "@shared/store";
 
 import { getRuntimeStore, setRuntimeStore } from "./runtime-store";
 

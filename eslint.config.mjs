@@ -14,7 +14,16 @@ import unusedImports from "eslint-plugin-unused-imports";
 import eslintReact from "@eslint-react/eslint-plugin";
 
 export default defineConfig([
-  globalIgnores(["dist"]),
+  globalIgnores([
+    "dist/**",
+    "android/.gradle/**",
+    "android/**/build/**",
+    "android/app/src/main/assets/public/**",
+    "coverage/**",
+    "output/**",
+    "playwright-report/**",
+    "test-results/**",
+  ]),
   {
     files: ["**/*.{ts,tsx}"],
     extends: [

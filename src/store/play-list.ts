@@ -1,5 +1,4 @@
 import { addToast } from "@heroui/react";
-import log from "@/common/utils/logger";
 import { shuffle } from "es-toolkit/array";
 import { remove } from "es-toolkit/array";
 import { uniqueId } from "es-toolkit/compat";
@@ -9,7 +8,7 @@ import { immer } from "zustand/middleware/immer";
 
 import { getPlayModeList, PlayMode } from "@/common/constants/audio";
 import { getAudioUrl, getDashUrl, getUrlExpirySeconds, isUrlValid } from "@/common/utils/audio";
-import { getOfflineAudioUrl, isDeviceOnline } from "@/common/utils/offline-playback";
+import log from "@/common/utils/logger";
 import {
   createPlaybackAudio,
   type PlaybackAudio,
@@ -17,6 +16,7 @@ import {
   shouldUseNativePlayer,
   updateNativePlayerMetadata,
 } from "@/common/utils/native-player";
+import { getOfflineAudioUrl } from "@/common/utils/offline-playback";
 import { beginPlayReport, bindDurationGetter, endPlayReport, reportHeartbeat } from "@/common/utils/play-report";
 import { getRuntimeStore, setRuntimeStore } from "@/common/utils/runtime-store";
 import { stripHtml } from "@/common/utils/str";
@@ -143,7 +143,10 @@ const idGenerator = () => `${Date.now()}${uniqueId()}`;
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
-interface CacheEntry<T> { data: T; expiry: number }
+interface CacheEntry<T> {
+  data: T;
+  expiry: number;
+}
 
 const mvDataCache = new Map<string, CacheEntry<PlayData[]>>();
 const audioDataCache = new Map<number, CacheEntry<PlayData[]>>();
@@ -398,33 +401,37 @@ const prefetchNextAudioUrl = () => {
   if (nextPlayData.audioUrl && isUrlValid(nextPlayData.audioUrl)) return;
 
   if (nextPlayData.type === "mv" && nextPlayData.bvid && nextPlayData.cid) {
-    void getDashUrl(nextPlayData.bvid, nextPlayData.cid).then(mvPlayData => {
-      if (mvPlayData?.audioUrl) {
-        usePlayList.setState(state => {
-          const listItem = state.list.find(item => item.id === nextPlayData!.id);
-          if (listItem) {
-            listItem.audioUrl = mvPlayData.audioUrl;
-            listItem.videoUrl = mvPlayData.videoUrl;
-            listItem.isLossless = mvPlayData.isLossless;
-            listItem.isDolby = mvPlayData.isDolby;
-          }
-        });
-      }
-    }).catch(() => {});
+    void getDashUrl(nextPlayData.bvid, nextPlayData.cid)
+      .then(mvPlayData => {
+        if (mvPlayData?.audioUrl) {
+          usePlayList.setState(state => {
+            const listItem = state.list.find(item => item.id === nextPlayData!.id);
+            if (listItem) {
+              listItem.audioUrl = mvPlayData.audioUrl;
+              listItem.videoUrl = mvPlayData.videoUrl;
+              listItem.isLossless = mvPlayData.isLossless;
+              listItem.isDolby = mvPlayData.isDolby;
+            }
+          });
+        }
+      })
+      .catch(() => {});
   }
 
   if (nextPlayData.type === "audio" && nextPlayData.sid) {
-    void getAudioUrl(nextPlayData.sid).then(musicPlayData => {
-      if (musicPlayData?.audioUrl) {
-        usePlayList.setState(state => {
-          const listItem = state.list.find(item => item.id === nextPlayData!.id);
-          if (listItem) {
-            listItem.audioUrl = musicPlayData.audioUrl;
-            listItem.isLossless = musicPlayData.isLossless;
-          }
-        });
-      }
-    }).catch(() => {});
+    void getAudioUrl(nextPlayData.sid)
+      .then(musicPlayData => {
+        if (musicPlayData?.audioUrl) {
+          usePlayList.setState(state => {
+            const listItem = state.list.find(item => item.id === nextPlayData!.id);
+            if (listItem) {
+              listItem.audioUrl = musicPlayData.audioUrl;
+              listItem.isLossless = musicPlayData.isLossless;
+            }
+          });
+        }
+      })
+      .catch(() => {});
   }
 };
 
@@ -512,7 +519,8 @@ export const usePlayList = create<State & Action>()(
           }
           return;
         }
-        const reusableAudioUrl = currentPlayItem && shouldReuseAudioUrl(currentPlayItem) ? currentPlayItem.audioUrl : undefined;
+        const reusableAudioUrl =
+          currentPlayItem && shouldReuseAudioUrl(currentPlayItem) ? currentPlayItem.audioUrl : undefined;
         if (reusableAudioUrl) {
           if (audio.src !== reusableAudioUrl) {
             audio.src = reusableAudioUrl;
@@ -609,57 +617,57 @@ export const usePlayList = create<State & Action>()(
         if (isRefreshingUrl) return;
         isRefreshingUrl = true;
         try {
-        const { playId, list } = get();
-        const item = list.find(i => i.id === playId);
-        if (!item || item.source === "local") return;
+          const { playId, list } = get();
+          const item = list.find(i => i.id === playId);
+          if (!item || item.source === "local") return;
 
-        if (item.type === "mv" && item.bvid && item.cid) {
-          try {
-            const mvPlayData = await getDashUrl(item.bvid, item.cid);
-            if (mvPlayData?.audioUrl) {
-              set(state => {
-                const listItem = state.list.find(i => i.id === state.playId);
-                if (listItem) {
-                  listItem.audioUrl = mvPlayData.audioUrl;
-                  listItem.videoUrl = mvPlayData.videoUrl;
-                  listItem.isLossless = mvPlayData.isLossless;
-                  listItem.isDolby = mvPlayData.isDolby;
+          if (item.type === "mv" && item.bvid && item.cid) {
+            try {
+              const mvPlayData = await getDashUrl(item.bvid, item.cid);
+              if (mvPlayData?.audioUrl) {
+                set(state => {
+                  const listItem = state.list.find(i => i.id === state.playId);
+                  if (listItem) {
+                    listItem.audioUrl = mvPlayData.audioUrl;
+                    listItem.videoUrl = mvPlayData.videoUrl;
+                    listItem.isLossless = mvPlayData.isLossless;
+                    listItem.isDolby = mvPlayData.isDolby;
+                  }
+                });
+                if (audio && !audio.paused) {
+                  const currentTime = audio.currentTime;
+                  audio.src = mvPlayData.audioUrl;
+                  audio.currentTime = currentTime;
+                  void audio.play();
                 }
-              });
-              if (audio && !audio.paused) {
-                const currentTime = audio.currentTime;
-                audio.src = mvPlayData.audioUrl;
-                audio.currentTime = currentTime;
-                void audio.play();
               }
+            } catch (e) {
+              log.warn("[play-list] silent refresh mv url failed", e);
             }
-          } catch (e) {
-            log.warn("[play-list] silent refresh mv url failed", e);
           }
-        }
 
-        if (item.type === "audio" && item.sid) {
-          try {
-            const musicPlayData = await getAudioUrl(item.sid);
-            if (musicPlayData?.audioUrl) {
-              set(state => {
-                const listItem = state.list.find(i => i.id === state.playId);
-                if (listItem) {
-                  listItem.audioUrl = musicPlayData.audioUrl;
-                  listItem.isLossless = musicPlayData.isLossless;
+          if (item.type === "audio" && item.sid) {
+            try {
+              const musicPlayData = await getAudioUrl(item.sid);
+              if (musicPlayData?.audioUrl) {
+                set(state => {
+                  const listItem = state.list.find(i => i.id === state.playId);
+                  if (listItem) {
+                    listItem.audioUrl = musicPlayData.audioUrl;
+                    listItem.isLossless = musicPlayData.isLossless;
+                  }
+                });
+                if (audio && !audio.paused) {
+                  const currentTime = audio.currentTime;
+                  audio.src = musicPlayData.audioUrl;
+                  audio.currentTime = currentTime;
+                  void audio.play();
                 }
-              });
-              if (audio && !audio.paused) {
-                const currentTime = audio.currentTime;
-                audio.src = musicPlayData.audioUrl;
-                audio.currentTime = currentTime;
-                void audio.play();
               }
+            } catch (e) {
+              log.warn("[play-list] silent refresh audio url failed", e);
             }
-          } catch (e) {
-            log.warn("[play-list] silent refresh audio url failed", e);
           }
-        }
         } finally {
           isRefreshingUrl = false;
         }
@@ -1361,7 +1369,14 @@ export const usePlayList = create<State & Action>()(
         },
         reorder: (fromIndex: number, toIndex: number) => {
           const { list } = get();
-          if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0 || fromIndex >= list.length || toIndex >= list.length) return;
+          if (
+            fromIndex === toIndex ||
+            fromIndex < 0 ||
+            toIndex < 0 ||
+            fromIndex >= list.length ||
+            toIndex >= list.length
+          )
+            return;
           set(state => {
             const [moved] = state.list.splice(fromIndex, 1);
             state.list.splice(toIndex, 0, moved);

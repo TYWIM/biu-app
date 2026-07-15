@@ -165,12 +165,7 @@ const PasswordLogin = ({ onClose, updateUserData }: PasswordLoginProps) => {
                   {isPwdVisible ? <RiEyeLine size={18} /> : <RiEyeOffLine size={18} />}
                 </Button>
                 <Tooltip content="找回密码">
-                  <Button
-                    isIconOnly
-                    size="sm"
-                    variant="light"
-                    onPress={openPasswordHelp}
-                  >
+                  <Button isIconOnly size="sm" variant="light" onPress={openPasswordHelp}>
                     <RiQuestionLine size={18} />
                   </Button>
                 </Tooltip>

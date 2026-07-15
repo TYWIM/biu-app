@@ -24,7 +24,9 @@ const Search = ({ onSearch, onDateRangeChange }: Props) => {
   );
 
   return (
-    <div className={isMobile ? "flex w-full flex-col gap-3 py-2" : "flex w-full items-center justify-between gap-3 py-2"}>
+    <div
+      className={isMobile ? "flex w-full flex-col gap-3 py-2" : "flex w-full items-center justify-between gap-3 py-2"}
+    >
       <DateRangePicker onDateRangeChange={onDateRangeChange} />
 
       <Input

@@ -4,6 +4,7 @@ import { Button, Input } from "@heroui/react";
 import { RiSearchLine } from "@remixicon/react";
 import { useClickAway, useDebounceFn } from "ahooks";
 import { motion, AnimatePresence } from "framer-motion";
+
 import useIsMobile from "@/common/hooks/use-is-mobile";
 
 interface Props {

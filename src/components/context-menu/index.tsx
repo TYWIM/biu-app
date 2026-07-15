@@ -30,31 +30,34 @@ const ContextMenu = ({ children, items, className, contentClassName, disabled, o
     setPosition(null);
   }, [setIsOpen, setPosition]);
 
-  const handleContextMenu = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
-    if (disabled) {
-      event.preventDefault();
-      event.stopPropagation();
-      return;
-    }
-    const target = event.target as HTMLElement | null;
-    let el: HTMLElement | null = target;
-    const container = event.currentTarget as HTMLElement;
-    while (el && el !== container) {
-      if (el.getAttribute("data-no-contextmenu") === "true") {
+  const handleContextMenu = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      if (disabled) {
         event.preventDefault();
         event.stopPropagation();
         return;
       }
-      el = el.parentElement;
-    }
-    event.preventDefault();
-    const rect = container.getBoundingClientRect();
-    setPosition({
-      x: event.clientX - rect.left,
-      y: event.clientY - rect.top,
-    });
-    setIsOpen(true);
-  }, []);
+      const target = event.target as HTMLElement | null;
+      let el: HTMLElement | null = target;
+      const container = event.currentTarget as HTMLElement;
+      while (el && el !== container) {
+        if (el.getAttribute("data-no-contextmenu") === "true") {
+          event.preventDefault();
+          event.stopPropagation();
+          return;
+        }
+        el = el.parentElement;
+      }
+      event.preventDefault();
+      const rect = container.getBoundingClientRect();
+      setPosition({
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top,
+      });
+      setIsOpen(true);
+    },
+    [disabled],
+  );
 
   return (
     <div onContextMenu={handleContextMenu} className={twMerge("relative", className)}>

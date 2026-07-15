@@ -37,7 +37,12 @@ const MusicPlayControl = ({
 
   return (
     <div className={twMerge("flex items-center justify-center space-x-6", className)}>
-      <IconButton radius="md" onPress={prev} isDisabled={isEmptyPlayList || isSingle} className={secondaryButtonClassName}>
+      <IconButton
+        radius="md"
+        onPress={prev}
+        isDisabled={isEmptyPlayList || isSingle}
+        className={secondaryButtonClassName}
+      >
         <RiSkipBackFill size={secondaryIconSize} />
       </IconButton>
       <IconButton
@@ -48,7 +53,12 @@ const MusicPlayControl = ({
       >
         {isPlaying ? <RiPauseCircleFill size={primaryIconSize} /> : <RiPlayCircleFill size={primaryIconSize} />}
       </IconButton>
-      <IconButton radius="md" onPress={next} isDisabled={isEmptyPlayList || isSingle} className={secondaryButtonClassName}>
+      <IconButton
+        radius="md"
+        onPress={next}
+        isDisabled={isEmptyPlayList || isSingle}
+        className={secondaryButtonClassName}
+      >
         <RiSkipForwardFill size={secondaryIconSize} />
       </IconButton>
     </div>

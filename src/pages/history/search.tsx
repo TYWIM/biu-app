@@ -24,7 +24,11 @@ const HistorySearch = ({ onSearch, onDateRangeChange }: Props) => {
   );
 
   return (
-    <div className={isMobile ? "flex w-full flex-col gap-3 py-2" : "flex w-full items-center justify-between space-x-2 py-2"}>
+    <div
+      className={
+        isMobile ? "flex w-full flex-col gap-3 py-2" : "flex w-full items-center justify-between space-x-2 py-2"
+      }
+    >
       <DateRangePicker onDateRangeChange={onDateRangeChange} />
       <Input
         placeholder="搜索标题/UP主名称"

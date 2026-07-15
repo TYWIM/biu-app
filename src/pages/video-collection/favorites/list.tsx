@@ -1,8 +1,8 @@
 import React from "react";
 
-import useIsMobile from "@/common/hooks/use-is-mobile";
 import type { FavMedia } from "@/service/fav-resource";
 
+import useIsMobile from "@/common/hooks/use-is-mobile";
 import { formatSecondsToDate } from "@/common/utils/time";
 import MusicListItem from "@/components/music-list-item";
 import MusicListHeader from "@/components/music-list-item/header";

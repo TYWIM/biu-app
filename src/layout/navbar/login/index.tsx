@@ -61,13 +61,20 @@ const Login = ({ isOpen, onOpenChange }: Props) => {
       scrollBehavior={isMobile ? "inside" : "normal"}
     >
       <ModalContent>
-        <ModalBody className={isMobile ? "flex-col items-center gap-4 py-6 px-4" : "flex-row items-center justify-center gap-8 py-8"}>
+        <ModalBody
+          className={
+            isMobile ? "flex-col items-center gap-4 px-4 py-6" : "flex-row items-center justify-center gap-8 py-8"
+          }
+        >
           <QrcodeLogin onClose={onClose} updateUserData={updateUserData} />
           {!isMobile && <Divider className="h-42" orientation="vertical" />}
           <div className={isMobile ? "w-full" : "w-[320px]"}>
             <Tabs
               aria-label="登录方式"
-              classNames={{ cursor: "rounded-medium", tabContent: isMobile ? "text-base font-medium mb-2" : "text-lg font-medium mb-4" }}
+              classNames={{
+                cursor: "rounded-medium",
+                tabContent: isMobile ? "text-base font-medium mb-2" : "text-lg font-medium mb-4",
+              }}
               fullWidth
               size={isMobile ? "md" : "lg"}
               variant="underlined"

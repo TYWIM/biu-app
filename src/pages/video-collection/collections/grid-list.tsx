@@ -20,7 +20,14 @@ export interface SeriesGridListProps {
   onMenuAction: (key: string, item: Media) => void;
 }
 
-const SeriesGridList = ({ data, loading, className, getScrollElement, canDownload, onMenuAction }: SeriesGridListProps) => {
+const SeriesGridList = ({
+  data,
+  loading,
+  className,
+  getScrollElement,
+  canDownload,
+  onMenuAction,
+}: SeriesGridListProps) => {
   const renderGridItem = useCallback(
     (item: Media) => {
       return (

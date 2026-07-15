@@ -1,8 +1,8 @@
 import React, { useCallback } from "react";
 
-import useIsMobile from "@/common/hooks/use-is-mobile";
 import type { SpaceArcVListItem } from "@/service/space-wbi-arc-search";
 
+import useIsMobile from "@/common/hooks/use-is-mobile";
 import { formatSecondsToDate } from "@/common/utils/time";
 import MusicListItem from "@/components/music-list-item";
 import MusicListHeader from "@/components/music-list-item/header";
@@ -23,7 +23,15 @@ interface PostListProps {
   onMenuAction: (key: string, item: SpaceArcVListItem) => void;
 }
 
-const PostList: React.FC<PostListProps> = ({ items, hasMore, loading, onLoadMore, getScrollElement, canDownload, onMenuAction }) => {
+const PostList: React.FC<PostListProps> = ({
+  items,
+  hasMore,
+  loading,
+  onLoadMore,
+  getScrollElement,
+  canDownload,
+  onMenuAction,
+}) => {
   const isMobile = useIsMobile();
   const displayMode = useSettings(state => state.displayMode);
   const isCompact = displayMode === "compact";

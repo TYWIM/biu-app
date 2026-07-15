@@ -5,13 +5,14 @@
 
 import { Capacitor } from "@capacitor/core";
 
-import { isCapacitorNative } from "./runtime-platform";
 import type { EqualizerInfo, EqualizerBand } from "./native-player";
+
 import {
   getEqualizerInfo as getNativeEqualizerInfo,
   setEqualizerBands as setNativeEqualizerBands,
   setEqualizerPreset as setNativeEqualizerPreset,
 } from "./native-player";
+import { isCapacitorNative } from "./runtime-platform";
 import {
   attachEqualizer as attachWebEqualizer,
   detachEqualizer as detachWebEqualizer,

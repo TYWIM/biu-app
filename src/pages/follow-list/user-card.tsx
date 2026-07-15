@@ -4,10 +4,10 @@ import { useNavigate } from "react-router";
 import { Avatar, Button, Card, CardBody, addToast } from "@heroui/react";
 import { RiFlashlightFill, RiGroupLine, RiUserUnfollowLine } from "@remixicon/react";
 
-import useIsMobile from "@/common/hooks/use-is-mobile";
 import type { RelationListItem } from "@/service/relation-followings";
 import type { RelationTagUser } from "@/service/relation-tag";
 
+import useIsMobile from "@/common/hooks/use-is-mobile";
 import { UserRelationAction, postRelationModify } from "@/service/relation-modify";
 import { useModalStore } from "@/store/modal";
 
@@ -72,11 +72,7 @@ const UserCard = ({ u, refresh, onSetGroup }: Props) => {
         <button type="button" onClick={() => navigate(`/user/${u.mid}`)} className="w-full text-left">
           <CardBody className="flex items-center gap-3 overflow-hidden p-4">
             <div className="relative h-20 w-20 flex-none">
-              <Avatar
-                className="text-large h-20 w-20"
-                src={`${u.face}@160w_160h_1c_1s.webp`}
-                name={u.uname}
-              />
+              <Avatar className="text-large h-20 w-20" src={`${u.face}@160w_160h_1c_1s.webp`} name={u.uname} />
               {u.official_verify?.type === 0 && (
                 <div className="bg-warning ring-background absolute right-0 bottom-0 flex h-5 w-5 items-center justify-center rounded-full text-white ring-2">
                   <RiFlashlightFill size={14} />

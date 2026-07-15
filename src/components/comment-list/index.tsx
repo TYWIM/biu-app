@@ -4,12 +4,13 @@ import { addToast, Button, Spinner, Tab, Tabs, Textarea } from "@heroui/react";
 import { RiThumbUpFill, RiThumbUpLine, RiMessage3Line, RiPushpinLine } from "@remixicon/react";
 import clsx from "classnames";
 
+import type { ReplyContent, ReplyItem } from "@/service/reply";
+
 import useIsMobile from "@/common/hooks/use-is-mobile";
 import { formatNumber } from "@/common/utils/number";
 import { formatTimeAgo } from "@/common/utils/time";
 import Image from "@/components/image";
 import ScrollContainer, { type ScrollRefObject } from "@/components/scroll-container";
-import type { ReplyContent, ReplyItem } from "@/service/reply";
 import { getReplyDetail, getReplyListCursor, likeReply, sendReply } from "@/service/reply";
 
 interface CommentListProps {
@@ -33,11 +34,7 @@ const findComment = (comments: ReplyItem[], rpid: number): ReplyItem | undefined
   }
 };
 
-const updateComment = (
-  comments: ReplyItem[],
-  rpid: number,
-  updater: (comment: ReplyItem) => ReplyItem,
-): ReplyItem[] =>
+const updateComment = (comments: ReplyItem[], rpid: number, updater: (comment: ReplyItem) => ReplyItem): ReplyItem[] =>
   comments.map(comment => {
     const nextReplies = comment.replies ? updateComment(comment.replies, rpid, updater) : comment.replies;
     const nextComment = comment.rpid === rpid ? updater(comment) : comment;
@@ -61,16 +58,11 @@ const renderRichContent = (content: ReplyContent): React.ReactNode[] => {
 
   if (!message) return [];
 
-  const jumpEntries = jump_url
-    ? Object.entries(jump_url).sort((a, b) => b[0].length - a[0].length)
-    : [];
+  const jumpEntries = jump_url ? Object.entries(jump_url).sort((a, b) => b[0].length - a[0].length) : [];
 
   const emojiRegex = /\[([^\]]+)\]/g;
   const allRegex = new RegExp(
-    [
-      emojiRegex.source,
-      ...jumpEntries.map(([key]) => key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
-    ].join("|"),
+    [emojiRegex.source, ...jumpEntries.map(([key]) => key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))].join("|"),
     "g",
   );
 
@@ -107,7 +99,7 @@ const renderRichContent = (content: ReplyContent): React.ReactNode[] => {
           <a
             key={`link-${match.index}`}
             href={jumpInfo.app_url_schema || "#"}
-            className="text-primary underline break-all"
+            className="text-primary break-all underline"
             onClick={e => {
               if (!jumpInfo.app_url_schema) {
                 e.preventDefault();
@@ -155,37 +147,34 @@ const CommentItem: React.FC<CommentItemProps> = ({
   const isLoadingReplies = Boolean(replyLoadingMap[rootId]);
 
   return (
-    <div className={clsx("flex gap-3", isReply ? "mt-3" : "py-4 border-b border-default-100 last:border-0")}>
+    <div className={clsx("flex gap-3", isReply ? "mt-3" : "border-default-100 border-b py-4 last:border-0")}>
       <Image
         src={comment.member.avatar}
         alt={comment.member.uname}
         className={clsx("flex-shrink-0 rounded-full object-cover", isReply ? "h-7 w-7" : "h-10 w-10")}
       />
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1">
-          <span className={clsx("font-medium text-primary truncate", isReply ? "text-xs" : "text-sm")}>{comment.member.uname}</span>
+      <div className="min-w-0 flex-1">
+        <div className="mb-1 flex items-center gap-2">
+          <span className={clsx("text-primary truncate font-medium", isReply ? "text-xs" : "text-sm")}>
+            {comment.member.uname}
+          </span>
           {comment.member.vip?.vipStatus === 1 && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-pink-100 text-pink-600 font-medium">
+            <span className="rounded bg-pink-100 px-1.5 py-0.5 text-[10px] font-medium text-pink-600">
               {comment.member.vip.label.text}
             </span>
           )}
         </div>
-        <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap break-words">
+        <p className="text-foreground text-sm leading-relaxed break-words whitespace-pre-wrap">
           {renderRichContent(comment.content)}
         </p>
         {comment.content.pictures && comment.content.pictures.length > 0 && (
-          <div className="flex gap-2 mt-2 flex-wrap">
+          <div className="mt-2 flex flex-wrap gap-2">
             {comment.content.pictures.map((pic, index) => (
-              <Image
-                key={index}
-                src={pic.img_src}
-                alt="评论图片"
-                className="h-24 w-24 rounded-lg object-cover"
-              />
+              <Image key={index} src={pic.img_src} alt="评论图片" className="h-24 w-24 rounded-lg object-cover" />
             ))}
           </div>
         )}
-        <div className="flex items-center gap-4 mt-2 text-xs text-default-500">
+        <div className="text-default-500 mt-2 flex items-center gap-4 text-xs">
           <span>{formatTimeAgo(comment.ctime)}</span>
           <button
             type="button"
@@ -203,14 +192,14 @@ const CommentItem: React.FC<CommentItemProps> = ({
             type="button"
             onClick={() => onSetReplyTarget(comment)}
             aria-label="回复评论"
-            className="flex items-center gap-1 hover:text-foreground transition-colors"
+            className="hover:text-foreground flex items-center gap-1 transition-colors"
           >
             <RiMessage3Line size={14} />
             回复
           </button>
         </div>
         {!isReply && visibleReplies.length > 0 && (
-          <div className="mt-3 rounded-lg bg-default-50 p-3">
+          <div className="bg-default-50 mt-3 rounded-lg p-3">
             {visibleReplies.map(reply => (
               <CommentItem
                 key={reply.rpid}
@@ -228,7 +217,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
           <Button
             size="sm"
             variant="light"
-            className="mt-2 h-7 px-2 text-xs text-primary"
+            className="text-primary mt-2 h-7 px-2 text-xs"
             isLoading={isLoadingReplies}
             onPress={() => onLoadReplies(comment)}
           >
@@ -249,7 +238,6 @@ const CommentList: React.FC<CommentListProps> = ({ avid, targetId, type = 1, tit
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const [cursor, setCursor] = useState(0);
   const [total, setTotal] = useState(0);
   const [replyTarget, setReplyTarget] = useState<ReplyItem | null>(null);
   const [draft, setDraft] = useState("");
@@ -259,50 +247,51 @@ const CommentList: React.FC<CommentListProps> = ({ avid, targetId, type = 1, tit
   const cursorRef = useRef(0);
   const loadingRef = useRef(false);
 
-  const fetchComments = useCallback(async (isRefresh = false) => {
-    if (loadingRef.current || !resolvedTargetId) return;
-    loadingRef.current = true;
-    setLoading(true);
-    setRefreshing(isRefresh);
-    try {
-      const currentCursor = isRefresh ? 0 : cursorRef.current;
-      const response = await getReplyListCursor({
-        type,
-        oid: resolvedTargetId,
-        sort: sort === "hot" ? 3 : 2,
-        next: currentCursor,
-        ps: 20,
-      });
+  const fetchComments = useCallback(
+    async (isRefresh = false) => {
+      if (loadingRef.current || !resolvedTargetId) return;
+      loadingRef.current = true;
+      setLoading(true);
+      setRefreshing(isRefresh);
+      try {
+        const currentCursor = isRefresh ? 0 : cursorRef.current;
+        const response = await getReplyListCursor({
+          type,
+          oid: resolvedTargetId,
+          sort: sort === "hot" ? 3 : 2,
+          next: currentCursor,
+          ps: 20,
+        });
 
-      if (response.code === 0) {
-        const newComments = response.data.replies || [];
-        if (isRefresh) {
-          setComments(newComments);
-          const top = response.data.top;
-          setTopComment(top && top.rpid ? top : null);
-        } else {
-          setComments(prev => [...prev, ...newComments]);
+        if (response.code === 0) {
+          const newComments = response.data.replies || [];
+          if (isRefresh) {
+            setComments(newComments);
+            const top = response.data.top;
+            setTopComment(top && top.rpid ? top : null);
+          } else {
+            setComments(prev => [...prev, ...newComments]);
+          }
+          setTotal(response.data.cursor.all_count);
+          cursorRef.current = response.data.cursor.next;
+          setHasMore(!response.data.cursor.is_end);
         }
-        setTotal(response.data.cursor.all_count);
-        cursorRef.current = response.data.cursor.next;
-        setCursor(response.data.cursor.next);
-        setHasMore(!response.data.cursor.is_end);
+      } catch (error) {
+        console.error("Failed to fetch comments:", error);
+        addToast({ title: "评论加载失败", color: "danger" });
+      } finally {
+        loadingRef.current = false;
+        setLoading(false);
+        setRefreshing(false);
       }
-    } catch (error) {
-      console.error("Failed to fetch comments:", error);
-      addToast({ title: "评论加载失败", color: "danger" });
-    } finally {
-      loadingRef.current = false;
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [resolvedTargetId, sort, type]);
+    },
+    [resolvedTargetId, sort, type],
+  );
 
   useEffect(() => {
     setComments([]);
     setTopComment(null);
     cursorRef.current = 0;
-    setCursor(0);
     setHasMore(true);
     setTotal(0);
     setReplyTarget(null);
@@ -350,43 +339,46 @@ const CommentList: React.FC<CommentListProps> = ({ avid, targetId, type = 1, tit
     }
   }, []);
 
-  const handleLoadReplies = useCallback(async (comment: ReplyItem, forceRefresh = false) => {
-    const rootId = comment.root || comment.rpid;
-    if (replyLoadingMap[rootId]) return;
+  const handleLoadReplies = useCallback(
+    async (comment: ReplyItem, forceRefresh = false) => {
+      const rootId = comment.root || comment.rpid;
+      if (replyLoadingMap[rootId]) return;
 
-    const rootComment = comment.root ? findComment(comments, rootId) : comment;
-    if (!rootComment) return;
+      const rootComment = comment.root ? findComment(comments, rootId) : comment;
+      if (!rootComment) return;
 
-    const currentReplies = rootComment.replies ?? [];
-    if (!forceRefresh && currentReplies.length >= rootComment.rcount) return;
+      const currentReplies = rootComment.replies ?? [];
+      if (!forceRefresh && currentReplies.length >= rootComment.rcount) return;
 
-    setReplyLoadingMap(prev => ({ ...prev, [rootId]: true }));
-    try {
-      const response = await getReplyDetail({
-        type: rootComment.type,
-        oid: rootComment.oid,
-        root: rootId,
-        pn: 1,
-        ps: Math.max(10, rootComment.rcount || 10),
-      });
+      setReplyLoadingMap(prev => ({ ...prev, [rootId]: true }));
+      try {
+        const response = await getReplyDetail({
+          type: rootComment.type,
+          oid: rootComment.oid,
+          root: rootId,
+          pn: 1,
+          ps: Math.max(10, rootComment.rcount || 10),
+        });
 
-      if (response.code === 0) {
-        setComments(prev =>
-          updateComment(prev, rootId, item => ({
-            ...item,
-            replies: response.data.replies ?? [],
-          })),
-        );
-      } else {
-        addToast({ title: response.message || "回复加载失败", color: "danger" });
+        if (response.code === 0) {
+          setComments(prev =>
+            updateComment(prev, rootId, item => ({
+              ...item,
+              replies: response.data.replies ?? [],
+            })),
+          );
+        } else {
+          addToast({ title: response.message || "回复加载失败", color: "danger" });
+        }
+      } catch (error) {
+        console.error("Failed to load replies:", error);
+        addToast({ title: "回复加载失败", color: "danger" });
+      } finally {
+        setReplyLoadingMap(prev => ({ ...prev, [rootId]: false }));
       }
-    } catch (error) {
-      console.error("Failed to load replies:", error);
-      addToast({ title: "回复加载失败", color: "danger" });
-    } finally {
-      setReplyLoadingMap(prev => ({ ...prev, [rootId]: false }));
-    }
-  }, [comments, replyLoadingMap]);
+    },
+    [comments, replyLoadingMap],
+  );
 
   const handleSetReplyTarget = useCallback((comment: ReplyItem) => {
     setReplyTarget(comment);
@@ -448,22 +440,17 @@ const CommentList: React.FC<CommentListProps> = ({ avid, targetId, type = 1, tit
   };
 
   const isTopInComments = useMemo(
-    () => topComment ? comments.some(c => c.rpid === topComment.rpid) : false,
+    () => (topComment ? comments.some(c => c.rpid === topComment.rpid) : false),
     [topComment, comments],
   );
 
   return (
-    <div className={clsx("flex flex-col h-full", isMobile ? "bg-background" : "")}>
-      <div className="flex items-center justify-between px-4 py-3 border-b border-default-100">
+    <div className={clsx("flex h-full flex-col", isMobile ? "bg-background" : "")}>
+      <div className="border-default-100 flex items-center justify-between border-b px-4 py-3">
         <h3 className="text-base font-semibold">
           {title} {total > 0 && `(${formatNumber(total)})`}
         </h3>
-        <Tabs
-          size="sm"
-          selectedKey={sort}
-          onSelectionChange={key => setSort(key as SortType)}
-          variant="light"
-        >
+        <Tabs size="sm" selectedKey={sort} onSelectionChange={key => setSort(key as SortType)} variant="light">
           <Tab key="hot" title="热门" />
           <Tab key="time" title="最新" />
         </Tabs>
@@ -476,7 +463,7 @@ const CommentList: React.FC<CommentListProps> = ({ avid, targetId, type = 1, tit
         resetOnChange={`${resolvedTargetId}-${type}-${sort}`}
       >
         {!resolvedTargetId ? (
-          <div className="flex flex-col items-center justify-center py-20 text-default-400">
+          <div className="text-default-400 flex flex-col items-center justify-center py-20">
             <RiMessage3Line size={48} className="mb-4" />
             <p>当前内容没有可用评论区</p>
           </div>
@@ -485,15 +472,15 @@ const CommentList: React.FC<CommentListProps> = ({ avid, targetId, type = 1, tit
             <Spinner size="sm" />
           </div>
         ) : comments.length === 0 && !loading ? (
-          <div className="flex flex-col items-center justify-center py-20 text-default-400">
+          <div className="text-default-400 flex flex-col items-center justify-center py-20">
             <RiMessage3Line size={48} className="mb-4" />
             <p>暂无评论</p>
           </div>
         ) : (
           <>
             {topComment && !isTopInComments && (
-              <div className="border-b border-primary-200 mb-1">
-                <div className="flex items-center gap-1 text-xs text-primary py-2">
+              <div className="border-primary-200 mb-1 border-b">
+                <div className="text-primary flex items-center gap-1 py-2 text-xs">
                   <RiPushpinLine size={12} />
                   <span>置顶</span>
                 </div>
@@ -518,33 +505,23 @@ const CommentList: React.FC<CommentListProps> = ({ avid, targetId, type = 1, tit
             ))}
             {hasMore && (
               <div className="flex justify-center py-4">
-                <Button
-                  variant="light"
-                  size="sm"
-                  onPress={handleLoadMore}
-                  isLoading={loading}
-                  isDisabled={loading}
-                >
+                <Button variant="light" size="sm" onPress={handleLoadMore} isLoading={loading} isDisabled={loading}>
                   {loading ? "加载中..." : "加载更多"}
                 </Button>
               </div>
             )}
             {!hasMore && comments.length > 0 && (
-              <p className="text-center text-xs text-default-400 py-4">没有更多评论了</p>
+              <p className="text-default-400 py-4 text-center text-xs">没有更多评论了</p>
             )}
           </>
         )}
       </ScrollContainer>
 
-      <div className="border-t border-default-100 px-4 py-3">
+      <div className="border-default-100 border-t px-4 py-3">
         {replyTarget && (
-          <div className="mb-2 flex items-center justify-between gap-2 text-xs text-default-500">
+          <div className="text-default-500 mb-2 flex items-center justify-between gap-2 text-xs">
             <span className="min-w-0 truncate">回复 @{replyTarget.member.uname}</span>
-            <button
-              type="button"
-              className="flex-none text-primary"
-              onClick={() => setReplyTarget(null)}
-            >
+            <button type="button" className="text-primary flex-none" onClick={() => setReplyTarget(null)}>
               取消
             </button>
           </div>

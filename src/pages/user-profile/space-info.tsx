@@ -73,8 +73,18 @@ const SpaceInfo = ({ spaceInfo, relationStats, relationWithMe, refreshRelation }
 
   if (relationWithMe === UserRelation.Blocked) {
     return (
-      <div className={isMobile ? "flex h-[320px] w-full flex-col items-center justify-center space-y-4 px-4" : "flex h-[480px] w-full flex-col items-center justify-center space-y-6"}>
-        <Avatar src={spaceInfo?.face} alt={spaceInfo?.name} className={isMobile ? "h-24 w-24 shadow-lg" : "h-[120px] w-[120px] shadow-lg"} />
+      <div
+        className={
+          isMobile
+            ? "flex h-[320px] w-full flex-col items-center justify-center space-y-4 px-4"
+            : "flex h-[480px] w-full flex-col items-center justify-center space-y-6"
+        }
+      >
+        <Avatar
+          src={spaceInfo?.face}
+          alt={spaceInfo?.name}
+          className={isMobile ? "h-24 w-24 shadow-lg" : "h-[120px] w-[120px] shadow-lg"}
+        />
         <p className="text-lg">已拉黑</p>
       </div>
     );
@@ -92,7 +102,11 @@ const SpaceInfo = ({ spaceInfo, relationStats, relationWithMe, refreshRelation }
       }}
     >
       <div className={isMobile ? "flex min-w-0 items-end gap-3" : "flex min-w-0 grow items-end space-x-4"}>
-        <Avatar src={spaceInfo?.face} alt={spaceInfo?.name} className={isMobile ? "h-20 w-20 flex-none shadow-lg" : "h-[140px] w-[140px] flex-none shadow-lg"} />
+        <Avatar
+          src={spaceInfo?.face}
+          alt={spaceInfo?.name}
+          className={isMobile ? "h-20 w-20 flex-none shadow-lg" : "h-[140px] w-[140px] flex-none shadow-lg"}
+        />
         <div className="flex min-w-0 flex-1 flex-col space-y-2">
           <div className={isMobile ? "flex flex-wrap items-center gap-2" : "flex items-center space-x-2"}>
             <div className="flex min-w-0 items-center space-x-2">
@@ -103,7 +117,13 @@ const SpaceInfo = ({ spaceInfo, relationStats, relationWithMe, refreshRelation }
                   </div>
                 </Tooltip>
               )}
-              <h1 className={isMobile ? "truncate text-lg font-semibold drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]" : "text-xl font-semibold drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]"}>
+              <h1
+                className={
+                  isMobile
+                    ? "truncate text-lg font-semibold drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]"
+                    : "text-xl font-semibold drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]"
+                }
+              >
                 {spaceInfo?.name}
               </h1>
             </div>
@@ -115,7 +135,13 @@ const SpaceInfo = ({ spaceInfo, relationStats, relationWithMe, refreshRelation }
               />
             )}
           </div>
-          <p className={isMobile ? "line-clamp-3 text-sm text-white/85 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]" : "line-clamp-2 text-sm text-white/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]"}>
+          <p
+            className={
+              isMobile
+                ? "line-clamp-3 text-sm text-white/85 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]"
+                : "line-clamp-2 text-sm text-white/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]"
+            }
+          >
             {spaceInfo?.sign}
           </p>
         </div>
@@ -137,8 +163,12 @@ const SpaceInfo = ({ spaceInfo, relationStats, relationWithMe, refreshRelation }
             <div className={stats.length > 2 ? "grid grid-cols-3 gap-3" : "grid grid-cols-2 gap-3"}>
               {stats.map((item, idx) => (
                 <div key={idx} className="rounded-large bg-white/10 px-3 py-2 text-center">
-                  <span className="block text-base font-semibold drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">{item.value}</span>
-                  <span className="mt-1 block text-xs whitespace-nowrap text-white/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">{item.title}</span>
+                  <span className="block text-base font-semibold drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                    {item.value}
+                  </span>
+                  <span className="mt-1 block text-xs whitespace-nowrap text-white/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                    {item.title}
+                  </span>
                 </div>
               ))}
             </div>

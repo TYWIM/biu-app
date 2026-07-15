@@ -1,9 +1,9 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-import { clearRuntimeStore, getRuntimeStore, setRuntimeStore } from "@/common/utils/runtime-store";
 import { saveCsrfToken, clearCsrfToken } from "@/common/utils/csrf-token";
 import { getRuntimeCookie } from "@/common/utils/runtime-cookie";
+import { clearRuntimeStore, getRuntimeStore, setRuntimeStore } from "@/common/utils/runtime-store";
 import { getUserInfo, type UserInfo } from "@/service/user-info";
 import { StoreNameMap } from "@shared/store";
 

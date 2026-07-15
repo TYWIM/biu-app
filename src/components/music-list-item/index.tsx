@@ -55,7 +55,12 @@ const MusicListItem = ({
 }: Props) => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const isPlay = usePlayList(state => isSame(state.list.find(item => item.id === state.playId), { type, bvid, sid }));
+  const isPlay = usePlayList(state =>
+    isSame(
+      state.list.find(item => item.id === state.playId),
+      { type, bvid, sid },
+    ),
+  );
   const displayMode = useSettings(state => state.displayMode);
   const isCompact = displayMode === "compact";
   const durationText = typeof duration === "number" ? formatDuration(duration) : duration;
@@ -91,7 +96,10 @@ const MusicListItem = ({
               />
               {!isPlay && typeof onPress === "function" && (
                 <div className="absolute inset-0 z-20 flex items-center justify-center rounded-[16px] bg-[rgba(0,0,0,0.28)] opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-                  <RiPlayFill size={20} className="text-white transition-transform duration-200 group-hover:scale-110" />
+                  <RiPlayFill
+                    size={20}
+                    className="text-white transition-transform duration-200 group-hover:scale-110"
+                  />
                 </div>
               )}
             </div>
@@ -100,7 +108,7 @@ const MusicListItem = ({
               <div className="flex items-start gap-2">
                 <div className="min-w-0 flex-1">
                   <div className={clx("truncate text-sm font-semibold", { "text-primary": isPlay })}>{title}</div>
-                  <div className="mt-1 flex items-center gap-2 overflow-hidden text-xs text-foreground-500">
+                  <div className="text-foreground-500 mt-1 flex items-center gap-2 overflow-hidden text-xs">
                     {Boolean(upName) && (
                       <span
                         className={clx("truncate", {
@@ -119,7 +127,7 @@ const MusicListItem = ({
                   </div>
                 </div>
                 {isPlay && (
-                  <span className="rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                  <span className="border-primary/20 bg-primary/10 text-primary rounded-full border px-2 py-0.5 text-[10px] font-medium">
                     正在播放
                   </span>
                 )}

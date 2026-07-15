@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
 
-import { Button, Dropdown, DropdownItem, DropdownMenu, DropdownTrigger } from "@heroui/react";
-import { RiDraggable, RiMoreFill, RiMusic2Line, RiPlayFill } from "@remixicon/react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { Button, Dropdown, DropdownItem, DropdownMenu, DropdownTrigger } from "@heroui/react";
+import { RiDraggable, RiMoreFill, RiMusic2Line, RiPlayFill } from "@remixicon/react";
 import clx from "classnames";
 
 import useIsMobile from "@/common/hooks/use-is-mobile";
@@ -32,7 +32,9 @@ const ListItem = ({ data, isLogin, canDownload, isPlaying, onAction, onClose, on
   const mediaBadge = data.source === "local" ? "本地" : data.type === "audio" ? "音频" : "视频音频";
   const pageBadge = data.hasMultiPart && data.pageIndex ? `P${data.pageIndex}/${data.totalPage || "?"}` : undefined;
 
-  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: data.id });
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
+    id: data.id,
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -49,12 +51,19 @@ const ListItem = ({ data, isLogin, canDownload, isPlaying, onAction, onClose, on
         "group flex h-auto min-h-auto w-full min-w-auto items-center justify-between rounded-[18px] transition-colors",
         isMobile ? "px-3 py-2.5" : "rounded-md p-2",
         isMobile && !isPlaying && "bg-white/0 text-white hover:bg-white/8 hover:text-white",
-        isMobile && isPlaying && "border border-white/12 bg-white/12 text-white shadow-[0_10px_24px_-20px_rgba(255,255,255,0.9)]",
+        isMobile &&
+          isPlaying &&
+          "border border-white/12 bg-white/12 text-white shadow-[0_10px_24px_-20px_rgba(255,255,255,0.9)]",
         isPlaying && !isMobile && "bg-primary/10",
       )}
     >
       <div className="m-0 flex min-w-0 flex-1 items-center gap-3" onClick={onPress} style={{ cursor: "pointer" }}>
-        <div className={clx("relative flex-none overflow-hidden", isMobile ? "h-14 w-14 rounded-[18px]" : "h-12 w-12 rounded-md")}>
+        <div
+          className={clx(
+            "relative flex-none overflow-hidden",
+            isMobile ? "h-14 w-14 rounded-[18px]" : "h-12 w-12 rounded-md",
+          )}
+        >
           <Image
             removeWrapper
             radius={isMobile ? "lg" : "md"}
@@ -72,7 +81,11 @@ const ListItem = ({ data, isLogin, canDownload, isPlaying, onAction, onClose, on
         </div>
         <div className="flex min-w-0 flex-auto flex-col items-start justify-center gap-1">
           <div className="flex w-full items-center gap-2">
-            <span className={clx("min-w-0 flex-1 truncate", isMobile ? "text-sm font-semibold text-white" : "text-base")}>{displayTitle}</span>
+            <span
+              className={clx("min-w-0 flex-1 truncate", isMobile ? "text-sm font-semibold text-white" : "text-base")}
+            >
+              {displayTitle}
+            </span>
             {isPlaying && (
               <span
                 className={clx(
@@ -87,13 +100,9 @@ const ListItem = ({ data, isLogin, canDownload, isPlaying, onAction, onClose, on
           </div>
           <div className="flex w-full items-center gap-2 overflow-hidden">
             <span
-              className={clx(
-                "truncate text-xs",
-                isMobile ? "max-w-[42%] text-white/58" : "text-foreground-500",
-                {
-                  "cursor-pointer hover:underline": Boolean(data?.ownerMid),
-                },
-              )}
+              className={clx("truncate text-xs", isMobile ? "max-w-[42%] text-white/58" : "text-foreground-500", {
+                "cursor-pointer hover:underline": Boolean(data?.ownerMid),
+              })}
               onClick={e => {
                 e.stopPropagation();
                 if (!data?.ownerMid) return;
@@ -103,11 +112,21 @@ const ListItem = ({ data, isLogin, canDownload, isPlaying, onAction, onClose, on
             >
               {displaySubtitle}
             </span>
-            <span className={clx("rounded-full px-2 py-0.5 text-[10px] font-medium", isMobile ? "border border-white/10 bg-white/8 text-white/66" : "bg-default-100 text-default-600")}>
+            <span
+              className={clx(
+                "rounded-full px-2 py-0.5 text-[10px] font-medium",
+                isMobile ? "border border-white/10 bg-white/8 text-white/66" : "bg-default-100 text-default-600",
+              )}
+            >
               {mediaBadge}
             </span>
             {pageBadge && (
-              <span className={clx("rounded-full px-2 py-0.5 text-[10px] font-medium", isMobile ? "border border-white/10 bg-white/8 text-white/66" : "bg-default-100 text-default-600")}>
+              <span
+                className={clx(
+                  "rounded-full px-2 py-0.5 text-[10px] font-medium",
+                  isMobile ? "border border-white/10 bg-white/8 text-white/66" : "bg-default-100 text-default-600",
+                )}
+              >
                 {pageBadge}
               </span>
             )}

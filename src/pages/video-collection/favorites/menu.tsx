@@ -7,6 +7,7 @@ import {
   RiStarLine,
   RiStarOffLine,
 } from "@remixicon/react";
+
 import { canDownloadMedia } from "@/common/utils/download-capability";
 
 interface Props {

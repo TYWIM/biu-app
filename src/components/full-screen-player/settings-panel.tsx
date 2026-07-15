@@ -16,23 +16,17 @@ const FullScreenPlayerSettingsPanel = ({ isUiVisible = true }: { isUiVisible?: b
   const playItem = usePlayList(state => state.list.find(item => item.id === state.playId));
   const isLocal = playItem?.source === "local";
   const canFollowSystemVolume = shouldUseNativePlayer();
-  const {
-    showLyrics,
-    showCover,
-    showBlurredBackground,
-    backgroundColor,
-    lyricsColor,
-    update,
-  } = useFullScreenPlayerSettings(
-    useShallow(s => ({
-      showLyrics: s.showLyrics,
-      showCover: s.showCover,
-      showBlurredBackground: s.showBlurredBackground,
-      backgroundColor: s.backgroundColor,
-      lyricsColor: s.lyricsColor,
-      update: s.update,
-    })),
-  );
+  const { showLyrics, showCover, showBlurredBackground, backgroundColor, lyricsColor, update } =
+    useFullScreenPlayerSettings(
+      useShallow(s => ({
+        showLyrics: s.showLyrics,
+        showCover: s.showCover,
+        showBlurredBackground: s.showBlurredBackground,
+        backgroundColor: s.backgroundColor,
+        lyricsColor: s.lyricsColor,
+        update: s.update,
+      })),
+    );
   const { followSystemVolume, update: updateSettings } = useSettings(
     useShallow(state => ({
       followSystemVolume: state.followSystemVolume,
@@ -54,11 +48,11 @@ const FullScreenPlayerSettingsPanel = ({ isUiVisible = true }: { isUiVisible?: b
 
   return (
     <div className="min-w-[320px] space-y-4">
-      <div className="rounded-2xl border border-default-200/60 bg-content2/60 px-4 py-3">
+      <div className="border-default-200/60 bg-content2/60 rounded-2xl border px-4 py-3">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
             <div className="text-medium">跟随系统音量</div>
-            <div className="mt-1 text-xs text-default-500">
+            <div className="text-default-500 mt-1 text-xs">
               {canFollowSystemVolume
                 ? followSystemVolume
                   ? "当前使用系统音量键控制播放音量"
@@ -75,22 +69,22 @@ const FullScreenPlayerSettingsPanel = ({ isUiVisible = true }: { isUiVisible?: b
         </div>
       </div>
 
-      <div className="rounded-2xl border border-default-200/60 bg-content2/60 px-4 py-3">
+      <div className="border-default-200/60 bg-content2/60 rounded-2xl border px-4 py-3">
         <div className="flex items-center justify-between gap-4">
           <div className="min-w-0 flex-1">
             <div className="text-medium">显示歌词</div>
-            <div className="mt-1 text-xs text-default-500">关闭后将优先显示封面和背景氛围</div>
+            <div className="text-default-500 mt-1 text-xs">关闭后将优先显示封面和背景氛围</div>
           </div>
           <Switch disableAnimation isSelected={showLyrics} onValueChange={value => update({ showLyrics: value })} />
         </div>
       </div>
 
       {showLyrics && (
-        <div className="rounded-2xl border border-default-200/60 bg-content2/60 px-4 py-3">
+        <div className="border-default-200/60 bg-content2/60 rounded-2xl border px-4 py-3">
           <div className="flex items-center justify-between gap-4">
             <div className="min-w-0 flex-1">
               <div className="text-medium">歌词字体颜色</div>
-              <div className="mt-1 text-xs text-default-500">调亮或调暗歌词文本以适应当前背景</div>
+              <div className="text-default-500 mt-1 text-xs">调亮或调暗歌词文本以适应当前背景</div>
             </div>
             <ColorPicker
               value={resolvedLyricsColor}
@@ -98,38 +92,50 @@ const FullScreenPlayerSettingsPanel = ({ isUiVisible = true }: { isUiVisible?: b
               isOpen={lyricsPickerOpen && isUiVisible}
               onOpenChange={setLyricsPickerOpen}
             >
-              <div className="border-default h-8 w-12 rounded-full border" style={{ backgroundColor: resolvedLyricsColor }} />
+              <div
+                className="border-default h-8 w-12 rounded-full border"
+                style={{ backgroundColor: resolvedLyricsColor }}
+              />
             </ColorPicker>
           </div>
         </div>
       )}
 
-      <div className="rounded-2xl border border-default-200/60 bg-content2/60 px-4 py-3">
+      <div className="border-default-200/60 bg-content2/60 rounded-2xl border px-4 py-3">
         <div className="flex items-center justify-between gap-4">
           <div className="min-w-0 flex-1">
             <div className="text-medium">显示封面</div>
-            <div className="mt-1 text-xs text-default-500">保留专辑/视频封面作为歌词页的视觉锚点</div>
+            <div className="text-default-500 mt-1 text-xs">保留专辑/视频封面作为歌词页的视觉锚点</div>
           </div>
-          <Switch disableAnimation isSelected={showCover} onValueChange={value => update({ showCover: value })} isDisabled={isLocal} />
+          <Switch
+            disableAnimation
+            isSelected={showCover}
+            onValueChange={value => update({ showCover: value })}
+            isDisabled={isLocal}
+          />
         </div>
       </div>
 
-      <div className="rounded-2xl border border-default-200/60 bg-content2/60 px-4 py-3">
+      <div className="border-default-200/60 bg-content2/60 rounded-2xl border px-4 py-3">
         <div className="flex items-center justify-between gap-4">
           <div className="min-w-0 flex-1">
             <div className="text-medium">显示虚化背景</div>
-            <div className="mt-1 text-xs text-default-500">关闭后会使用更稳定、更明确的浅色或深色背景</div>
+            <div className="text-default-500 mt-1 text-xs">关闭后会使用更稳定、更明确的浅色或深色背景</div>
           </div>
-          <Switch disableAnimation isSelected={showBlurredBackground} onValueChange={value => update({ showBlurredBackground: value })} />
+          <Switch
+            disableAnimation
+            isSelected={showBlurredBackground}
+            onValueChange={value => update({ showBlurredBackground: value })}
+          />
         </div>
       </div>
 
       {!showBlurredBackground && (
-        <div className="rounded-2xl border border-default-200/60 bg-content2/60 px-4 py-3">
+        <div className="border-default-200/60 bg-content2/60 rounded-2xl border px-4 py-3">
           <div className="flex items-center justify-between gap-4">
             <div className="min-w-0 flex-1">
               <div className="text-medium">背景颜色</div>
-              <div className="mt-1 text-xs text-default-500">为当前主题指定更纯净的播放器底色</div>
+              <div className="text-default-500 mt-1 text-xs">为当前主题指定更纯净的播放器底色</div>
             </div>
             <ColorPicker
               value={resolvedBackgroundColor}
@@ -137,7 +143,10 @@ const FullScreenPlayerSettingsPanel = ({ isUiVisible = true }: { isUiVisible?: b
               isOpen={backgroundPickerOpen && isUiVisible}
               onOpenChange={setBackgroundPickerOpen}
             >
-              <div className="border-default h-8 w-12 rounded-full border" style={{ backgroundColor: resolvedBackgroundColor }} />
+              <div
+                className="border-default h-8 w-12 rounded-full border"
+                style={{ backgroundColor: resolvedBackgroundColor }}
+              />
             </ColorPicker>
           </div>
         </div>

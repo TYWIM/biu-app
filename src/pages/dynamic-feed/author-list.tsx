@@ -118,7 +118,7 @@ const AuthorList: React.FC<AuthorListProps> = ({ selectedAuthorMid, onSelect }) 
             </Button>
           ) : null}
         </div>
-        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+        <div className="no-scrollbar flex gap-2 overflow-x-auto pb-1">
           <UserItem compact author={null} isSelected={selectedAuthorMid === null} onSelect={onSelect} />
           {list.map(author => (
             <UserItem
@@ -141,7 +141,9 @@ const AuthorList: React.FC<AuthorListProps> = ({ selectedAuthorMid, onSelect }) 
             </Button>
           )}
         </div>
-        {!loading && !hasMore && list.length === 0 && !error && <p className="text-default-400 mt-2 text-sm">暂无关注</p>}
+        {!loading && !hasMore && list.length === 0 && !error && (
+          <p className="text-default-400 mt-2 text-sm">暂无关注</p>
+        )}
       </div>
     );
   }

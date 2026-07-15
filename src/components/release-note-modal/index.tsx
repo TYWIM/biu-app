@@ -1,4 +1,4 @@
-import { addToast, Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from "@heroui/react";
+import { Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from "@heroui/react";
 import { useShallow } from "zustand/react/shallow";
 
 import { useAppUpdateStore } from "@/store/app-update";

@@ -1,11 +1,11 @@
-import log from "@/common/utils/logger";
 import dayjs from "dayjs";
 
+import log from "@/common/utils/logger";
 import { postClickInterfaceClickWebH5 } from "@/service/click-interface-click-web-h5";
 import { postClickInterfaceWebHeartbeat } from "@/service/click-interface-web-heartbeat";
+import { usePlayProgress } from "@/store/play-progress";
 import { useSettings } from "@/store/settings";
 import { useUser } from "@/store/user";
-import { usePlayProgress } from "@/store/play-progress";
 
 const HEARTBEAT_INTERVAL_SECONDS = 30;
 const HEARTBEAT_TIMER_INTERVAL_MS = HEARTBEAT_INTERVAL_SECONDS * 1000;

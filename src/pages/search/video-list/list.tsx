@@ -23,7 +23,15 @@ interface ListProps {
   onLoadMore: () => void;
 }
 
-const List: React.FC<ListProps> = ({ items, getScrollElement, canDownload, onMenuAction, loading, hasMore, onLoadMore }) => {
+const List: React.FC<ListProps> = ({
+  items,
+  getScrollElement,
+  canDownload,
+  onMenuAction,
+  loading,
+  hasMore,
+  onLoadMore,
+}) => {
   const isMobile = useIsMobile();
   const displayMode = useSettings(state => state.displayMode);
   const isCompact = displayMode === "compact";

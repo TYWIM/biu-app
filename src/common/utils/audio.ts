@@ -1,6 +1,6 @@
-import log from "@/common/utils/logger";
 import dayjs from "dayjs";
 
+import log from "@/common/utils/logger";
 import { getAudioWebStreamUrl } from "@/service/audio-web-url";
 import { getPlayerPlayurl, type DashAudio } from "@/service/player-playurl";
 import { useSettings } from "@/store/settings";
@@ -44,12 +44,14 @@ function selectAudioByQuality(audioList: DashAudio[], quality: AudioQuality): Da
 }
 
 function getNetworkEffectiveType(): string {
-  const connection = (navigator as unknown as { connection?: { effectiveType?: string; saveData?: boolean } }).connection;
+  const connection = (navigator as unknown as { connection?: { effectiveType?: string; saveData?: boolean } })
+    .connection;
   return connection?.effectiveType ?? "4g";
 }
 
 function isSaveDataEnabled(): boolean {
-  const connection = (navigator as unknown as { connection?: { effectiveType?: string; saveData?: boolean } }).connection;
+  const connection = (navigator as unknown as { connection?: { effectiveType?: string; saveData?: boolean } })
+    .connection;
   return connection?.saveData === true;
 }
 

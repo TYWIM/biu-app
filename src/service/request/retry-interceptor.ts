@@ -63,7 +63,7 @@ export const retryInterceptor = (error: AxiosError<unknown>): Promise<AxiosError
 
   const delay = getRetryDelay(error);
 
-  return new Promise((resolve) => setTimeout(resolve, delay)).then(() => {
+  return new Promise(resolve => setTimeout(resolve, delay)).then(() => {
     const axios = config.__axiosInstance;
     if (axios) {
       const requestConfig: AxiosRequestConfig = {

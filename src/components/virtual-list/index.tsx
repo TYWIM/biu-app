@@ -40,7 +40,7 @@ export function VirtualList<T>({
     };
     updateViewport();
     return () => cancelAnimationFrame(rafId);
-  }, []);
+  }, [scrollerRef]);
 
   const virtualizer = useVirtualizer({
     count: data.length,

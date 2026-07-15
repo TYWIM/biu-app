@@ -33,6 +33,5 @@ export const openBiliVideoLink = (data: {
 }) => {
   const url = getBiliVideoLink(data);
 
-  
   window.open(url, "_blank", "noopener,noreferrer");
 };

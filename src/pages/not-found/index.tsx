@@ -12,13 +12,13 @@ const NotFound: React.FC = () => {
   const navigate = useNavigate();
   const [count, setCount] = useState(3);
 
-  useInterval(() => setCount(count - 1), 1000);
+  useInterval(() => setCount(current => current - 1), 1000);
 
   useEffect(() => {
     if (count === 0) {
       navigate("/");
     }
-  }, [count]);
+  }, [count, navigate]);
 
   return (
     <div className="h-full w-full">

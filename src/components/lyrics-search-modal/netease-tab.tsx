@@ -30,45 +30,53 @@ const NeteaseTab = ({ songs, loading, onAdoptLyrics, canPreviewLyrics, getLyrics
     return formatDuration(seconds);
   };
 
-  const handleSelect = useCallback(async (song: NeteaseSong) => {
-    if (!canPreviewLyrics) {
-      addToast({ title: getUnsupportedFeatureMessage("歌词预览"), color: "default" });
-      return;
-    }
-
-    const id = song.id;
-    if (!id) {
-      addToast({ title: "缺少歌曲 ID，无法预览", color: "warning" });
-      return;
-    }
-    setLyrics("");
-    setTlyrics("");
-    setLyricsTitle("");
-    setIsPreviewOpen(true);
-    setPreviewLoading(true);
-
-    try {
-      const res = await getLyrics({ id });
-      const text = res?.lrc?.lyric?.trim() || res?.klyric?.lyric?.trim() || "";
-      const translation = res?.tlyric?.lyric?.trim() || "";
-
-      if (!text) {
-        addToast({ title: "未找到歌词内容", color: "warning" });
-        setIsPreviewOpen(false);
+  const handleSelect = useCallback(
+    async (song: NeteaseSong) => {
+      if (!canPreviewLyrics) {
+        addToast({ title: getUnsupportedFeatureMessage("歌词预览"), color: "default" });
         return;
       }
 
-      const artistsText = song.artists?.length ? song.artists.map(a => a.name).filter(Boolean).join(" / ") : "--";
-      setLyricsTitle(`${song.name || "未知歌曲"}-${artistsText}`);
-      setLyrics(text);
-      setTlyrics(translation);
-    } catch {
-      addToast({ title: "获取歌词失败", color: "danger" });
-      setIsPreviewOpen(false);
-    } finally {
-      setPreviewLoading(false);
-    }
-  }, [canPreviewLyrics, getLyrics]);
+      const id = song.id;
+      if (!id) {
+        addToast({ title: "缺少歌曲 ID，无法预览", color: "warning" });
+        return;
+      }
+      setLyrics("");
+      setTlyrics("");
+      setLyricsTitle("");
+      setIsPreviewOpen(true);
+      setPreviewLoading(true);
+
+      try {
+        const res = await getLyrics({ id });
+        const text = res?.lrc?.lyric?.trim() || res?.klyric?.lyric?.trim() || "";
+        const translation = res?.tlyric?.lyric?.trim() || "";
+
+        if (!text) {
+          addToast({ title: "未找到歌词内容", color: "warning" });
+          setIsPreviewOpen(false);
+          return;
+        }
+
+        const artistsText = song.artists?.length
+          ? song.artists
+              .map(a => a.name)
+              .filter(Boolean)
+              .join(" / ")
+          : "--";
+        setLyricsTitle(`${song.name || "未知歌曲"}-${artistsText}`);
+        setLyrics(text);
+        setTlyrics(translation);
+      } catch {
+        addToast({ title: "获取歌词失败", color: "danger" });
+        setIsPreviewOpen(false);
+      } finally {
+        setPreviewLoading(false);
+      }
+    },
+    [canPreviewLyrics, getLyrics],
+  );
 
   const handleAdopt = useCallback(
     async (lyricsText: string, tLyricsText?: string) => {
@@ -100,7 +108,14 @@ const NeteaseTab = ({ songs, loading, onAdoptLyrics, canPreviewLyrics, getLyrics
               <TableRow key={song.id} onClick={() => handleSelect(song)} className="cursor-pointer">
                 <TableCell>{song.name || "--"}</TableCell>
                 <TableCell>{song.album?.name || "--"}</TableCell>
-                <TableCell>{song.artists?.length ? song.artists.map(a => a.name).filter(Boolean).join(" / ") : "--"}</TableCell>
+                <TableCell>
+                  {song.artists?.length
+                    ? song.artists
+                        .map(a => a.name)
+                        .filter(Boolean)
+                        .join(" / ")
+                    : "--"}
+                </TableCell>
                 <TableCell>{renderDuration(song.duration)}</TableCell>
               </TableRow>
             )}

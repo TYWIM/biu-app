@@ -17,7 +17,15 @@ interface GridListProps {
   onMenuAction: (key: string, item: HistoryListItem) => void;
 }
 
-const GridList: React.FC<GridListProps> = ({ items, hasMore, loading, onLoadMore, getScrollElement, canDownload, onMenuAction }) => {
+const GridList: React.FC<GridListProps> = ({
+  items,
+  hasMore,
+  loading,
+  onLoadMore,
+  getScrollElement,
+  canDownload,
+  onMenuAction,
+}) => {
   const renderGridItem = useCallback(
     (item: HistoryListItem) => {
       return (

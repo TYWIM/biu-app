@@ -1,8 +1,8 @@
 import React, { useCallback } from "react";
 
-import useIsMobile from "@/common/hooks/use-is-mobile";
 import type { ToViewVideoItem } from "@/service/history-toview-list";
 
+import useIsMobile from "@/common/hooks/use-is-mobile";
 import { formatSecondsToDate } from "@/common/utils/time";
 import MusicListItem from "@/components/music-list-item";
 import MusicListHeader from "@/components/music-list-item/header";

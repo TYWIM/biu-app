@@ -11,16 +11,18 @@ export interface BiuDownloadPlugin {
 
   cancelDownload(options: { downloadId: number }): Promise<void>;
 
-  getDownloadList(): Promise<{ list: Array<{
-    downloadId: number;
-    title: string;
-    outputFileType: string;
-    fileName: string;
-    status: string;
-    progress: number;
-    localUri?: string;
-    error?: string;
-  }> }>;
+  getDownloadList(): Promise<{
+    list: Array<{
+      downloadId: number;
+      title: string;
+      outputFileType: string;
+      fileName: string;
+      status: string;
+      progress: number;
+      localUri?: string;
+      error?: string;
+    }>;
+  }>;
 
   getDownloadProgress(options: { downloadId: number }): Promise<{
     downloadId: number;
@@ -35,12 +37,14 @@ export interface BiuDownloadPlugin {
 
   deleteDownload(options: { filePath: string }): Promise<{ success: boolean }>;
 
-  getDownloadedFiles(options: { outputFileType?: string }): Promise<{ list: Array<{
-    fileName: string;
-    filePath: string;
-    size: number;
-    lastModified: number;
-  }> }>;
+  getDownloadedFiles(options: { outputFileType?: string }): Promise<{
+    list: Array<{
+      fileName: string;
+      filePath: string;
+      size: number;
+      lastModified: number;
+    }>;
+  }>;
 
   addListener(
     eventName: "downloadProgress",

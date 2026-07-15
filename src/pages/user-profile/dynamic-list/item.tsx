@@ -28,6 +28,7 @@ import {
 } from "@remixicon/react";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
+
 import "dayjs/locale/zh-cn";
 
 dayjs.extend(relativeTime);
@@ -135,8 +136,15 @@ const DynamicItem = ({ item }: DynamicItemProps) => {
 
   return (
     <>
-      <Card className={twMerge("border-default-100 mb-2 w-full rounded-none border-b bg-transparent shadow-none", isMobile ? "pb-3" : "pb-4")}>
-        <CardHeader className={twMerge("flex items-start justify-between px-0 py-2", isMobile ? "flex-col gap-3" : undefined)}>
+      <Card
+        className={twMerge(
+          "border-default-100 mb-2 w-full rounded-none border-b bg-transparent shadow-none",
+          isMobile ? "pb-3" : "pb-4",
+        )}
+      >
+        <CardHeader
+          className={twMerge("flex items-start justify-between px-0 py-2", isMobile ? "flex-col gap-3" : undefined)}
+        >
           <User
             isFocusable
             avatarProps={{ src: author?.face }}
@@ -263,7 +271,11 @@ const DynamicItem = ({ item }: DynamicItemProps) => {
                     {archive.duration_text || ""}
                   </div>
                 </div>
-                <div className={isMobile ? "flex min-w-0 grow flex-col gap-2 p-3" : "flex min-w-0 grow flex-col justify-between p-3"}>
+                <div
+                  className={
+                    isMobile ? "flex min-w-0 grow flex-col gap-2 p-3" : "flex min-w-0 grow flex-col justify-between p-3"
+                  }
+                >
                   <div className="space-y-1">
                     <h3 className="line-clamp-2 text-sm font-medium" title={archive.title || ""}>
                       {archive.title || ""}

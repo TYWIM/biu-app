@@ -32,11 +32,8 @@ export async function getLyricsByBili(params: WebPlayerParams): Promise<BiliLyri
 
   // 查找原文字幕（优先非中文，其次默认第一个）
   // 翻译字幕优先找中文，且与原文不同
-  const originalSub =
-    subtitles.find(s => !s.lan?.startsWith("zh")) || subtitles[0];
-  const translatedSub = subtitles.find(
-    s => s.lan?.startsWith("zh") && s !== originalSub
-  );
+  const originalSub = subtitles.find(s => !s.lan?.startsWith("zh")) || subtitles[0];
+  const translatedSub = subtitles.find(s => s.lan?.startsWith("zh") && s !== originalSub);
 
   if (!originalSub?.subtitle_url && !originalSub?.subtitle_url_v2) {
     return null;

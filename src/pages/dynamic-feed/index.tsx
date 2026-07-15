@@ -90,7 +90,7 @@ const DynamicFeedPage = () => {
     return () => {
       invalidateRequests();
     };
-  }, [fetchData, invalidateRequests]);
+  }, [feedType, fetchData, invalidateRequests]);
 
   const displayItems = useMemo(() => {
     if (sortMode === "latest") return items;
@@ -179,13 +179,14 @@ const DynamicFeedPage = () => {
       <AuthorList selectedAuthorMid={selectedAuthorMid} onSelect={handleSelectAuthor} />
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <div className={isMobile ? "border-divider/40 flex flex-col gap-2 border-b px-4 py-3" : "border-divider/40 flex items-center justify-between gap-3 border-b px-6 py-3"}>
-          <Tabs
-            size="sm"
-            selectedKey={feedType}
-            onSelectionChange={handleFeedTypeChange}
-            variant="light"
-          >
+        <div
+          className={
+            isMobile
+              ? "border-divider/40 flex flex-col gap-2 border-b px-4 py-3"
+              : "border-divider/40 flex items-center justify-between gap-3 border-b px-6 py-3"
+          }
+        >
+          <Tabs size="sm" selectedKey={feedType} onSelectionChange={handleFeedTypeChange} variant="light">
             <Tab key="video" title="视频动态" />
             <Tab key="all" title="全部动态" />
           </Tabs>
@@ -240,7 +241,9 @@ const DynamicFeedPage = () => {
               </div>
             )}
             {!isLoading && !hasMore && items.length > 0 && <p className="text-default-400 text-sm">没有更多动态了</p>}
-            {!isLoading && !hasMore && items.length === 0 && !error && <p className="text-default-400 text-sm">暂无动态</p>}
+            {!isLoading && !hasMore && items.length === 0 && !error && (
+              <p className="text-default-400 text-sm">暂无动态</p>
+            )}
           </div>
         </ScrollContainer>
       </div>

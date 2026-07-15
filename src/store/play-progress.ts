@@ -23,7 +23,9 @@ function migrateLegacyProgress(): number | undefined {
       }
       localStorage.removeItem(LEGACY_STORAGE_KEY);
     }
-  } catch {}
+  } catch {
+    // localStorage can be unavailable in restricted browser contexts.
+  }
   return undefined;
 }
 
@@ -48,12 +50,13 @@ export const usePlayProgress = create<ProgressState>()(
         const time = get().currentTime;
         return time;
       },
-      saveCurrentTime: () => {
-      },
+      saveCurrentTime: () => {},
       flushCurrentTime: () => {
         try {
           localStorage.setItem(STORAGE_KEY, JSON.stringify({ state: { currentTime: get().currentTime }, version: 0 }));
-        } catch {}
+        } catch {
+          // Persist middleware will retry on the next state update.
+        }
       },
       setCurrentTime: (time: number) => set({ currentTime: time }),
     }),

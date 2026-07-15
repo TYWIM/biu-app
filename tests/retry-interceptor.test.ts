@@ -1,5 +1,7 @@
-import { describe, expect, it, vi } from "vitest";
 import type { AxiosError, AxiosInstance } from "axios";
+
+import { describe, expect, it, vi } from "vitest";
+
 import { retryInterceptor } from "@/service/request/retry-interceptor";
 
 const createAxiosError = (overrides: Partial<AxiosError> = {}): AxiosError => {

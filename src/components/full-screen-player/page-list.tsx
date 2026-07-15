@@ -34,7 +34,13 @@ const FullScreenPageList = ({
       )}
       style={style}
     >
-      <div className={twMerge(isMobile ? "border-b border-white/10 px-4 pb-3 pt-3" : "flex w-full flex-none flex-row items-center justify-between space-x-1 border-b border-white/10 px-2 py-2") }>
+      <div
+        className={twMerge(
+          isMobile
+            ? "border-b border-white/10 px-4 pt-3 pb-3"
+            : "flex w-full flex-none flex-row items-center justify-between space-x-1 border-b border-white/10 px-2 py-2",
+        )}
+      >
         {isMobile ? (
           <>
             <div className="mb-3 flex items-center justify-between gap-3">
@@ -54,7 +60,8 @@ const FullScreenPageList = ({
               classNames={{
                 mainWrapper: "h-full",
                 input: "text-sm text-white placeholder:text-white/34",
-                inputWrapper: "min-h-11 rounded-full border border-white/10 bg-white/8 hover:bg-white/12 group-data-[focus=true]:bg-white/12",
+                inputWrapper:
+                  "min-h-11 rounded-full border border-white/10 bg-white/8 hover:bg-white/12 group-data-[focus=true]:bg-white/12",
               }}
               placeholder="搜索分集"
               size="sm"
@@ -86,7 +93,7 @@ const FullScreenPageList = ({
         )}
       </div>
       <MusicPageList
-        className={twMerge("h-full w-full flex-1", isMobile ? "px-2 pb-3 pt-2" : "p-1 pb-2")}
+        className={twMerge("h-full w-full flex-1", isMobile ? "px-2 pt-2 pb-3" : "p-1 pb-2")}
         hideCover
         itemClassName={twMerge(
           isMobile

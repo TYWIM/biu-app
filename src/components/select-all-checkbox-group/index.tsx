@@ -1,6 +1,7 @@
 import React from "react";
- 
+
 import { Checkbox, CheckboxGroup } from "@heroui/react";
+
 import useIsMobile from "@/common/hooks/use-is-mobile";
 
 interface SelectAllCheckboxGroupProps {

@@ -4,7 +4,8 @@ import { nativeHttpAdapter, shouldUseNativeHttp } from "./native-http-adapter";
 
 const NETEASE_REFERER = "https://music.163.com/";
 const NETEASE_ORIGIN = "https://music.163.com";
-const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
+const USER_AGENT =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
 
 const useNativeHttp = shouldUseNativeHttp();
 
@@ -40,7 +41,6 @@ neteaseRequest.interceptors.response.use(
 
 lrclibRequest.interceptors.response.use(res => res.data);
 
-
 export const canSearchNeteaseLyrics = () => useNativeHttp;
 
 export const canGetNeteaseLyrics = () => useNativeHttp;
@@ -48,14 +48,14 @@ export const canGetNeteaseLyrics = () => useNativeHttp;
 export const canSearchLrclibLyrics = () => useNativeHttp;
 
 export const searchNeteaseSongsRuntime = async (params: SearchSongByNeteaseParams) => {
-    const response = await neteaseRequest.get("https://interface.music.163.com/api/search/get", {
+  const response = await neteaseRequest.get("https://interface.music.163.com/api/search/get", {
     params,
   });
   return response as SearchSongByNeteaseResponse;
 };
 
 export const getNeteaseLyricsRuntime = async (params: GetLyricsByNeteaseParams) => {
-    const response = await neteaseRequest.get("https://interface.music.163.com/api/song/lyric", {
+  const response = await neteaseRequest.get("https://interface.music.163.com/api/song/lyric", {
     params: {
       ...params,
       tv: -1,
@@ -69,7 +69,7 @@ export const getNeteaseLyricsRuntime = async (params: GetLyricsByNeteaseParams) 
 };
 
 export const searchLrclibLyricsRuntime = async (params: SearchSongByLrclibParams) => {
-    const response = await lrclibRequest.get("https://lrclib.net/api/search", {
+  const response = await lrclibRequest.get("https://lrclib.net/api/search", {
     params,
   });
   return response as SearchSongByLrclibResponse[];

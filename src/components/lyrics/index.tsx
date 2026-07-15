@@ -5,9 +5,9 @@ import { RiFileCopyLine, RiShareLine, RiTBoxLine } from "@remixicon/react";
 import clsx from "classnames";
 import { debounce } from "es-toolkit";
 
-import { canUseRuntimeStore, getRuntimeStore, setRuntimeStore } from "@/common/utils/runtime-store";
 import type { WebPlayerParams } from "@/service/web-player";
 
+import { canUseRuntimeStore, getRuntimeStore, setRuntimeStore } from "@/common/utils/runtime-store";
 import { usePlayList } from "@/store/play-list";
 import { usePlayProgress } from "@/store/play-progress";
 import { StoreNameMap } from "@shared/store";
@@ -67,7 +67,10 @@ const LyricRow = memo(
           {line.text}
         </div>
         {translation ? (
-          <div className="mt-1 text-sm break-words whitespace-pre-wrap" style={{ color: color || undefined, opacity: 0.75 }}>
+          <div
+            className="mt-1 text-sm break-words whitespace-pre-wrap"
+            style={{ color: color || undefined, opacity: 0.75 }}
+          >
             {translation}
           </div>
         ) : null}

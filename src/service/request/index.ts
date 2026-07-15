@@ -1,11 +1,11 @@
 import axios, { type AxiosRequestConfig, type CreateAxiosDefaults } from "axios";
 
-import { nativeHttpAdapter, shouldUseNativeHttp } from "@/common/utils/native-http-adapter";
 import { saveCsrfToken } from "@/common/utils/csrf-token";
+import { nativeHttpAdapter, shouldUseNativeHttp } from "@/common/utils/native-http-adapter";
 
 import { requestInterceptors } from "./request-interceptors";
-import { retryInterceptor } from "./retry-interceptor";
 import { geetestInterceptors } from "./response-interceptors";
+import { retryInterceptor } from "./retry-interceptor";
 
 const BILIBILI_REFERER = "https://www.bilibili.com";
 const BROWSER_UA =
@@ -53,7 +53,7 @@ export const passportRequest = axios.create({
 const allInstances = [axiosInstance, searchRequest, biliRequest, memberRequest, apiRequest, passportRequest];
 
 for (const instance of allInstances) {
-  instance.interceptors.request.use((config) => {
+  instance.interceptors.request.use(config => {
     (config as AxiosRequestConfig & { __axiosInstance?: typeof instance }).__axiosInstance = instance;
     return config;
   });
@@ -95,8 +95,14 @@ const captureCsrfInterceptor = (res: any) => {
   return res;
 };
 
-apiRequest.interceptors.response.use(res => { captureCsrfInterceptor(res); return res.data; });
-passportRequest.interceptors.response.use(res => { captureCsrfInterceptor(res); return res.data; });
+apiRequest.interceptors.response.use(res => {
+  captureCsrfInterceptor(res);
+  return res.data;
+});
+passportRequest.interceptors.response.use(res => {
+  captureCsrfInterceptor(res);
+  return res.data;
+});
 searchRequest.interceptors.response.use(res => res.data);
 memberRequest.interceptors.response.use(res => res.data);
 

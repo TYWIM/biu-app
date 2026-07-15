@@ -246,7 +246,11 @@ const LyricsSearchModal = ({ isOpen, onOpenChange, onLyricsAdopted }: Props) => 
                 if (e.key === "Enter") handleSubmit(activeTab);
               }}
             />
-            <Button color="primary" onPress={() => handleSubmit(activeTab)} isDisabled={!canSearchNetease && !canSearchLrclib}>
+            <Button
+              color="primary"
+              onPress={() => handleSubmit(activeTab)}
+              isDisabled={!canSearchNetease && !canSearchLrclib}
+            >
               搜索
             </Button>
           </div>

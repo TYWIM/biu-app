@@ -18,7 +18,15 @@ interface GridListProps {
   onLoadMore: () => void;
 }
 
-const GridList: React.FC<GridListProps> = ({ items, getScrollElement, canDownload, onMenuAction, loading, hasMore, onLoadMore }) => {
+const GridList: React.FC<GridListProps> = ({
+  items,
+  getScrollElement,
+  canDownload,
+  onMenuAction,
+  loading,
+  hasMore,
+  onLoadMore,
+}) => {
   const renderGridItem = useCallback(
     (item: SearchVideoItem) => {
       return (

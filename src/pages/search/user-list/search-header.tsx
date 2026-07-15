@@ -3,6 +3,7 @@ import React from "react";
 import { Tab, Tabs } from "@heroui/react";
 
 import useIsMobile from "@/common/hooks/use-is-mobile";
+
 import type { UserSortKey } from "./utils";
 
 interface SearchHeaderProps {

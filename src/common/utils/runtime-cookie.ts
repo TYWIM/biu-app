@@ -31,25 +31,11 @@ const normalizeCookieValue = (value: unknown) => {
   return normalized || undefined;
 };
 
-
 export const canUseRuntimeCookieApi = () => {
-  const getCookie: any = undefined; const setCookie: any = undefined;
-
-  if (typeof getCookie === "function" && typeof setCookie === "function") {
-    return true;
-  }
-
   return isNative();
 };
 
 export const getRuntimeCookie = async (name: string, url = DEFAULT_COOKIE_URL) => {
-  const getCookie: any = undefined;
-  const setCookie: any = undefined;
-
-  if (typeof getCookie === "function") {
-    return normalizeCookieValue(await getCookie(name));
-  }
-
   if (isNative()) {
     const cookiesApi = getNativeCookiesApi();
     const urls = Array.from(new Set([url, ...COOKIE_URL_FALLBACKS]));
@@ -67,15 +53,12 @@ export const getRuntimeCookie = async (name: string, url = DEFAULT_COOKIE_URL) =
   return undefined;
 };
 
-export const setRuntimeCookie = async (name: string, value: string, expirationDate?: number, url = DEFAULT_COOKIE_URL) => {
-  const getCookie: any = undefined;
-  const setCookie: any = undefined;
-
-  if (typeof setCookie === "function") {
-    await setCookie(name, value, expirationDate);
-    return;
-  }
-
+export const setRuntimeCookie = async (
+  name: string,
+  value: string,
+  expirationDate?: number,
+  url = DEFAULT_COOKIE_URL,
+) => {
   if (isNative()) {
     const cookiesApi = getNativeCookiesApi();
     const expires = expirationDate ? new Date(expirationDate * 1000).toUTCString() : undefined;

@@ -5,8 +5,8 @@ import { RiEdit2Line } from "@remixicon/react";
 import { useRequest } from "ahooks";
 import clx from "classnames";
 
-import useIsMobile from "@/common/hooks/use-is-mobile";
 import { CollectionType } from "@/common/constants/collection";
+import useIsMobile from "@/common/hooks/use-is-mobile";
 import { isPrivateFav } from "@/common/utils/fav";
 import Image from "@/components/image";
 import { getWebInterfaceCard } from "@/service/user-account";
@@ -44,7 +44,11 @@ const Header = memo(({ loading, type, attr, cover, title, desc, upMid, mediaCoun
     return (
       <div className={isMobile ? "mb-4 flex flex-col gap-3" : "mb-4 flex space-x-4"}>
         <Skeleton className={isMobile ? "aspect-video w-full rounded-md" : "h-[168px] w-[200px] rounded-md"} />
-        <div className={isMobile ? "flex min-w-0 flex-col items-start space-y-3" : "flex min-w-0 flex-col items-start space-y-4"}>
+        <div
+          className={
+            isMobile ? "flex min-w-0 flex-col items-start space-y-3" : "flex min-w-0 flex-col items-start space-y-4"
+          }
+        >
           <Skeleton className="h-[24px] w-[200px] rounded-md" />
           <Skeleton className="h-[16px] w-[200px] rounded-md" />
           <Skeleton className="h-[16px] w-[200px] rounded-md" />
@@ -84,9 +88,21 @@ const Header = memo(({ loading, type, attr, cover, title, desc, upMid, mediaCoun
             </div>
           )}
         </div>
-        <div className={isMobile ? "flex min-w-0 flex-col items-start space-y-3" : "flex min-w-0 flex-col items-start space-y-4"}>
+        <div
+          className={
+            isMobile ? "flex min-w-0 flex-col items-start space-y-3" : "flex min-w-0 flex-col items-start space-y-4"
+          }
+        >
           <h1 className={isMobile ? "text-2xl font-bold" : "text-3xl font-bold"}>{title}</h1>
-          {Boolean(desc) && <p className={isMobile ? "text-foreground-400 line-clamp-2 text-sm" : "text-foreground-400 line-clamp-1 text-sm"}>{desc}</p>}
+          {Boolean(desc) && (
+            <p
+              className={
+                isMobile ? "text-foreground-400 line-clamp-2 text-sm" : "text-foreground-400 line-clamp-1 text-sm"
+              }
+            >
+              {desc}
+            </p>
+          )}
           <div className="text-foreground-400 flex flex-wrap items-center gap-x-1 gap-y-1 text-sm">
             <span>
               {type === CollectionType.Favorite

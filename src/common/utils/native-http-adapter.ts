@@ -1,5 +1,7 @@
 import type { AxiosResponse, InternalAxiosRequestConfig } from "axios";
+
 import { Capacitor, CapacitorCookies, CapacitorHttp } from "@capacitor/core";
+
 import { getCsrfToken } from "@/common/utils/csrf-token";
 
 /**
@@ -15,12 +17,7 @@ const getNativeCookieHeader = async (url: string): Promise<string> => {
     const cookiesApi = CapacitorCookies as unknown as {
       getCookies: (options: { url: string }) => Promise<Record<string, string>>;
     };
-    const cookieUrls = [
-      url,
-      "https://www.bilibili.com",
-      "https://api.bilibili.com",
-      "https://passport.bilibili.com",
-    ];
+    const cookieUrls = [url, "https://www.bilibili.com", "https://api.bilibili.com", "https://passport.bilibili.com"];
     const allCookies: Record<string, string> = {};
     for (const u of cookieUrls) {
       try {
@@ -68,9 +65,7 @@ export const nativeHttpAdapter = async (config: InternalAxiosRequestConfig): Pro
     // Ensure bili_jct is always in the cookie header
     let finalCookie = cookieHeader;
     if (storedCsrf && !cookieHeader.includes("bili_jct=")) {
-      finalCookie = finalCookie
-        ? finalCookie + "; bili_jct=" + storedCsrf
-        : "bili_jct=" + storedCsrf;
+      finalCookie = finalCookie ? finalCookie + "; bili_jct=" + storedCsrf : "bili_jct=" + storedCsrf;
     }
     if (finalCookie) {
       headers["Cookie"] = finalCookie;

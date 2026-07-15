@@ -2,8 +2,8 @@ import { type InternalAxiosRequestConfig } from "axios";
 import dayjs from "dayjs";
 
 import { refreshCookie } from "@/common/utils/cookie";
-import { getRuntimeCookie } from "@/common/utils/runtime-cookie";
 import { getCsrfToken, saveCsrfToken } from "@/common/utils/csrf-token";
+import { getRuntimeCookie } from "@/common/utils/runtime-cookie";
 import { useToken } from "@/store/token";
 
 import { encodeParamsWbi } from "./wbi-sign";

@@ -25,11 +25,7 @@ export function isDeviceOnline(): boolean {
 /**
  * Get local file path for playback when offline
  */
-export async function getOfflineAudioUrl(
-  bvid?: string,
-  cid?: number,
-  sid?: number,
-): Promise<string | null> {
+export async function getOfflineAudioUrl(bvid?: string, cid?: number, sid?: number): Promise<string | null> {
   // Check cache metadata first
   const key = generateCacheKey("audio", bvid, cid, sid);
   const cacheEntry = await getCacheEntry(key);
@@ -52,10 +48,7 @@ export async function getOfflineAudioUrl(
 /**
  * Get offline video URL
  */
-export async function getOfflineVideoUrl(
-  bvid?: string,
-  cid?: number,
-): Promise<string | null> {
+export async function getOfflineVideoUrl(bvid?: string, cid?: number): Promise<string | null> {
   const key = generateCacheKey("video", bvid, cid);
   const cacheEntry = await getCacheEntry(key);
 
@@ -75,12 +68,7 @@ export async function getOfflineVideoUrl(
 /**
  * Auto-detect offline mode and return appropriate URL
  */
-export async function resolveAudioUrl(
-  onlineUrl: string,
-  bvid?: string,
-  cid?: number,
-  sid?: number,
-): Promise<string> {
+export async function resolveAudioUrl(onlineUrl: string, bvid?: string, cid?: number, sid?: number): Promise<string> {
   if (!isDeviceOnline()) {
     const offlineUrl = await getOfflineAudioUrl(bvid, cid, sid);
     if (offlineUrl) {
@@ -94,10 +82,7 @@ export async function resolveAudioUrl(
 /**
  * Setup network state listeners
  */
-export function setupNetworkListeners(
-  onOffline?: () => void,
-  onOnline?: () => void,
-): () => void {
+export function setupNetworkListeners(onOffline?: () => void, onOnline?: () => void): () => void {
   if (typeof window === "undefined") return () => {};
 
   const handleOffline = () => {

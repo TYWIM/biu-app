@@ -213,7 +213,7 @@ const FollowList = () => {
                 </Button>
               </Tooltip>
             </div>
-            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+            <div className="no-scrollbar flex gap-2 overflow-x-auto pb-1">
               <Button
                 radius="md"
                 variant={activeTab === "all" ? "flat" : "light"}
@@ -294,12 +294,25 @@ const FollowList = () => {
                     {isCustomTag && activeTag && (
                       <>
                         <Tooltip content="修改分组名称" closeDelay={0}>
-                          <Button onPress={() => handleOpenRename(activeTag)} isIconOnly radius="md" size="sm" variant="light">
+                          <Button
+                            onPress={() => handleOpenRename(activeTag)}
+                            isIconOnly
+                            radius="md"
+                            size="sm"
+                            variant="light"
+                          >
                             <RiEditLine size={18} />
                           </Button>
                         </Tooltip>
                         <Tooltip content="删除分组" closeDelay={0}>
-                          <Button onPress={() => handleOpenDelete(activeTag)} isIconOnly variant="light" size="sm" radius="md" color="danger">
+                          <Button
+                            onPress={() => handleOpenDelete(activeTag)}
+                            isIconOnly
+                            variant="light"
+                            size="sm"
+                            radius="md"
+                            color="danger"
+                          >
                             <RiDeleteBinLine size={18} />
                           </Button>
                         </Tooltip>

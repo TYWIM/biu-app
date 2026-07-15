@@ -111,22 +111,25 @@ export interface ReplyContent {
   device: string;
   max_line: number;
   members?: ReplyMember[];
-  jump_url?: Record<string, {
-    title: string;
-    state: number;
-    prefix_icon: string;
-    app_url_schema: string;
-    app_name: string;
-    extra?: {
-      is_word_search: boolean;
-      goods_show_type: number;
-    };
-    click_report: string;
-    is_half_screen: boolean;
-    is_merge: boolean;
-    is_publish: boolean;
-    is_video: boolean;
-  }>;
+  jump_url?: Record<
+    string,
+    {
+      title: string;
+      state: number;
+      prefix_icon: string;
+      app_url_schema: string;
+      app_name: string;
+      extra?: {
+        is_word_search: boolean;
+        goods_show_type: number;
+      };
+      click_report: string;
+      is_half_screen: boolean;
+      is_merge: boolean;
+      is_publish: boolean;
+      is_video: boolean;
+    }
+  >;
   pictures?: {
     img_src: string;
     img_width: number;
