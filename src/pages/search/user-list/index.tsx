@@ -117,7 +117,7 @@ export default function UserList({ keyword, getScrollElement }: UserListProps) {
   if (initialError && list.length === 0) {
     return (
       <div data-testid="search-user-error" className="min-h-[280px] py-4">
-        <Empty title={initialError} />
+        <Empty title={initialError} className="py-6" />
         <div className="flex justify-center">
           <Button variant="flat" onPress={() => void retryInitial()}>
             重试

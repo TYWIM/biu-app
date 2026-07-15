@@ -21,6 +21,8 @@ test("offline search distinguishes a network failure from empty results", async 
 
   const errorState = page.getByTestId("search-video-error");
   await expect(errorState).toBeVisible();
-  await expect(errorState.getByRole("button")).toBeVisible();
+  const retryButton = errorState.getByRole("button");
+  await expect(retryButton).toBeVisible();
+  await expect(retryButton).toBeInViewport();
   await expect(searchInput).not.toBeFocused();
 });
