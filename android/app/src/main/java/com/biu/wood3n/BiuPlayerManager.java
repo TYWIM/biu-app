@@ -2,10 +2,12 @@ package com.biu.wood3n;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.media.audiofx.Equalizer;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 
 import androidx.core.content.ContextCompat;
 import androidx.media3.common.AudioAttributes;
@@ -40,12 +42,16 @@ public class BiuPlayerManager {
 
     private static final String DESKTOP_USER_AGENT =
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
+    private static final String TAG = "BiuPlayer";
+    private static final String PLAYBACK_STATE_PREFS = "biu_player_state";
+    private static final long SNAPSHOT_INTERVAL_MS = 5_000L;
 
     private static volatile BiuPlayerManager instance;
 
     private final Context appContext;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final Set<StateListener> listeners = new CopyOnWriteArraySet<>();
+    private final SharedPreferences playbackState;
 
     private ExoPlayer exoPlayer;
     private ForwardingPlayer forwardingPlayer;
@@ -63,6 +69,7 @@ public class BiuPlayerManager {
     private boolean ended = false;
     private boolean progressRunning = false;
     private short[] eqBandLevels;
+    private long lastSnapshotAtMs = 0L;
 
     private final Runnable progressRunnable = new Runnable() {
         @Override
@@ -72,6 +79,7 @@ public class BiuPlayerManager {
             }
 
             notifyState("progress", null);
+            persistPlaybackSnapshot(false);
 
             if (exoPlayer.isPlaying() || exoPlayer.getPlayWhenReady()) {
                 mainHandler.postDelayed(this, 500);
@@ -86,18 +94,24 @@ public class BiuPlayerManager {
         public void onPlaybackStateChanged(int playbackState) {
             ready = playbackState == Player.STATE_READY;
             ended = playbackState == Player.STATE_ENDED;
+            Log.i(TAG, "playback state=" + playbackState + " positionMs=" + getCurrentPositionMs());
+            persistPlaybackSnapshot(true);
             notifyState(resolvePlaybackReason(playbackState), null);
             updateProgressLoop();
         }
 
         @Override
         public void onIsPlayingChanged(boolean isPlaying) {
+            Log.i(TAG, "isPlaying=" + isPlaying + " playWhenReady=" + (exoPlayer != null && exoPlayer.getPlayWhenReady()));
+            persistPlaybackSnapshot(true);
             notifyState(isPlaying ? "playing" : "pause", null);
             updateProgressLoop();
         }
 
         @Override
         public void onPlayerError(PlaybackException error) {
+            Log.e(TAG, "player error code=" + error.errorCode + " positionMs=" + getCurrentPositionMs(), error);
+            persistPlaybackSnapshot(true);
             notifyState("error", error.getMessage());
             updateProgressLoop();
         }
@@ -105,6 +119,7 @@ public class BiuPlayerManager {
 
     private BiuPlayerManager(Context context) {
         appContext = context.getApplicationContext();
+        playbackState = appContext.getSharedPreferences(PLAYBACK_STATE_PREFS, Context.MODE_PRIVATE);
         if (Looper.myLooper() == Looper.getMainLooper()) {
             ensurePlayer();
         } else {
@@ -167,6 +182,39 @@ public class BiuPlayerManager {
         ended = false;
     }
 
+    public boolean restorePlaybackAfterServiceRestart() {
+        ensurePlayer();
+        if (exoPlayer.getMediaItemCount() > 0 || !playbackState.getBoolean("playWhenReady", false)) {
+            return false;
+        }
+
+        String restoredSourceUrl = playbackState.getString("sourceUrl", "");
+        if (restoredSourceUrl == null || restoredSourceUrl.isEmpty()) {
+            return false;
+        }
+
+        sourceUrl = restoredSourceUrl;
+        title = playbackState.getString("title", "");
+        artist = playbackState.getString("artist", "");
+        cover = playbackState.getString("cover", "");
+        volume = playbackState.getFloat("volume", 1.0f);
+        muted = playbackState.getBoolean("muted", false);
+        playbackRate = playbackState.getFloat("playbackRate", 1.0f);
+        loop = playbackState.getBoolean("loop", false);
+        long positionMs = Math.max(0L, playbackState.getLong("positionMs", 0L));
+
+        applyConfig();
+        MediaSource mediaSource = new DefaultMediaSourceFactory(buildDataSourceFactory(sourceUrl))
+                .createMediaSource(buildMediaItem());
+        exoPlayer.setMediaSource(mediaSource);
+        exoPlayer.prepare();
+        exoPlayer.seekTo(positionMs);
+        exoPlayer.play();
+        updateProgressLoop();
+        Log.i(TAG, "restored playback after service restart positionMs=" + positionMs);
+        return true;
+    }
+
     public MediaSession getMediaSession() {
         return mediaSession;
     }
@@ -196,6 +244,7 @@ public class BiuPlayerManager {
         playbackRate = (float) Math.max(0.25, Math.min(4, nextPlaybackRate));
         loop = nextLoop;
         applyConfig();
+        persistPlaybackSnapshot(true);
         notifyState("config", null);
         return buildState("config", null);
     }
@@ -210,6 +259,7 @@ public class BiuPlayerManager {
             exoPlayer.pause();
             exoPlayer.stop();
             exoPlayer.clearMediaItems();
+            clearPlaybackSnapshot();
             notifyState("cleared", null);
             return buildState("cleared", null);
         }
@@ -219,6 +269,7 @@ public class BiuPlayerManager {
         MediaSource mediaSource = new DefaultMediaSourceFactory(buildDataSourceFactory(sourceUrl)).createMediaSource(mediaItem);
         exoPlayer.setMediaSource(mediaSource);
         exoPlayer.prepare();
+        persistPlaybackSnapshot(true);
         notifyState("source", null);
         return buildState("source", null);
     }
@@ -234,6 +285,7 @@ public class BiuPlayerManager {
         }
 
         exoPlayer.replaceMediaItem(0, buildMediaItem());
+        persistPlaybackSnapshot(true);
         notifyState("metadata", null);
     }
 
@@ -241,6 +293,7 @@ public class BiuPlayerManager {
         ensurePlayer();
         exoPlayer.play();
         ensureService();
+        persistPlaybackSnapshot(true);
         notifyState("play", null);
         updateProgressLoop();
         return buildState("play", null);
@@ -249,6 +302,7 @@ public class BiuPlayerManager {
     public JSObject pause() {
         ensurePlayer();
         exoPlayer.pause();
+        persistPlaybackSnapshot(true);
         notifyState("pause", null);
         updateProgressLoop();
         return buildState("pause", null);
@@ -258,6 +312,7 @@ public class BiuPlayerManager {
         ensurePlayer();
         ended = false;
         exoPlayer.seekTo((long) (Math.max(0, position) * 1000L));
+        persistPlaybackSnapshot(true);
         notifyState("seek", null);
         return buildState("seek", null);
     }
@@ -270,6 +325,7 @@ public class BiuPlayerManager {
         exoPlayer.pause();
         exoPlayer.stop();
         exoPlayer.clearMediaItems();
+        clearPlaybackSnapshot();
         notifyState("cleared", null);
         updateProgressLoop();
         return buildState("cleared", null);
@@ -354,6 +410,40 @@ public class BiuPlayerManager {
         Intent intent = new Intent(appContext, BiuPlayerService.class);
         intent.setAction(BiuPlayerService.ACTION_START);
         ContextCompat.startForegroundService(appContext, intent);
+    }
+
+    private long getCurrentPositionMs() {
+        return exoPlayer == null ? 0L : Math.max(0L, exoPlayer.getCurrentPosition());
+    }
+
+    private void persistPlaybackSnapshot(boolean force) {
+        if (exoPlayer == null || sourceUrl.isEmpty()) {
+            return;
+        }
+
+        long now = android.os.SystemClock.elapsedRealtime();
+        if (!force && now - lastSnapshotAtMs < SNAPSHOT_INTERVAL_MS) {
+            return;
+        }
+        lastSnapshotAtMs = now;
+
+        playbackState.edit()
+                .putString("sourceUrl", sourceUrl)
+                .putString("title", title)
+                .putString("artist", artist)
+                .putString("cover", cover)
+                .putFloat("volume", volume)
+                .putBoolean("muted", muted)
+                .putFloat("playbackRate", playbackRate)
+                .putBoolean("loop", loop)
+                .putLong("positionMs", getCurrentPositionMs())
+                .putBoolean("playWhenReady", exoPlayer.getPlayWhenReady())
+                .apply();
+    }
+
+    private void clearPlaybackSnapshot() {
+        lastSnapshotAtMs = 0L;
+        playbackState.edit().clear().apply();
     }
 
     private void applyConfig() {
