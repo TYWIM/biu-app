@@ -1666,7 +1666,16 @@ const configureSponsorBlockForItem = async (playItem?: PlayData) => {
 usePlayList.subscribe(async (state, prevState) => {
   if (state.playId !== prevState.playId) {
     const targetPlayId = state.playId;
-    void configureSponsorBlockForItem(state.list.find(item => item.id === targetPlayId));
+    const targetPlayItem = state.list.find(item => item.id === targetPlayId);
+    usePlayProgress.getState().setCurrentTime(0);
+    if (targetPlayItem) {
+      updateMediaSession({
+        title: targetPlayItem.pageTitle || targetPlayItem.title,
+        artist: targetPlayItem.ownerName,
+        cover: targetPlayItem.pageCover || targetPlayItem.cover,
+      });
+    }
+    void configureSponsorBlockForItem(targetPlayItem);
     if (!state.playId) {
       const prevPlayItem = prevState.list.find(item => item.id === prevState.playId);
       if (shouldReportPlayRecord(prevPlayItem)) {
@@ -1674,8 +1683,10 @@ usePlayList.subscribe(async (state, prevState) => {
       }
     }
 
-    if (audio && !audio.paused) {
-      audio.pause();
+    if (audio) {
+      if (!audio.paused) {
+        audio.pause();
+      }
       audio.currentTime = 0;
     }
     // 切换歌曲

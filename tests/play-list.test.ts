@@ -2,6 +2,7 @@ import { describe, expect, test, beforeEach, vi } from "vitest";
 
 import { PlayMode } from "@/common/constants/audio";
 import { usePlayList } from "@/store/play-list";
+import { usePlayProgress } from "@/store/play-progress";
 
 vi.mock("@/common/utils/audio", () => ({
   getAudioUrl: vi.fn(async () => ({ audioUrl: "https://audio.test/a.mp3", isLossless: false })),
@@ -185,6 +186,21 @@ describe("play-list store", () => {
     expect(secondId).not.toBe(firstId);
     await s.prev();
     expect(usePlayList.getState().playId).toBe(firstId);
+  });
+
+  test("resets stale progress immediately when switching tracks", async () => {
+    const s = usePlayList.getState();
+    await s.init();
+    await s.playList([
+      { type: "audio", sid: 1, title: "a1" },
+      { type: "audio", sid: 2, title: "a2" },
+    ]);
+    s.getAudio().pause();
+    usePlayProgress.getState().setCurrentTime(42);
+
+    await s.next();
+
+    expect(usePlayProgress.getState().currentTime).toBe(0);
   });
 
   test("ignores a stale stream URL after switching to another queue item", async () => {
