@@ -30,7 +30,9 @@ import androidx.media3.session.MediaSessionService;
 
 import com.getcapacitor.JSObject;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
@@ -68,6 +70,7 @@ public class BiuPlayerManager {
     private boolean ready = false;
     private boolean ended = false;
     private boolean progressRunning = false;
+    private List<long[]> skipSegments = new ArrayList<>();
     private short[] eqBandLevels;
     private long lastSnapshotAtMs = 0L;
 
@@ -78,7 +81,8 @@ public class BiuPlayerManager {
                 return;
             }
 
-            notifyState("progress", null);
+            boolean skippedSegment = maybeSkipSponsorSegment();
+            notifyState(skippedSegment ? "segmentSkipped" : "progress", null);
             persistPlaybackSnapshot(false);
 
             if (exoPlayer.isPlaying() || exoPlayer.getPlayWhenReady()) {
@@ -336,6 +340,13 @@ public class BiuPlayerManager {
         return buildState("sync", null);
     }
 
+    public JSObject setSkipSegments(List<long[]> nextSegments) {
+        skipSegments = nextSegments == null ? new ArrayList<>() : new ArrayList<>(nextSegments);
+        notifyState("skipSegments", null);
+        updateProgressLoop();
+        return buildState("skipSegments", null);
+    }
+
     private void ensurePlayer() {
         if (exoPlayer != null) {
             return;
@@ -414,6 +425,22 @@ public class BiuPlayerManager {
 
     private long getCurrentPositionMs() {
         return exoPlayer == null ? 0L : Math.max(0L, exoPlayer.getCurrentPosition());
+    }
+
+    private boolean maybeSkipSponsorSegment() {
+        if (exoPlayer == null || skipSegments.isEmpty()) {
+            return false;
+        }
+
+        long skipEndMs = SponsorSegmentMatcher.findSkipEndMs(skipSegments, getCurrentPositionMs());
+        if (skipEndMs < 0L) {
+            return false;
+        }
+
+        ended = false;
+        exoPlayer.seekTo(skipEndMs);
+        Log.i(TAG, "skipped sponsor segment to positionMs=" + skipEndMs);
+        return true;
     }
 
     private void persistPlaybackSnapshot(boolean force) {

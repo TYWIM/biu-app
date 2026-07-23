@@ -1,10 +1,16 @@
 package com.biu.wood3n;
 
 import com.getcapacitor.JSObject;
+import com.getcapacitor.JSArray;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+
+import org.json.JSONArray;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @CapacitorPlugin(name = "BiuPlayer")
 public class BiuPlayerPlugin extends Plugin {
@@ -124,6 +130,38 @@ public class BiuPlayerPlugin extends Plugin {
                 call.resolve(playerManager.getState());
             } catch (Exception e) {
                 call.reject("getState failed: " + e.getMessage());
+            }
+        });
+    }
+
+    @PluginMethod
+    public void setSkipSegments(PluginCall call) {
+        JSArray segmentsArray = call.getArray("segments");
+        if (segmentsArray == null) {
+            call.reject("segments array is required");
+            return;
+        }
+
+        List<long[]> segments = new ArrayList<>();
+        for (int i = 0; i < segmentsArray.length(); i++) {
+            try {
+                JSONArray segment = segmentsArray.getJSONArray(i);
+                double start = segment.getDouble(0);
+                double end = segment.getDouble(1);
+                if (Double.isFinite(start) && Double.isFinite(end) && start >= 0d && end > start) {
+                    segments.add(new long[]{Math.round(start * 1000d), Math.round(end * 1000d)});
+                }
+            } catch (Exception e) {
+                call.reject("invalid segment at index " + i);
+                return;
+            }
+        }
+
+        getActivity().runOnUiThread(() -> {
+            try {
+                call.resolve(playerManager.setSkipSegments(segments));
+            } catch (Exception e) {
+                call.reject("setSkipSegments failed: " + e.getMessage());
             }
         });
     }

@@ -86,6 +86,7 @@ interface NativePlayerPlugin {
   getEqualizerInfo(): Promise<EqualizerInfo>;
   setEqualizerBands(options: { levels: number[] }): Promise<EqualizerInfo>;
   setEqualizerPreset(options: { preset: string }): Promise<EqualizerInfo>;
+  setSkipSegments(options: { segments: [number, number][] }): Promise<NativePlayerState>;
   addListener(
     eventName: "playerStateChange",
     listenerFunc: (state: NativePlayerState) => void,
@@ -117,6 +118,14 @@ export const updateNativePlayerMetadata = async (metadata: { title?: string; art
   }
 
   await NativePlayer.updateMetadata(metadata);
+};
+
+export const setNativePlayerSkipSegments = async (segments: [number, number][]) => {
+  if (!shouldUseNativePlayer()) {
+    return;
+  }
+
+  await NativePlayer.setSkipSegments({ segments });
 };
 
 export const getEqualizerInfo = async (): Promise<EqualizerInfo | null> => {

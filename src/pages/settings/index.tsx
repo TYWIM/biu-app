@@ -28,6 +28,7 @@ const useSystemSettingsForm = () => {
     pageTransition,
     showSearchHistory,
     reportPlayHistory,
+    sponsorBlockEnabled,
   } = useSettings(
     useShallow(s => ({
       fontFamily: s.fontFamily,
@@ -42,6 +43,7 @@ const useSystemSettingsForm = () => {
       pageTransition: s.pageTransition,
       showSearchHistory: s.showSearchHistory,
       reportPlayHistory: s.reportPlayHistory,
+      sponsorBlockEnabled: s.sponsorBlockEnabled,
     })),
   );
   const updateSettings = useSettings(s => s.update);
@@ -66,6 +68,7 @@ const useSystemSettingsForm = () => {
       pageTransition,
       showSearchHistory,
       reportPlayHistory,
+      sponsorBlockEnabled,
     },
   });
 

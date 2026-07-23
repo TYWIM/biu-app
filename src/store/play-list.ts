@@ -13,6 +13,7 @@ import {
   createPlaybackAudio,
   type PlaybackAudio,
   setNativePlayerRemoteCommandHandler,
+  setNativePlayerSkipSegments,
   shouldUseNativePlayer,
   updateNativePlayerMetadata,
 } from "@/common/utils/native-player";
@@ -23,6 +24,7 @@ import { getRuntimeStore, setRuntimeStore } from "@/common/utils/runtime-store";
 import { stripHtml } from "@/common/utils/str";
 import { formatUrlProtocol } from "@/common/utils/url";
 import { getAudioSongInfo } from "@/service/audio-song-info";
+import { findSponsorBlockSkipTarget, getSponsorBlockSegments, type SponsorBlockSegment } from "@/service/sponsor-block";
 import { getWebInterfaceView } from "@/service/web-interface-view";
 import { StoreNameMap } from "@shared/store";
 
@@ -288,6 +290,8 @@ let shouldResumeAfterReconnect = false;
 let playbackRecoveryTimer: ReturnType<typeof setTimeout> | undefined;
 let isPlayListInitialized = false;
 let playbackSelectionVersion = 0;
+let sponsorBlockRequestVersion = 0;
+let activeSponsorBlockSegments: SponsorBlockSegment[] = [];
 
 const invalidatePendingPlaybackSelection = () => ++playbackSelectionVersion;
 const isCurrentPlaybackSelection = (version: number) => version === playbackSelectionVersion;
@@ -467,6 +471,14 @@ const syncCurrentTimeState = (force = false) => {
   const now = performance.now();
   if (!force && now - lastTimeUpdateTs < TIMEUPDATE_THROTTLE_MS) return;
   lastTimeUpdateTs = now;
+
+  if (useSettings.getState().sponsorBlockEnabled) {
+    const skipTarget = findSponsorBlockSkipTarget(activeSponsorBlockSegments, audio.currentTime);
+    if (skipTarget !== undefined) {
+      audio.currentTime = skipTarget;
+    }
+  }
+
   const currentTime = Math.max(0, Math.round(audio.currentTime * 100) / 100);
   usePlayProgress.getState().setCurrentTime(currentTime);
 };
@@ -1613,10 +1625,48 @@ function resetAudioAndPlay(url: string) {
   });
 }
 
+const configureSponsorBlockForItem = async (playItem?: PlayData) => {
+  const requestVersion = ++sponsorBlockRequestVersion;
+  activeSponsorBlockSegments = [];
+  void setNativePlayerSkipSegments([]).catch(error => {
+    log.warn("[sponsor-block] failed to clear native segments", error);
+  });
+
+  if (
+    !useSettings.getState().sponsorBlockEnabled ||
+    playItem?.type !== "mv" ||
+    !playItem.bvid ||
+    !playItem.cid ||
+    playItem.source === "local"
+  ) {
+    return;
+  }
+
+  try {
+    const segments = await getSponsorBlockSegments(playItem.bvid, playItem.cid);
+    const currentItem = usePlayList.getState().getPlayItem();
+    if (
+      requestVersion !== sponsorBlockRequestVersion ||
+      !useSettings.getState().sponsorBlockEnabled ||
+      currentItem?.id !== playItem.id
+    ) {
+      return;
+    }
+
+    activeSponsorBlockSegments = segments;
+    await setNativePlayerSkipSegments(segments.map(segment => [segment.start, segment.end]));
+  } catch (error) {
+    if (requestVersion === sponsorBlockRequestVersion) {
+      log.warn("[sponsor-block] failed to load segments", error);
+    }
+  }
+};
+
 // 切换歌曲时，更新当前播放的歌曲信息
 usePlayList.subscribe(async (state, prevState) => {
   if (state.playId !== prevState.playId) {
     const targetPlayId = state.playId;
+    void configureSponsorBlockForItem(state.list.find(item => item.id === targetPlayId));
     if (!state.playId) {
       const prevPlayItem = prevState.list.find(item => item.id === prevState.playId);
       if (shouldReportPlayRecord(prevPlayItem)) {
@@ -1763,6 +1813,12 @@ usePlayList.subscribe(async (state, prevState) => {
         }
       }
     }
+  }
+});
+
+useSettings.subscribe((state, prevState) => {
+  if (state.sponsorBlockEnabled !== prevState.sponsorBlockEnabled) {
+    void configureSponsorBlockForItem(usePlayList.getState().getPlayItem());
   }
 });
 

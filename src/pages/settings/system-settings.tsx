@@ -293,6 +293,25 @@ export const SystemSettingsTab = ({
           )}
         />
       </div>
+      <div className={settingRowClass}>
+        <div className={labelClass}>
+          <div className="text-medium font-medium">自动跳过赞助片段</div>
+          <div className="text-sm text-zinc-500">使用小电视空降助手社区数据，自动跳过赞助、填充和音乐无关片段</div>
+        </div>
+        <Controller
+          control={control}
+          name="sponsorBlockEnabled"
+          render={({ field }) => (
+            <Switch
+              aria-label="自动跳过赞助片段"
+              className={isMobile ? "min-h-11" : undefined}
+              disableAnimation
+              isSelected={field.value}
+              onValueChange={field.onChange}
+            />
+          )}
+        />
+      </div>
       {/* 播放记录上报 */}
       <div className={settingRowClass}>
         <div className={labelClass}>

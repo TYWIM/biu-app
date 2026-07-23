@@ -61,6 +61,7 @@ export const useSettings = create<AppSettings & SettingsActions>()(
           pageTransition: state.pageTransition,
           showSearchHistory: state.showSearchHistory,
           reportPlayHistory: state.reportPlayHistory,
+          sponsorBlockEnabled: state.sponsorBlockEnabled,
         };
       },
     },

@@ -11,4 +11,5 @@ export const defaultAppSettings: AppSettings = {
   pageTransition: "none",
   showSearchHistory: true,
   reportPlayHistory: true,
+  sponsorBlockEnabled: false,
 };

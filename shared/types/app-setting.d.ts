@@ -16,4 +16,5 @@ interface AppSettings {
   pageTransition: PageTransition;
   showSearchHistory: boolean;
   reportPlayHistory: boolean;
+  sponsorBlockEnabled: boolean;
 }
