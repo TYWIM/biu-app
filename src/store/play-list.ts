@@ -107,6 +107,7 @@ export interface PlayItem {
   audioUrl?: string;
   title: string;
   bvid?: string;
+  cid?: string;
   sid?: number;
   cover?: string;
   ownerName?: string;
@@ -285,6 +286,12 @@ export const audio = createAudio();
 let reconnectPlaybackPosition: number | null = null;
 let shouldResumeAfterReconnect = false;
 let playbackRecoveryTimer: ReturnType<typeof setTimeout> | undefined;
+let isPlayListInitialized = false;
+let playbackSelectionVersion = 0;
+
+const invalidatePendingPlaybackSelection = () => ++playbackSelectionVersion;
+const isCurrentPlaybackSelection = (version: number) => version === playbackSelectionVersion;
+const isCurrentPlayId = (playId?: string) => Boolean(playId) && usePlayList.getState().playId === playId;
 
 // 每首歌的播放速度缓存
 const getRateCacheKey = (item: PlayData | undefined): string | null => {
@@ -708,6 +715,11 @@ export const usePlayList = create<State & Action>()(
         isOnline: navigator.onLine,
         list: [],
         init: async () => {
+          if (isPlayListInitialized) {
+            return;
+          }
+          isPlayListInitialized = true;
+
           if (audio) {
             const { volume: initialVolume, isMuted: initialMuted } = getRuntimeVolumeState(get());
 
@@ -1059,6 +1071,7 @@ export const usePlayList = create<State & Action>()(
           set({ shouldKeepPagesOrderInRandomPlayMode: shouldKeep });
         },
         play: async ({ type, bvid, sid, title, cover, ownerName, ownerMid, id, source, audioUrl }: PlayItem) => {
+          const selectionVersion = invalidatePendingPlaybackSelection();
           const { list, playId } = get();
           const currentItem = list?.find(item => item.id === playId);
           const sanitizedTitle = sanitizeTitle(title);
@@ -1116,6 +1129,10 @@ export const usePlayList = create<State & Action>()(
             }
           }
 
+          if (!isCurrentPlaybackSelection(selectionVersion)) {
+            return;
+          }
+
           const nextPlayItem = playItem[0];
           if (!nextPlayItem) {
             toastError("播放失败：无法获取播放信息");
@@ -1128,6 +1145,7 @@ export const usePlayList = create<State & Action>()(
           });
         },
         playListItem: async (id: string) => {
+          invalidatePendingPlaybackSelection();
           if (get().playId === id) {
             if (audio.paused) {
               await get().togglePlay();
@@ -1143,6 +1161,7 @@ export const usePlayList = create<State & Action>()(
           });
         },
         playList: async items => {
+          invalidatePendingPlaybackSelection();
           const newList = items.map(item => ({
             ...item,
             title: sanitizeTitle(item.title),
@@ -1155,6 +1174,7 @@ export const usePlayList = create<State & Action>()(
           });
         },
         next: async () => {
+          invalidatePendingPlaybackSelection();
           const { playMode, list, playId, nextId, shouldKeepPagesOrderInRandomPlayMode } = get();
 
           if (!list?.length) {
@@ -1225,6 +1245,7 @@ export const usePlayList = create<State & Action>()(
           }
         },
         prev: async () => {
+          invalidatePendingPlaybackSelection();
           const { playId, list } = get();
 
           if (!list?.length) {
@@ -1454,6 +1475,7 @@ export const usePlayList = create<State & Action>()(
           });
         },
         clear: () => {
+          invalidatePendingPlaybackSelection();
           const currentPlayItem = get().getPlayItem?.();
           if (shouldReportPlayRecord(currentPlayItem)) {
             endPlayReport();
@@ -1594,6 +1616,7 @@ function resetAudioAndPlay(url: string) {
 // 切换歌曲时，更新当前播放的歌曲信息
 usePlayList.subscribe(async (state, prevState) => {
   if (state.playId !== prevState.playId) {
+    const targetPlayId = state.playId;
     if (!state.playId) {
       const prevPlayItem = prevState.list.find(item => item.id === prevState.playId);
       if (shouldReportPlayRecord(prevPlayItem)) {
@@ -1626,6 +1649,7 @@ usePlayList.subscribe(async (state, prevState) => {
       if (playItem?.type === "mv") {
         if (playItem?.bvid && playItem?.cid) {
           const mvPlayData = await getDashUrl(playItem.bvid, playItem.cid);
+          if (!isCurrentPlayId(targetPlayId)) return;
           if (mvPlayData?.audioUrl) {
             resetAudioAndPlay(mvPlayData?.audioUrl);
 
@@ -1656,9 +1680,11 @@ usePlayList.subscribe(async (state, prevState) => {
           }
         } else if (playItem?.bvid) {
           const mvData = await getMVData(playItem.bvid);
+          if (!isCurrentPlayId(targetPlayId)) return;
           const [firstMV, ...restMV] = mvData;
           if (firstMV?.cid) {
             const mvPlayData = await getDashUrl(playItem.bvid, firstMV.cid);
+            if (!isCurrentPlayId(targetPlayId)) return;
             if (mvPlayData?.audioUrl) {
               resetAudioAndPlay(mvPlayData?.audioUrl);
 
@@ -1710,6 +1736,7 @@ usePlayList.subscribe(async (state, prevState) => {
 
       if (playItem?.type === "audio" && playItem?.sid) {
         const musicPlayData = await getAudioUrl(playItem.sid);
+        if (!isCurrentPlayId(targetPlayId)) return;
         if (musicPlayData?.audioUrl) {
           resetAudioAndPlay(musicPlayData?.audioUrl);
 

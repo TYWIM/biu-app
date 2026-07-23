@@ -25,7 +25,6 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(BiuCookiePlugin.class);
         registerPlugin(BiuDownloadPlugin.class);
-        registerPlugin(BiuHttpPlugin.class);
         registerPlugin(BiuPlayerPlugin.class);
         super.onCreate(savedInstanceState);
 

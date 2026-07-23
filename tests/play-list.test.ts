@@ -83,6 +83,18 @@ describe("play-list store", () => {
     expect(typeof audio.onplay).toBe("function");
   });
 
+  test("init is idempotent", async () => {
+    const s = usePlayList.getState();
+    await s.init();
+    const onError = s.getAudio().onerror;
+    const onEnded = s.getAudio().onended;
+
+    await s.init();
+
+    expect(s.getAudio().onerror).toBe(onError);
+    expect(s.getAudio().onended).toBe(onEnded);
+  });
+
   test("setVolume, setRate, setPlayMode", async () => {
     const s = usePlayList.getState();
     await s.init();
@@ -111,6 +123,55 @@ describe("play-list store", () => {
     expect(navigator.mediaSession.playbackState).toBe("playing");
   });
 
+  test("ignores an older play request that resolves after a newer request", async () => {
+    const { getAudioSongInfo } = await import("@/service/audio-song-info");
+    let resolveFirst!: (value: any) => void;
+    const firstResponse = new Promise<any>(resolve => {
+      resolveFirst = resolve;
+    });
+    vi.mocked(getAudioSongInfo)
+      .mockImplementationOnce(() => firstResponse)
+      .mockResolvedValueOnce({
+        data: {
+          id: 902,
+          uid: 1,
+          uname: "owner-2",
+          author: "owner-2",
+          title: "newer",
+          cover: "",
+          intro: "",
+          crtype: 1,
+          duration: 100,
+          passtime: Date.now(),
+          curtime: Date.now(),
+          aid: 0,
+        },
+      } as any);
+
+    const first = usePlayList.getState().play({ type: "audio", sid: 901, title: "older" });
+    const second = usePlayList.getState().play({ type: "audio", sid: 902, title: "newer" });
+    await second;
+    resolveFirst({
+      data: {
+        id: 901,
+        uid: 1,
+        uname: "owner-1",
+        author: "owner-1",
+        title: "older",
+        cover: "",
+        intro: "",
+        crtype: 1,
+        duration: 100,
+        passtime: Date.now(),
+        curtime: Date.now(),
+        aid: 0,
+      },
+    });
+    await first;
+
+    expect(usePlayList.getState().getPlayItem()?.sid).toBe(902);
+  });
+
   test("playList sets list and next/prev in sequence", async () => {
     const s = usePlayList.getState();
     await s.init();
@@ -124,6 +185,44 @@ describe("play-list store", () => {
     expect(secondId).not.toBe(firstId);
     await s.prev();
     expect(usePlayList.getState().playId).toBe(firstId);
+  });
+
+  test("ignores a stale stream URL after switching to another queue item", async () => {
+    const { getDashUrl } = await import("@/common/utils/audio");
+    let resolveFirst!: (value: any) => void;
+    const firstStream = new Promise<any>(resolve => {
+      resolveFirst = resolve;
+    });
+    vi.mocked(getDashUrl)
+      .mockImplementationOnce(() => firstStream)
+      .mockResolvedValueOnce({
+        audioUrl: "https://video.test/second.mp3",
+        videoUrl: "https://video.test/second.mp4",
+        isLossless: false,
+      } as any);
+
+    const s = usePlayList.getState();
+    await s.playList([
+      { type: "mv", bvid: "BV-first", cid: "1", title: "first" },
+      { type: "mv", bvid: "BV-second", cid: "2", title: "second" },
+    ]);
+    const secondId = usePlayList.getState().list[1].id;
+    await s.playListItem(secondId);
+
+    await vi.waitFor(() => {
+      expect(s.getAudio().src).toBe("https://video.test/second.mp3");
+    });
+
+    resolveFirst({
+      audioUrl: "https://video.test/first.mp3",
+      videoUrl: "https://video.test/first.mp4",
+      isLossless: false,
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(s.getAudio().src).toBe("https://video.test/second.mp3");
+    expect(usePlayList.getState().playId).toBe(secondId);
   });
 
   test("offline playback errors preserve the current track", async () => {

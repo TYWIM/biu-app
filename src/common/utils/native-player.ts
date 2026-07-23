@@ -53,6 +53,8 @@ interface NativePlayerState {
   error?: string;
 }
 
+export const didPlaybackEnd = (wasEnded: boolean, isEnded: boolean) => !wasEnded && isEnded;
+
 export interface EqualizerBand {
   index: number;
   frequency: number;
@@ -218,6 +220,8 @@ class NativeAudioAdapter implements PlaybackAudio {
 
   private buffering = false;
 
+  private ended = false;
+
   private listenerHandle?: PluginListenerHandle;
 
   private commandQueue: Promise<unknown> = Promise.resolve();
@@ -308,7 +312,7 @@ class NativeAudioAdapter implements PlaybackAudio {
       playbackRate: this.playbackRate,
       loop: this.loop,
       ready: this.ready,
-      ended: false,
+      ended: this.ended,
       playing: this.playing,
       buffering: this.buffering,
     };
@@ -348,6 +352,7 @@ class NativeAudioAdapter implements PlaybackAudio {
     }
 
     const ended = Boolean(next.ended);
+    this.ended = ended;
     const reason = next.reason;
 
     if (!prev.ready && this.ready) {
@@ -397,7 +402,7 @@ class NativeAudioAdapter implements PlaybackAudio {
       this.emit("pause");
     }
 
-    if (!prev.ended && ended) {
+    if (didPlaybackEnd(prev.ended, ended)) {
       callMediaHandler(this.onended as ((this: GlobalEventHandlers, ev: Event) => any) | null, "ended");
       this.emit("ended");
     }
@@ -493,6 +498,7 @@ class NativeAudioAdapter implements PlaybackAudio {
     this.currentTime = 0;
     this.playing = false;
     this.buffering = false;
+    this.ended = false;
     this.paused = true;
 
     if (!value) {

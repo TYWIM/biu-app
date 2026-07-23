@@ -82,6 +82,7 @@ dist
 playwright-report/
 test-results/
 output/playwright/
+.codegraph/
 
 # Gatsby files
 .cache/
